@@ -42,10 +42,11 @@
 
 ## نصب سریع
 
-روی **هر دو** سرور اجرا کنید:
+ریپو خصوصی است و نصاب به توکن خواندن نیاز دارد. یک توکن fine-grained با دسترسی **Contents: Read-only** روی همین ریپو بسازید (گیت‌هاب → Settings → Developer settings → Fine-grained tokens) و روی **هر دو** سرور اجرا کنید:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/pdnczone/hashem-panel/main/install.sh)
+export GRE_GITHUB_TOKEN="github_pat_…"   # Contents: Read-only روی Dark-modem/quantum
+bash <(curl -fsSL -H "Authorization: Bearer $GRE_GITHUB_TOKEN" https://raw.githubusercontent.com/Dark-modem/quantum/main/install.sh)
 ```
 
 ۱. **سرور ایران:** گزینه‌ی `1`؛ تونل و پورت‌ها را انتخاب کنید و باندلی را که چاپ می‌شود (`hsh1_…`) کپی کنید.

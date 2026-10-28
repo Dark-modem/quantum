@@ -50,10 +50,11 @@ The GRE link itself can be wrapped four ways: **Direct** (protocol 47), **WSS** 
 
 ## Quick install
 
-Run on **both** servers:
+The repository is private, so the installer needs a read token. Create a fine-grained token with **Contents: Read-only** on this repo (GitHub → Settings → Developer settings → Fine-grained tokens), then run on **both** servers:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/pdnczone/hashem-panel/main/install.sh)
+export GRE_GITHUB_TOKEN="github_pat_…"   # Contents: Read-only on Dark-modem/quantum
+bash <(curl -fsSL -H "Authorization: Bearer $GRE_GITHUB_TOKEN" https://raw.githubusercontent.com/Dark-modem/quantum/main/install.sh)
 ```
 
 1. **Iran server:** choose `1`, pick the tunnel and ports, and copy the bundle it prints (`hsh1_…`).

@@ -13,17 +13,13 @@ fi
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# Display HASHEM logo banner
+# Display installer banner
 clear 2>/dev/null || true
 echo -e "\033[0;36m"
-cat << 'EOF'
-  _    _           _____ _    _ ______ __  __ 
- | |  | |   /\    / ____| |  | |  ____|  \/  |
- | |__| |  /  \  | (___ | |__| | |__  | \  / |
- |  __  | / /\ \  \___ \|  __  |  __| | |\/| |
- | |  | |/ ____ \ ____) | |  | | |____| |  | |
- |_|  |_/_/    \_|_____/|_|  |_|______|_|  |_|
-EOF
+echo "  ============================================================"
+echo "     Q U A N T U M"
+echo "     Reverse Tunnel & Web Panel Installer"
+echo "  ============================================================"
 echo -e "\033[0m"
 echo -e "\033[0;36m==============================================================\033[0m"
 echo -e "\033[1;32m     HASHEM REVERSE TUNNEL & WEB PANEL INSTALLER\033[0m"
