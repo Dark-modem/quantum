@@ -6710,7 +6710,8 @@ update_tag_ok() { [[ "${1:-}" =~ ^(v[0-9]+\.[0-9]+\.[0-9]+|dev-r[0-9]+|panel-r[0
 update_verify_asset() {
     local F="$1" TAG="$2" ASSET="$3" SUMS WANT GOT
     SUMS=$(release_manifest_fetch "$TAG" 2>/dev/null) || return 2
-    WANT=$(printf '%s\n' "$SUMS" | awk -v a="$ASSET" '$2==a {print $1; exit}')
+    # manifests may carry the binary-mode marker ("*hashem.sh") — strip it
+    WANT=$(printf '%s\n' "$SUMS" | awk -v a="$ASSET" '{n=$2; sub(/^\*/, "", n); if (n == a) {print $1; exit}}')
     [[ -n "$WANT" ]] || return 2
     GOT=$(sha256sum "$F" 2>/dev/null | awk '{print $1}')
     [[ -n "$GOT" && "$GOT" == "$WANT" ]] && return 0
