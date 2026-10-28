@@ -142,6 +142,8 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `POST` | `/api/update` | session + CSRF | `handleUpdate` |
 | `GET` | `/api/update/channel` | session | `handleUpdateChannelGet` |
 | `POST` | `/api/update/channel` | session + CSRF | `handleUpdateChannelPost` |
+| `GET` | `/api/update/github-token` | session | `handleGithubTokenGet` |
+| `POST` | `/api/update/github-token` | session + CSRF | `handleGithubTokenPost` |
 | `GET` | `/api/update/peer` | session | `handleUpdatePeer` |
 | `GET` | `/api/version` | session | `handleVersion` |
 | `GET` | `/api/watchdog` | session | `handleWatchdogGet` |
@@ -152,4 +154,4 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `POST` | `/api/xray` | session + CSRF | `handleXrayPost` |
 | `GET` | `/metrics` | none | `handleMetrics` |
 
-Total: 128 routes.
+Total: 130 routes.

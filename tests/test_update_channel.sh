@@ -10,7 +10,7 @@ fail=0
 ext() { awk -v n="$1" '$0 ~ "^"n"\\(\\) \\{" {p=1} p {print} p && /^}/ {exit}' "$ROOT/hashem.sh"; }
 UPDATE_FILE="$PANEL_CONFIG_DIR/update.json"
 UPDATE_API="https://api.github.com/repos/pdnczone/hashem-panel"
-for f in update_get_channel update_set_channel update_tag_ok update_verify_asset update_pick_tag cli_update_channel; do
+for f in gh_token gh_curl gh_asset_url resolve_gh_asset release_manifest_fetch release_verify update_get_channel update_set_channel update_tag_ok update_verify_asset update_pick_tag cli_update_channel; do
   body="$(ext $f)"; [[ -n "$body" ]] || { echo "FAIL: $f missing"; exit 1; }; eval "$body"
 done
 
