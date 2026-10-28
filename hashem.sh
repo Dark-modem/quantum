@@ -10,7 +10,75 @@
 # ---- installed names (single source of truth for this script) ----
 HASHEM_BIN="/usr/local/bin/hashem"       # this script, after install
 HASHEM_SCRIPT="/usr/local/bin/hashem.sh" # versioned copy (gre.sh = legacy alias)
-HASHEM_URL_BASE="https://raw.githubusercontent.com/pdnczone/hashem-panel/main"
+HASHEM_URL_BASE="https://raw.githubusercontent.com/Dark-modem/quantum/main"
+
+# GitHub access token for the private Quantum repository: GRE_GITHUB_TOKEN,
+# then GITHUB_TOKEN, then <PANEL_CONFIG_DIR>/github-token (0600). Empty while
+# the repository is public.
+gh_token() {
+    local T="${GRE_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}"
+    if [[ -z "$T" && -n "${PANEL_CONFIG_DIR:-}" && -f "${PANEL_CONFIG_DIR}/github-token" ]]; then
+        T=$(tr -d ' \t\r\n' < "${PANEL_CONFIG_DIR}/github-token" 2>/dev/null)
+    fi
+    printf '%s' "$T"
+}
+
+# gh_curl <curl args...>: curl with the Bearer header when a token exists and
+# the URL is github.com / api.github.com / raw.githubusercontent.com — the
+# token is never sent to third-party mirrors.
+gh_curl() {
+    local URL="" A T
+    for A in "$@"; do
+        case "$A" in
+            https://github.com/*|https://api.github.com/*|https://raw.githubusercontent.com/*) URL="$A"; break ;;
+        esac
+    done
+    T=$(gh_token)
+    if [[ -n "$URL" && -n "$T" ]]; then
+        curl -H "Authorization: Bearer $T" "$@"
+    else
+        curl "$@"
+    fi
+}
+
+# gh_asset_url TAG NAME: prints the api.github.com asset URL of a release
+# asset of the private Quantum repository (empty output = not found or no
+# token). github.com/.../releases/download does not accept API tokens, so
+# private assets are pulled from the API with Accept: application/octet-stream.
+gh_asset_url() {
+    local TAG="$1" NAME="$2" T REL JSON
+    T=$(gh_token)
+    [[ -n "$T" ]] || return 0
+    if [[ -z "$TAG" || "$TAG" == "latest" ]]; then
+        REL="https://api.github.com/repos/Dark-modem/quantum/releases/latest"
+    else
+        REL="https://api.github.com/repos/Dark-modem/quantum/releases/tags/${TAG}"
+    fi
+    JSON=$(gh_curl -fsSL --connect-timeout 6 --max-time 20 "$REL" 2>/dev/null) || return 0
+    printf '%s' "$JSON" | python3 -c '
+import json, sys
+rel = json.load(sys.stdin)
+for a in rel.get("assets", []):
+    if a.get("name") == sys.argv[1]:
+        print(a["url"])
+        break
+' "$NAME" 2>/dev/null
+}
+
+# resolve_gh_asset URL: with a token, translate a Quantum release-download URL
+# into its api.github.com asset URL; without a token the URL passes through
+# (public fallback).
+resolve_gh_asset() {
+    local URL="$1" REST TAG NAME API_URL
+    case "$URL" in
+        https://github.com/Dark-modem/quantum/releases/download/*)
+            REST="${URL#https://github.com/Dark-modem/quantum/releases/download/}"
+            TAG="${REST%%/*}"; NAME="${REST#*/}"
+            API_URL=$(gh_asset_url "$TAG" "$NAME")
+            [[ -n "$API_URL" ]] && printf '%s' "$API_URL" || printf '%s' "$URL" ;;
+        *) printf '%s' "$URL" ;;
+    esac
+}
 
 CYAN='\033[0;36m'
 GREEN='\033[0;32m'
@@ -2143,7 +2211,13 @@ download_with_fallback() {
         DIRECT_CONNECT_TO=5
     fi
 
-    if curl -fsSL --connect-timeout "$DIRECT_CONNECT_TO" --max-time "$TIMEOUT" "${STALL[@]}" -o "$DEST" "$URL" 2>/dev/null && is_valid_download "$DEST"; then
+    # The API asset URLs of the private repository need Accept: octet-stream
+    # (they answer with a redirect to a signed download URL).
+    local EXTRA=()
+    case "$URL" in
+        https://api.github.com/*) EXTRA=(-H "Accept: application/octet-stream") ;;
+    esac
+    if gh_curl -fsSL "${EXTRA[@]}" --connect-timeout "$DIRECT_CONNECT_TO" --max-time "$TIMEOUT" "${STALL[@]}" -o "$DEST" "$URL" 2>/dev/null && is_valid_download "$DEST"; then
         return 0
     fi
     rm -f "$DEST" 2>/dev/null
@@ -6610,7 +6684,7 @@ install_panel_smart() {
 }
 
 UPDATE_FILE="${PANEL_CONFIG_DIR}/update.json"
-UPDATE_API="https://api.github.com/repos/pdnczone/hashem-panel"
+UPDATE_API="https://api.github.com/repos/Dark-modem/quantum"
 
 # Update channel: stable (default) or dev. Same file the web panel reads.
 update_get_channel() {
@@ -6635,7 +6709,7 @@ update_tag_ok() { [[ "${1:-}" =~ ^(v[0-9]+\.[0-9]+\.[0-9]+|dev-r[0-9]+|panel-r[0
 # 0 = verified, 1 = MISMATCH (never fall back after this), 2 = no manifest/entry (legacy release).
 update_verify_asset() {
     local F="$1" TAG="$2" ASSET="$3" SUMS WANT GOT
-    SUMS=$(curl -fsSL --connect-timeout 5 --max-time 15 "https://github.com/pdnczone/hashem-panel/releases/download/${TAG}/checksums.txt" 2>/dev/null) || return 2
+    SUMS=$(release_manifest_fetch "$TAG" 2>/dev/null) || return 2
     WANT=$(printf '%s\n' "$SUMS" | awk -v a="$ASSET" '$2==a {print $1; exit}')
     [[ -n "$WANT" ]] || return 2
     GOT=$(sha256sum "$F" 2>/dev/null | awk '{print $1}')
@@ -6647,7 +6721,7 @@ update_pick_tag() {
     local CH JSON="" U ROWS TAG=""
     CH=$(update_get_channel)
     for U in "${UPDATE_API}/releases?per_page=30" "https://mirror.ghproxy.com/${UPDATE_API}/releases?per_page=30"; do
-        JSON=$(curl -fsSL --connect-timeout 4 --max-time 10 "$U" 2>/dev/null) || JSON=""
+        JSON=$(gh_curl -fsSL --connect-timeout 4 --max-time 10 "$U" 2>/dev/null) || JSON=""
         [[ -n "$JSON" ]] && break
     done
     # one "tag draft prerelease" row per release
@@ -6659,7 +6733,7 @@ update_pick_tag() {
     else
         TAG=$(printf '%s\n' "$ROWS" | awk '$2==":false" && $3==":false" && $1 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ {print $1}' | sort -V | tail -1)
         if [[ -z "$TAG" ]]; then
-            TAG=$(curl -fsSL --connect-timeout 4 --max-time 10 "${UPDATE_API}/releases/latest" 2>/dev/null | grep -m1 '"tag_name":' | cut -d'"' -f4)
+            TAG=$(gh_curl -fsSL --connect-timeout 4 --max-time 10 "${UPDATE_API}/releases/latest" 2>/dev/null | grep -m1 '"tag_name":' | cut -d'"' -f4)
         fi
     fi
     update_tag_ok "$TAG" || TAG=""
@@ -6835,9 +6909,15 @@ cli_panel_limits() { # [--apply] [--mem MB]: print (default) or apply panel limi
 # a mirror (a mirror could serve a forged binary and a matching manifest).
 # Prints the manifest; $1 = release tag, empty for the latest release.
 release_manifest_fetch() {
-    local base="https://github.com/pdnczone/hashem-panel/releases/latest/download" n
-    [[ -n "$1" ]] && base="https://github.com/pdnczone/hashem-panel/releases/download/$1"
+    local base="https://github.com/Dark-modem/quantum/releases/latest/download" n
+    [[ -n "$1" ]] && base="https://github.com/Dark-modem/quantum/releases/download/$1"
     for n in checksums.txt SHA256SUMS; do
+        # Private repository: resolve the asset through the API (Bearer).
+        local API_URL
+        API_URL=$(gh_asset_url "${1:-latest}" "$n")
+        if [[ -n "$API_URL" ]]; then
+            gh_curl -fsSL --connect-timeout 8 --max-time 30 -H "Accept: application/octet-stream" "$API_URL" 2>/dev/null && return 0
+        fi
         curl -fsSL --connect-timeout 8 --max-time 30 "${base}/${n}" 2>/dev/null && return 0
     done
     return 1
@@ -6875,17 +6955,14 @@ install_panel() {
     fi
     LATEST_JSON=""
     if [[ -z "$UPD_TAG" ]]; then
-        LATEST_JSON=$(curl -fsSL --connect-timeout 4 --max-time 10 "https://api.github.com/repos/pdnczone/hashem-panel/releases/latest" 2>/dev/null) || true
-        if [[ -z "$LATEST_JSON" ]]; then
-            LATEST_JSON=$(curl -fsSL --connect-timeout 4 --max-time 10 "https://mirror.ghproxy.com/https://api.github.com/repos/pdnczone/hashem-panel/releases/latest" 2>/dev/null) || true
-        fi
+        LATEST_JSON=$(gh_curl -fsSL --connect-timeout 4 --max-time 10 "https://api.github.com/repos/Dark-modem/quantum/releases/latest" 2>/dev/null) || true
     fi
     DL_URL=""
     GREPANEL_URL=""
     HASHEMSH_URL=""
     HASHEM_URL=""
     if [[ -n "$UPD_TAG" ]]; then
-        local REL_BASE="https://github.com/pdnczone/hashem-panel/releases/download/${UPD_TAG}"
+        local REL_BASE="https://github.com/Dark-modem/quantum/releases/download/${UPD_TAG}"
         DL_URL="${REL_BASE}/${PANEL_ASSET}"
         GREPANEL_URL="${REL_BASE}/grepanel"
         HASHEMSH_URL="${REL_BASE}/hashem.sh"
@@ -6897,10 +6974,16 @@ install_panel() {
         HASHEM_URL=$(echo "$LATEST_JSON" | grep -o "\"browser_download_url\": *\"[^\"]*/hashem\"" | head -1 | cut -d'"' -f4)
     fi
     # Fallback to direct release asset URLs if API was blocked/empty
-    [[ -z "$DL_URL" ]] && DL_URL="https://github.com/pdnczone/hashem-panel/releases/latest/download/${PANEL_ASSET}"
-    [[ -z "$GREPANEL_URL" ]] && GREPANEL_URL="https://github.com/pdnczone/hashem-panel/releases/latest/download/grepanel"
-    [[ -z "$HASHEMSH_URL" ]] && HASHEMSH_URL="https://github.com/pdnczone/hashem-panel/releases/latest/download/hashem.sh"
-    [[ -z "$HASHEM_URL" ]] && HASHEM_URL="https://github.com/pdnczone/hashem-panel/releases/latest/download/hashem"
+    [[ -z "$DL_URL" ]] && DL_URL="https://github.com/Dark-modem/quantum/releases/latest/download/${PANEL_ASSET}"
+    [[ -z "$GREPANEL_URL" ]] && GREPANEL_URL="https://github.com/Dark-modem/quantum/releases/latest/download/grepanel"
+    [[ -z "$HASHEMSH_URL" ]] && HASHEMSH_URL="https://github.com/Dark-modem/quantum/releases/latest/download/hashem.sh"
+    [[ -z "$HASHEM_URL" ]] && HASHEM_URL="https://github.com/Dark-modem/quantum/releases/latest/download/hashem"
+    # Private repository: translate release-download URLs into authenticated
+    # api.github.com asset URLs (a token on github.com/... gives 404).
+    DL_URL=$(resolve_gh_asset "$DL_URL")
+    GREPANEL_URL=$(resolve_gh_asset "$GREPANEL_URL")
+    HASHEMSH_URL=$(resolve_gh_asset "$HASHEMSH_URL")
+    HASHEM_URL=$(resolve_gh_asset "$HASHEM_URL")
 
     # Everything downloaded below may come through a third-party mirror, so
     # it is checked against the release's checksums.txt from GitHub itself.
@@ -6973,8 +7056,9 @@ install_panel() {
             apt-get update -qq || true
             apt-get install -y -qq golang-go || true
         fi
-        # The source archive has no checksum: fetch it from GitHub only.
-        if ! curl -fsSL --connect-timeout 8 --max-time 120 -o "$TMP_PANEL/panel.tgz" "https://github.com/pdnczone/hashem-panel/archive/refs/heads/main.tar.gz"; then
+        # The source archive has no checksum: fetch it from GitHub only. The
+        # API tarball endpoint serves private repositories with a Bearer token.
+        if ! gh_curl -fsSL --connect-timeout 8 --max-time 120 -o "$TMP_PANEL/panel.tgz" "https://api.github.com/repos/Dark-modem/quantum/tarball/main"; then
             echo -e "${RED}[!] Failed to download panel sources.${NC}"
             [[ -n "$TMP_SWAP" && -f "$TMP_SWAP" ]] && { swapoff "$TMP_SWAP" 2>/dev/null || true; rm -f "$TMP_SWAP" 2>/dev/null || true; }
             rm -rf "$TMP_PANEL"
@@ -8710,7 +8794,7 @@ update_all() {
     UPD_TAG="${WANT_TAG:-$(update_pick_tag)}"
     echo -e "${CYAN}[*] Channel: $(update_get_channel)${UPD_TAG:+ (release ${UPD_TAG})}${NC}"
     if [[ -n "$UPD_TAG" ]]; then
-        download_with_fallback "$TMP_U/hashem.sh" "https://github.com/pdnczone/hashem-panel/releases/download/${UPD_TAG}/hashem.sh" 30 || rm -f "$TMP_U/hashem.sh"
+        download_with_fallback "$TMP_U/hashem.sh" "$(resolve_gh_asset "https://github.com/Dark-modem/quantum/releases/download/${UPD_TAG}/hashem.sh")" 30 || rm -f "$TMP_U/hashem.sh"
         if [[ -s "$TMP_U/hashem.sh" ]]; then
             update_verify_asset "$TMP_U/hashem.sh" "$UPD_TAG" hashem.sh; _VR=$?
             if [[ $_VR -eq 1 ]]; then
@@ -11302,7 +11386,7 @@ if [[ $# -gt 0 ]]; then
         tune-status) tune_status ;;
         free-ram|optimize-ram) free_ram ;;
         download-cores|cores)
-            echo -e "${CYAN}[*] Downloading and verifying core binaries from pdnczone repository...${NC}"
+            echo -e "${CYAN}[*] Downloading and verifying core binaries from the Quantum repository...${NC}"
             install_frp_binaries "all" || { echo -e "${RED}[!] Failed to install FRP binaries.${NC}"; exit 1; }
             install_backhaul_binaries || { echo -e "${RED}[!] Failed to install Backhaul binary.${NC}"; exit 1; }
             echo -e "${GREEN}[OK] All core binaries (frps, frpc, backhaul) are cached in ${INSTALL_DIR}.${NC}"

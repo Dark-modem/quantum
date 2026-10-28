@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Hashem one-line installer — resilient multi-mirror download & auto-setup.
-# Usage: bash <(curl -fsSL https://raw.githubusercontent.com/pdnczone/hashem-panel/main/install.sh)
+# Quantum one-line installer — resilient multi-mirror download & auto-setup.
+# Usage: GRE_GITHUB_TOKEN=<token> bash <(curl -fsSL https://raw.githubusercontent.com/Dark-modem/quantum/main/install.sh)
+# The repository is private: set GRE_GITHUB_TOKEN to a fine-grained token with
+# Contents:Read on Dark-modem/quantum (raw.githubusercontent.com accepts it).
 set -euo pipefail
 
 if [[ $EUID -ne 0 ]]; then
@@ -32,7 +34,12 @@ echo -e "\033[0;33m[*] Downloading core manager script...\033[0m"
 # canonical GitHub copy was reachable, or when two different mirror hosts
 # served byte-identical content. HASHEM_SHA256=<hex> pins the exact script;
 # HASHEM_ALLOW_UNVERIFIED=1 is the explicit (unsafe) opt-out.
-PRIMARY="https://raw.githubusercontent.com/pdnczone/hashem-panel/main/hashem.sh"
+PRIMARY="https://raw.githubusercontent.com/Dark-modem/quantum/main/hashem.sh"
+# Bearer auth for the private repository (raw.githubusercontent.com accepts
+# the token); never sent to the third-party mirrors.
+AUTH=()
+_install_token="${GRE_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}"
+[[ -n "$_install_token" ]] && AUTH=(-H "Authorization: Bearer $_install_token")
 if [[ -n "${HASHEM_INSTALL_URLS:-}" ]]; then
     read -r -a URLS <<< "$HASHEM_INSTALL_URLS"   # test/override hook
     PRIMARY="${URLS[0]}"
@@ -41,7 +48,7 @@ else
         "$PRIMARY"
         "https://mirror.ghproxy.com/$PRIMARY"
         "https://ghproxy.net/$PRIMARY"
-        "https://fastly.jsdelivr.net/gh/pdnczone/hashem-panel@main/hashem.sh"
+        "https://fastly.jsdelivr.net/gh/Dark-modem/quantum@main/hashem.sh"
     )
 fi
 
@@ -53,7 +60,7 @@ fetch_verified() {
     local -A seen_hosts=() seen_sum=()
     for U in "${URLS[@]}"; do
         i=$((i + 1)); f="$TMP/cand.$i"
-        curl -fsSL --connect-timeout 8 --max-time 40 "$U" -o "$f" 2>/dev/null && [[ -s "$f" ]] && bash -n "$f" 2>/dev/null || continue
+        curl -fsSL "${AUTH[@]}" --connect-timeout 8 --max-time 40 "$U" -o "$f" 2>/dev/null && [[ -s "$f" ]] && bash -n "$f" 2>/dev/null || continue
         sum=$(sha256sum "$f" | awk '{print $1}')
         host=$(url_host "$U")
         if [[ -n "${HASHEM_SHA256:-}" ]]; then
