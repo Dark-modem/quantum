@@ -3,6 +3,15 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.15.0 — 2026-10-29
+
+- Replace the Tunnel sidebar entry with Topology: create server-pair groups first, choose Iran/foreign role, name and endpoint IPs, then add/attach tunnels.
+- Topology list and dedicated pair detail with a graphical Iran/foreign diagram; every attached real tunnel has its own cable and status color.
+- Atomic private topology storage, strict endpoint/role validation and exclusive tunnel ownership; deleting grouping preserves the running tunnels.
+- Existing Matrix/FRP/Backhaul/Bagher/Xray tunnels remain discoverable without recreation. Tunnel View/Edit/Restart/Delete still use their engine-specific controls.
+- Preserve existing installer limitations (one Matrix pair per server and engine-specific port/peer conflicts); topology metadata does not bypass them.
+- Tests cover CRUD, ownership, escaping, one/five cable rendering and navigation.
+
 ## v1.14.0 — 2026-10-29
 
 - Connect a local TCP service from Matrix Edit on the foreign node: bridge mesh-IP:user-port to 127.0.0.1:service-port without modifying Xray configuration or keys.

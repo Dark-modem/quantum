@@ -144,6 +144,10 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `GET` | `/api/tls/ip/ca` | session | `handleTLSIPCAGet` |
 | `GET` | `/api/tls/proxy-config` | session | `handleReverseProxyConfig` |
 | `POST` | `/api/tls/renew` | session + CSRF | `handleTLSRenew` |
+| `GET` | `/api/topologies` | session | `handleTopologiesGet` |
+| `POST` | `/api/topologies` | session + CSRF | `handleTopologiesPost` |
+| `DELETE` | `/api/topologies/{id}` | session + CSRF | `handleTopologyDelete` |
+| `PATCH` | `/api/topologies/{id}` | session + CSRF | `handleTopologyPatch` |
 | `GET` | `/api/traffic/usage` | session | `handleUsageGet` |
 | `GET` | `/api/tunnel-health` | session | `handleTunnelHealthGet` |
 | `POST` | `/api/tunnel-health/run` | session + CSRF | `handleTunnelHealthRun` |
@@ -164,5 +168,6 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `POST` | `/api/xray` | session + CSRF | `handleXrayPost` |
 | `GET` | `/matrix_edit.js` | none | `` |
 | `GET` | `/metrics` | none | `handleMetrics` |
+| `GET` | `/topology.js` | none | `` |
 
-Total: 141 routes.
+Total: 146 routes.
