@@ -80,14 +80,17 @@ echo 'PASS: newline/header injection is rejected'
 
 _install_token='testtoken_12345678901234567890'; export GRE_GITHUB_TOKEN="$_install_token"
 # The check-only path must stop before token persistence or manager execution.
-bash "$ROOT/install.sh" --check > "$T/full-log" 2>&1
+# Simulate root only in the isolated test copy; the production installer keeps
+# its root requirement. GitHub's runner account is intentionally unprivileged.
+sed 's/^if \[\[ $EUID -ne 0 \]\]; then$/if false; then/' "$ROOT/install.sh" > "$T/install-check.sh"
+bash "$T/install-check.sh" --check > "$T/full-log" 2>&1
 grep -q 'check-only, no installation' "$T/full-log"
 echo 'PASS: full installer --check validates download without touching installation'
 
 # Run the complete installer in a temporary filesystem with a harmless manager.
 # Only its /usr/local/bin destination is redirected; production files stay untouched.
 mkdir -p "$T/install-root/bin" "$T/token-dir"
-sed "s#/usr/local/bin#$T/install-root/bin#g" "$ROOT/install.sh" > "$T/install-full.sh"
+sed "s#/usr/local/bin#$T/install-root/bin#g" "$T/install-check.sh" > "$T/install-full.sh"
 printf '#!/bin/bash\nset -eu\ntest -n "${GRE_GITHUB_TOKEN:-}"\nprintf manager-ran > "$TEST_DIR/manager-ran"\n' > "$T/manager.sh"
 GRE_PANEL_DIR="$T/token-dir" bash "$T/install-full.sh" > "$T/full-log" 2>&1
 [[ -f "$T/manager-ran" ]]

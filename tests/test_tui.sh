@@ -50,7 +50,17 @@ for k in sys.argv[2:]:
     print("@@", k)
     print(screen(read_all(fd, 1.2)))
 _, status = os.waitpid(pid, os.WNOHANG)
+# Output can arrive just before the shell exits on a busy runner.
+deadline = time.monotonic() + 2
+while _ == 0 and time.monotonic() < deadline:
+    time.sleep(0.05)
+    _, status = os.waitpid(pid, os.WNOHANG)
 print("@@ alive" if _ == 0 else "@@ exited")
+if _ == 0:
+    import signal
+    os.kill(pid, signal.SIGTERM)
+    os.waitpid(pid, 0)
+os.close(fd)
 PY
 out=$(python3 "$T/drive.py" "$ROOT/hashem.sh" down enter esc 12 esc 6 esc q 2>&1)
 [[ -n "${TUI_DEBUG:-}" ]] && echo "$out"
