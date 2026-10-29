@@ -3,6 +3,14 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.18.0 — 2026-10-29
+
+- Multi-Matrix: a server can now host several independent Matrix tunnels. Each instance gets its own tinc network, interface, key directory, mesh port and systemd unit (`matrix`, `matrix2`, … up to 16 extra); the legacy instance keeps working untouched and new instances are created only on explicit request (`instance: "next"` on the Matrix setup API). New `GET /api/matrix/instances` endpoint.
+- Multi-topology: a server may be an endpoint of many topologies (e.g. Iran-1 paired with Foreign-1 and Foreign-2 at the same time), with strict per-topology isolation — every tunnel is exclusively owned by one topology and port/name collisions across topologies or Matrix instances are refused at creation and edit time.
+- New-tunnel wizard: «افزودن تونل جدید» now opens a 3-step modal (type → settings → review) with a «مرحله X از 3» progress header and checkmarked steps, creating the tunnel through the existing engine APIs and attaching it to the current topology; Matrix creation auto-selects a fresh instance when one already exists.
+- Remove the visible delete-guard paragraph from the topology view; the disabled Delete button's tooltip remains the only place that message appears.
+- Extend backend and UI regression tests for instances, exclusivity, port collisions, the wizard flow and the notice removal; update docs/TOPOLOGY.md and docs/MATRIX.md.
+
 ## v1.17.1 — 2026-10-29
 
 - Fix a leftover bug on the Dashboard usage table: the "Unassigned tunnels" row no longer appears when it has no tunnels and no traffic. It now shows only when unassigned tunnels or nonzero unattributed usage genuinely exist, and is suppressed when grouping metadata is unavailable.

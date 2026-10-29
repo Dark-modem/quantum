@@ -76,7 +76,9 @@ Each inventory item exposes only display/status data:
 
 `family` and `remote_ips` are optional. `remote_ips` contains only explicitly known alternate IPs. Ports are integer arrays, including `[]` when none are known. Status is `healthy`, `degraded`, `down`, or `unknown`; unknown latency is `-1`.
 
-Canonical IDs are `main` for the legacy base tunnel, `peer:<positive id>`, `matrix`, `bagher` for Bagher link 1/the legacy singleton, `bagher:<positive id>` for additional individually saved Bagher links, and `xray:<positive id>`. These identify existing resources, not topology-owned copies. Matrix-only installations never produce a phantom `main` item.
+Canonical IDs are `main` for the legacy base tunnel, `peer:<positive id>`, `matrix` for the legacy first Matrix instance, `matrix2`, `matrix3`, … for additional independent Matrix instances hosted on this server, `bagher` for Bagher link 1/the legacy singleton, `bagher:<positive id>` for additional individually saved Bagher links, and `xray:<positive id>`. These identify existing resources, not topology-owned copies. Matrix-only installations never produce a phantom `main` item.
+
+A server may appear in multiple topologies at once: each topology groups the tunnels between this server and **one** remote server, and different topologies may use different remote servers and different Matrix instances. Each Matrix instance is one distinct tunnel and belongs to at most one topology (exclusive ownership; a second attach is refused with 409). Creating a new tunnel refuses any port already owned by another topology's tunnel or by another Matrix instance.
 
 The inventory reads the existing published hub snapshot, saved Xray link records, and already-cached Xray health. It intentionally avoids the cold-start `currentSnapshot()` path and health helpers that initiate collection or probes. Before the first snapshot, snapshot-backed engines may be absent; GET does not launch commands, pings, network requests, or configuration migrations. Tokens, keys, bundles, expert configurations, and raw error text are never returned.
 
