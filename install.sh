@@ -19,10 +19,12 @@ installer_token() {
     if [[ -z "$_install_token" && -f "$TOKEN_FILE" ]]; then
         _install_token=$(tr -d '\r\n' < "$TOKEN_FILE")
     fi
-    if [[ -z "$_install_token" && -r /dev/tty ]]; then
-        printf 'Private repository: enter a Quantum GitHub read token (hidden): ' > /dev/tty
-        IFS= read -r -s _install_token < /dev/tty || true
-        printf '\n' > /dev/tty
+    local token_tty
+    if [[ -z "$_install_token" ]] && { exec {token_tty}<>/dev/tty; } 2>/dev/null; then
+        printf 'Private repository: enter a Quantum GitHub read token (hidden): ' >&"$token_tty"
+        IFS= read -r -s _install_token <&"$token_tty" || true
+        printf '\n' >&"$token_tty"
+        exec {token_tty}>&-
     fi
     if [[ -z "$_install_token" ]]; then
         printf 'Error: Quantum is private. No GitHub token was provided.\n' >&2

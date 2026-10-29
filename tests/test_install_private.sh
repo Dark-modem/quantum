@@ -70,6 +70,10 @@ printf 'saved_token_12345678901234567890\n' > "$TOKEN_FILE"
 _install_token=''; installer_token
 [[ "$GRE_GITHUB_TOKEN" == saved_token_12345678901234567890 ]]
 echo 'PASS: saved token is read and exported to manager'
+TOKEN_FILE="$T/missing-token"
+if setsid bash -c 'source "$1"; TOKEN_FILE="$2"; _install_token=""; installer_token' _ "$T/functions.sh" "$TOKEN_FILE" 2> "$T/log"; then exit 1; fi
+grep -q 'No GitHub token was provided' "$T/log"
+echo 'PASS: noninteractive missing-token failure is explicit'
 _install_token=$'github_pat_bad\nvalue'
 if installer_token 2> "$T/log"; then exit 1; fi
 echo 'PASS: newline/header injection is rejected'
