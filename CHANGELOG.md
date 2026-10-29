@@ -3,6 +3,11 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.26.1 — 2026-10-30
+
+- Fix the false `E-MATRIX-02 "port is already used by Matrix instance matrix"` failure when pairing a node with a bundle: the node's LOCAL mesh listen port no longer has to match the hub's port from the bundle (tinc dials the hub via the hub host file's port, which the bundle carries). When the bundle's mesh port is busy locally — e.g. a legacy `matrix` instance from an earlier pairing — the node auto-allocates a free local port (2097, then 21000–21999) and the pairing proceeds; the success toast reports the shifted local port.
+- Forwarded traffic ports are still hard conflicts, now with a self-explanatory message naming the port and the instance holding it; hub-side setup busy errors also name the port and instance with a pointer to the auto option.
+
 ## v1.26.0 — 2026-10-30
 
 - The open topology's header carries the row menu's actions next to the back pill: a power toggle that reads Activate or Deactivate from the pair's health, Edit, and an icon-only danger Delete. The name text is gone from the header — the page is the map, the tunnels and the actions.
