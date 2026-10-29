@@ -3,6 +3,10 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.22.6 — 2026-10-29
+
+- The Tunnels table moved back where it belongs: inside the open topology's page, not the topology list. It lists the topology's assigned tunnels plus the unassigned ones still waiting to be attached, and stays hidden on the list view; a tunnel assigned to another topology never appears here.
+
 ## v1.22.5 — 2026-10-29
 
 - The topology map no longer balloons: the svg used to stretch to the full content width, scaling the cards and type past 1.5x on wide screens. It now caps at 900px and centers in its well, with larger node cards and a monospaced server IP.
