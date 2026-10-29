@@ -1,4 +1,4 @@
-# Remediation Plan - Hashem Panel
+# Remediation Plan - Quantum Panel
 
 This plan outlines the prioritized, multi-phase roadmap for addressing the findings documented in `INITIAL_AUDIT.md`.
 
@@ -56,7 +56,7 @@ Status: **COMPLETED** (commits `31c5f19`, `b1b43b6`)
 ## Phase 5: Maintainability & Developer Tooling
 Status: **COMPLETED**
 
-- Documented environment variables (`GRE_PANEL_DIR`, `GRE_FRP_DIR`, `GRE_BACKHAUL_DIR`, `GRE_SYSCTL_CONF`, `HASHEM_PPROF`, `HASHEM_MIRROR_REPO`) in `docs/DEPLOYMENT.md`.
+- Documented environment variables (`GRE_PANEL_DIR`, `GRE_FRP_DIR`, `GRE_BACKHAUL_DIR`, `GRE_SYSCTL_CONF`, `QUANTUM_PPROF`, `QUANTUM_MIRROR_REPO`) in `docs/DEPLOYMENT.md`.
 
 ---
 

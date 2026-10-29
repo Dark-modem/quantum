@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping. Hashem is an AGPL-3.0 project; by contributing you agree your work is released under the same license.
+Thanks for helping. Quantum is an AGPL-3.0 project; by contributing you agree your work is released under the same license.
 
 ## Ground rules
 
@@ -8,14 +8,14 @@ Thanks for helping. Hashem is an AGPL-3.0 project; by contributing you agree you
 - **One concern per commit.** Use conventional prefixes as in the history: `feat(...)`, `fix(...)`, `docs`, `test`, `refactor`, `ci`.
 - **Tests first for behaviour changes.** New Go code gets a `_test.go` next to it; shell logic gets a hermetic `tests/test_*.sh`.
 - **Never test against a production server.** Tests must not touch the real `/etc`, systemd or the network. Use the existing isolation hooks (`GRE_PANEL_DIR`, `GRE_FRP_DIR`, `GRE_BACKHAUL_DIR`, `GRE_SKIP_PANEL`).
-- `hashem.sh` is the single source of truth for setup and tuning. The Go panel shells out to it; do not reimplement that logic in Go.
+- `quantum.sh` is the single source of truth for setup and tuning. The Go panel shells out to it; do not reimplement that logic in Go.
 
 The layout, conventions and rules are in [docs/dev/DEVELOPMENT.md](docs/dev/DEVELOPMENT.md).
 
 ## Before you open a PR
 
 ```bash
-bash -n hashem.sh install.sh
+bash -n quantum.sh install.sh
 cd panel
 gofmt -l .                     # must print nothing
 go vet ./... && go build ./...
@@ -36,7 +36,7 @@ CI runs the same checks, plus the lab jobs and gosec. A PR with a red check will
 
 ## Reporting bugs and ideas
 
-Use the issue forms. Include the version (`hashem` → System info, or `GET /api/version`), the engine and carrier, and the **error code** if the panel showed one. Redact tokens, bundles (`hsh1_…`, `bh1_…`, `gh1_…` contain the token) and public IPs you do not want shared.
+Use the issue forms. Include the version (`quantum` → System info, or `GET /api/version`), the engine and carrier, and the **error code** if the panel showed one. Redact tokens, bundles (`hsh1_…`, `bh1_…`, `gh1_…` contain the token) and public IPs you do not want shared.
 
 **Security problems:** do not open a public issue. Follow [SECURITY.md](SECURITY.md).
 

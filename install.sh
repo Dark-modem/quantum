@@ -10,8 +10,8 @@ fi
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-PRIMARY="https://raw.githubusercontent.com/Dark-modem/quantum/main/hashem.sh"
-API_SOURCE="https://api.github.com/repos/Dark-modem/quantum/contents/hashem.sh?ref=main"
+PRIMARY="https://raw.githubusercontent.com/Dark-modem/quantum/main/quantum.sh"
+API_SOURCE="https://api.github.com/repos/Dark-modem/quantum/contents/quantum.sh?ref=main"
 TOKEN_FILE="${GRE_PANEL_DIR:-/etc/gre-panel}/github-token"
 _install_token="${GRE_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}"
 
@@ -89,8 +89,8 @@ fetch_verified() {
         fi
         sum=$(sha256sum "$f" | cut -d' ' -f1)
         host=$(url_host "$U")
-        if [[ -n "${HASHEM_SHA256:-}" ]]; then
-            if [[ "${HASHEM_SHA256,,}" == "$sum" ]]; then cp "$f" "$out"; printf '%s\n' "$sum"; return 0; fi
+        if [[ -n "${QUANTUM_SHA256:-}" ]]; then
+            if [[ "${QUANTUM_SHA256,,}" == "$sum" ]]; then cp "$f" "$out"; printf '%s\n' "$sum"; return 0; fi
             printf 'Error: %s supplied a script with an unexpected SHA256.\n' "$host" >&2
             continue
         fi
@@ -102,7 +102,7 @@ fetch_verified() {
             cp "$f" "$out"; printf '%s\n' "$sum"; return 0
         fi
         seen_sum[$sum]="$host"
-        if [[ "${HASHEM_ALLOW_UNVERIFIED:-0}" == 1 ]]; then
+        if [[ "${QUANTUM_ALLOW_UNVERIFIED:-0}" == 1 ]]; then
             cp "$f" "$out"; printf '%s\n' "$sum"; return 0
         fi
     done
@@ -112,20 +112,20 @@ fetch_verified() {
 clear 2>/dev/null || true
 printf '\n  Q U A N T U M\n  Reverse Tunnel & Web Panel Installer\n\n'
 
-if [[ -n "${HASHEM_INSTALL_URLS:-}" ]]; then
-    read -r -a URLS <<< "$HASHEM_INSTALL_URLS"
+if [[ -n "${QUANTUM_INSTALL_URLS:-}" ]]; then
+    read -r -a URLS <<< "$QUANTUM_INSTALL_URLS"
     PRIMARY="${URLS[0]}"
 else
     installer_token || exit 1
     URLS=("$PRIMARY" "$API_SOURCE")
 fi
 printf '[*] Downloading and verifying the Quantum manager...\n'
-if ! SCRIPT_SHA=$(fetch_verified "$TMP/hashem.sh"); then
+if ! SCRIPT_SHA=$(fetch_verified "$TMP/quantum.sh"); then
     printf 'Error: no verified manager script obtained; nothing was installed.\n' >&2
     printf 'Check the error above. Private releases cannot be fetched through public mirrors.\n' >&2
     exit 1
 fi
-printf '[OK] hashem.sh SHA256: %s\n' "$SCRIPT_SHA"
+printf '[OK] quantum.sh SHA256: %s\n' "$SCRIPT_SHA"
 if [[ "${1:-}" == --check ]]; then
     printf '[OK] Private download and script validation succeeded (check-only, no installation).\n'
     exit 0
@@ -141,8 +141,8 @@ if [[ -n "${_install_token:-}" ]]; then
 fi
 
 mkdir -p /usr/local/bin
-install -m 0755 "$TMP/hashem.sh" /usr/local/bin/hashem.sh.new
-mv -f /usr/local/bin/hashem.sh.new /usr/local/bin/hashem.sh
-ln -sfn /usr/local/bin/hashem.sh /usr/local/bin/hashem
-ln -sfn /usr/local/bin/hashem.sh /usr/local/bin/gre.sh
-bash /usr/local/bin/hashem "$@"
+install -m 0755 "$TMP/quantum.sh" /usr/local/bin/quantum.sh.new
+mv -f /usr/local/bin/quantum.sh.new /usr/local/bin/quantum.sh
+ln -sfn /usr/local/bin/quantum.sh /usr/local/bin/quantum
+ln -sfn /usr/local/bin/quantum.sh /usr/local/bin/gre.sh
+bash /usr/local/bin/quantum "$@"

@@ -1,6 +1,6 @@
 # Code of Conduct
 
-We want Hashem's issue tracker, pull requests and chats to be useful and safe for everyone, whatever their country, language or experience.
+We want Quantum's issue tracker, pull requests and chats to be useful and safe for everyone, whatever their country, language or experience.
 
 ## Expected behaviour
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Security and operator safety are critical priorities for `hashem-panel`. This document describes the project's vulnerability reporting procedure, supported releases, and security hardening architecture.
+Security and operator safety are critical priorities for `quantum-panel`. This document describes the project's vulnerability reporting procedure, supported releases, and security hardening architecture.
 
 ---
 
@@ -19,11 +19,11 @@ Only the latest release receives active security patches.
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in `hashem-panel`, please report it responsibly:
+If you discover a security vulnerability in `quantum-panel`, please report it responsibly:
 
 1. **Do not create a public GitHub issue.**
 2. Send an email to the security maintainers with a detailed description, reproduction steps, and proof-of-concept (PoC) at:
-   - `security@pdnc.zone` or open a private [GitHub Security Advisory](https://github.com/pdnczone/hashem-panel/security/advisories/new).
+   - `security@pdnc.zone` or open a private [GitHub Security Advisory](https://github.com/pdnczone/quantum-panel/security/advisories/new).
 3. You will receive an acknowledgment within 48 hours.
 4. Security patches will be issued within 7 days of confirmation.
 
@@ -59,7 +59,7 @@ If you discover a security vulnerability in `hashem-panel`, please report it res
 - Password change automatically invalidates all existing sessions (`dropAllSessions`), preventing hijacked sessions from persisting.
 
 ### 6. Script Download & Dynamic Execution Hardening (CWE-95)
-- **Mitigation**: Installer scripts (`hashem.sh`) downloaded from the repository must pass:
+- **Mitigation**: Installer scripts (`quantum.sh`) downloaded from the repository must pass:
   1. Size and shebang integrity validation (`#!/bin/bash` or `#!/usr/bin/env bash`).
   2. Non-execution syntax verification (`bash -n`).
   3. Domain origin verification.

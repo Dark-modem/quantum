@@ -73,6 +73,7 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `POST` | `/api/matrix/edit` | session + CSRF | `handleMatrixEdit` |
 | `POST` | `/api/matrix/foreign-remove` | session + CSRF | `handleMatrixForeignRemove` |
 | `POST` | `/api/matrix/foreign-setup` | session + CSRF | `handleMatrixForeignSetup` |
+| `GET` | `/api/matrix/instances` | session | `handleMatrixInstancesGet` |
 | `GET` | `/api/matrix/local-service` | session | `handleMatrixLocalService` |
 | `POST` | `/api/matrix/local-service` | session + CSRF | `handleMatrixLocalService` |
 | `POST` | `/api/matrix/register` | none | `handleMatrixRegister` |
@@ -171,4 +172,4 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `GET` | `/topology.js` | none | `` |
 | `GET` | `/tunnel_overview.js` | none | `` |
 
-Total: 147 routes.
+Total: 148 routes.
