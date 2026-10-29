@@ -53,9 +53,19 @@ The GRE link itself can be wrapped four ways: **Direct** (protocol 47), **WSS** 
 The repository is private, so the installer needs a read token. Create a fine-grained token with **Contents: Read-only** on this repo (GitHub → Settings → Developer settings → Fine-grained tokens), then run on **both** servers:
 
 ```bash
-export GRE_GITHUB_TOKEN="github_pat_…"   # Contents: Read-only on Dark-modem/quantum
-bash <(curl -fsSL -H "Authorization: Bearer $GRE_GITHUB_TOKEN" https://raw.githubusercontent.com/Dark-modem/quantum/main/install.sh)
+read -rsp 'Quantum GitHub token: ' GRE_GITHUB_TOKEN; echo
+export GRE_GITHUB_TOKEN
+qinstaller=$(mktemp)
+printf 'header = "Authorization: Bearer %s"\n' "$GRE_GITHUB_TOKEN" |
+  curl --config - -fsSL --retry 3 --connect-timeout 10 --max-time 60 \
+    -H 'Accept: application/vnd.github.raw+json' \
+    'https://api.github.com/repos/Dark-modem/quantum/contents/install.sh?ref=main' \
+    -o "$qinstaller" && bash "$qinstaller"
+rm -f "$qinstaller"
+unset GRE_GITHUB_TOKEN
 ```
+
+Run as root. The token is entered privately, without putting it in shell history. The installer uses GitHub directly (no private-repository mirrors), falls back from raw.githubusercontent.com to the GitHub Contents API, and stores the token with mode 600 for future updates. To test downloads without installing, run the downloaded script with `--check`.
 
 1. **Iran server:** choose `1`, pick the tunnel and ports, and copy the bundle it prints (`hsh1_…`).
 2. **Foreign server:** choose `2` and paste the bundle.

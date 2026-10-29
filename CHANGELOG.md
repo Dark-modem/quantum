@@ -3,6 +3,14 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.11.3 — 2026-10-29
+
+- Fix installation from the private Quantum repository: read tokens from environment, the saved token file or a hidden terminal prompt.
+- Fall back from raw.githubusercontent.com to the GitHub Contents API. Do not send credentials to public mirrors.
+- Report authentication/permission/network failures accurately instead of the generic mirror-quorum error.
+- Persist the token with mode 600 for subsequent private release updates; install the manager atomically and keep launchers as symlinks.
+- Add `install.sh --check` for download validation without installation, plus private-installer regression tests and updated quick-install commands.
+
 ## v1.11.2 — 2026-10-29
 
 Quantum Matrix integration: isolated tinc tunnel, verified on the Iran amd64 and foreign arm64 servers.

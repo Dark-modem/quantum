@@ -11,10 +11,10 @@ printf '%s' "$good" > "$T/a/hashem.sh"; printf '%s' "$good" > "$T/b/hashem.sh"
 printf '%s' "$evil" > "$T/c/hashem.sh"; printf '%s' "$evil" > "$T/d/hashem.sh"
 printf '%s' "$good" | sha256sum | awk '{print $1}' > "$T/good.sha"
 GOOD=$(cat "$T/good.sha")
-# pull in the functions only (AUTH is the token header array install.sh sets globally)
-{ echo 'url_host() { local h="${1#*://}"; echo "${h%%/*}"; }'
-  echo 'AUTH=()'
-  awk '/^fetch_verified\(\) \{/ {p=1} p {print} p && /^}/ {p=0}' "$ROOT/install.sh"; } > "$T/fn.sh"
+# Pull in the download and verification helpers without running the installer.
+{ for fn in url_host installer_download fetch_verified; do
+    awk -v name="$fn" '$0 ~ "^" name "\\(\\) \\{" {p=1} p {print} p && /^}/ {p=0}' "$ROOT/install.sh"
+  done; } > "$T/fn.sh"
 [[ -s "$T/fn.sh" ]] || { echo "FAIL fetch_verified not found"; exit 1; }
 # shellcheck disable=SC1091
 source "$T/fn.sh"

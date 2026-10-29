@@ -45,9 +45,19 @@
 ریپو خصوصی است و نصاب به توکن خواندن نیاز دارد. یک توکن fine-grained با دسترسی **Contents: Read-only** روی همین ریپو بسازید (گیت‌هاب → Settings → Developer settings → Fine-grained tokens) و روی **هر دو** سرور اجرا کنید:
 
 ```bash
-export GRE_GITHUB_TOKEN="github_pat_…"   # Contents: Read-only روی Dark-modem/quantum
-bash <(curl -fsSL -H "Authorization: Bearer $GRE_GITHUB_TOKEN" https://raw.githubusercontent.com/Dark-modem/quantum/main/install.sh)
+read -rsp 'Quantum GitHub token: ' GRE_GITHUB_TOKEN; echo
+export GRE_GITHUB_TOKEN
+qinstaller=$(mktemp)
+printf 'header = "Authorization: Bearer %s"\n' "$GRE_GITHUB_TOKEN" |
+  curl --config - -fsSL --retry 3 --connect-timeout 10 --max-time 60 \
+    -H 'Accept: application/vnd.github.raw+json' \
+    'https://api.github.com/repos/Dark-modem/quantum/contents/install.sh?ref=main' \
+    -o "$qinstaller" && bash "$qinstaller"
+rm -f "$qinstaller"
+unset GRE_GITHUB_TOKEN
 ```
+
+با root اجرا کنید. توکن مخفی وارد می‌شود و در تاریخچه‌ی شل قرار نمی‌گیرد. نصاب برای ریپوی خصوصی از آینه استفاده نمی‌کند، در صورت در دسترس نبودن raw.githubusercontent.com از API گیت‌هاب می‌گیرد و توکن را با دسترسی 600 برای آپدیت‌های بعدی ذخیره می‌کند. اجرای فایل نصاب با `--check` فقط دانلود را آزمایش می‌کند و چیزی نصب نمی‌کند.
 
 ۱. **سرور ایران:** گزینه‌ی `1`؛ تونل و پورت‌ها را انتخاب کنید و باندلی را که چاپ می‌شود (`hsh1_…`) کپی کنید.
 ۲. **سرور خارج:** گزینه‌ی `2` و باندل را بچسبانید.
