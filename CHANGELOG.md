@@ -3,6 +3,10 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.25.2 — 2026-10-30
+
+- The topology row kebab works and looks the part: the menu is positioned against the viewport (fixed, flipped upward near the screen bottom, closed on scroll/resize) so the list's clipping wrapper can no longer cut it off, and the three-dot button is a quiet ghost icon with clearly visible dots instead of a dark outlined circle.
+
 ## v1.25.1 — 2026-10-30
 
 - The topology map's server cards mirror for Persian: the status dot and flag now lead from the card's right edge, the role caption, server name and IP anchor their right edge with `direction: rtl`, and the little rack moves to the opposite corner — the card reads right-to-left the way the rest of the Persian UI does.
