@@ -3,6 +3,12 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.27.0 — 2026-10-30
+
+- Foreign-side tunnel creation is now bundle-only: on a foreign server the new-tunnel wizard drops the type/settings steps entirely — paste the bundle (hmx1_, hsh1_, bh1_, gh1_ or BAGHER:), the panel auto-detects the engine and shows it as a chip, a review summarizes what the bundle carried (Iran server, ports, transport, GRE IPs), and Create sends the exact request the Setup tab's join flow builds (one shared joinRequestBody helper so the two flows cannot drift; Matrix pairs via /api/matrix/foreign-setup).
+- Invalid or malformed bundles are rejected inline with zero API calls; the created tunnel attaches to the current topology automatically, and a Matrix pairing toast reports the node's local mesh port when it shifted.
+- Wizard steps on the foreign side read Bundle → Review → Create; the Iran/hub side keeps its existing flow (including the Matrix bundle hand-off screen). Persian translations and wizard/layout tests cover every bundle kind, identical-body parity with the Setup join, and the inline errors.
+
 ## v1.26.1 — 2026-10-30
 
 - Fix the false `E-MATRIX-02 "port is already used by Matrix instance matrix"` failure when pairing a node with a bundle: the node's LOCAL mesh listen port no longer has to match the hub's port from the bundle (tinc dials the hub via the hub host file's port, which the bundle carries). When the bundle's mesh port is busy locally — e.g. a legacy `matrix` instance from an earlier pairing — the node auto-allocates a free local port (2097, then 21000–21999) and the pairing proceeds; the success toast reports the shifted local port.
