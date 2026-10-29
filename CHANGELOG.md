@@ -3,6 +3,11 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.21.1 — 2026-10-29
+
+- Creating a topology now confirms with a "Topology created" toast (the topology's name as the sub line) — it used to happen silently; its failure says "Topology create failed".
+- Matrix setup, node registration and service restart failures are translated toasts ("Matrix setup failed", "Matrix registration failed", "Matrix restart failed") instead of hardcoded English.
+
 ## v1.21.0 — 2026-10-29
 
 - Redraw the topology map with the cluster map's visual language: rounded node cards carrying a health dot and an embedded SVG country flag (emoji flags render as bare letters on Windows), cubic cables colored and dashed by tunnel health with an animated flow on live ones, halo'd tunnel labels, a sunken scroll well and a color legend row.
