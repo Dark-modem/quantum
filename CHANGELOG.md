@@ -3,6 +3,10 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.22.8 — 2026-10-29
+
+- The topology map's node cards quieted down: the server name dropped from pure-white 16px to a soft 14px and the IP from 13px to a dim 12.5px (mono face kept), so the card frame and the cables carry the attention instead of the text shouting.
+
 ## v1.22.7 — 2026-10-29
 
 - The add-topology step counter is fixed: tokens.css strokes every svg at 1.9px and the "1/6" text inherited that stroke, rendering fat, outlined and oversized past the ring. The ring svg and the topology map now reset the global stroke the way the cluster map always did, the counter text carries its size and stroke inline (12px, plain fill) so no inherited value can bloat it, and the ring grew to 44px to balance the header.
