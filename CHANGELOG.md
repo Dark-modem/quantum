@@ -3,6 +3,10 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.22.4 — 2026-10-29
+
+- The topology page lists the established tunnels again: with no topology opened the Tunnels table shows every established tunnel (main, peers, Matrix, Bagher) with its live state, instead of being force-hidden until a topology was opened; opening a topology still narrows the table to that topology's assigned tunnels.
+
 ## v1.22.3 — 2026-10-29
 
 - The Xray item is removed from the sidebar: Xray is one of the tunnel engines, so like the others it is reached from the tunnels list (the tab itself and `gotoXrayLink` deep links are unchanged).
