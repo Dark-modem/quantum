@@ -3,6 +3,11 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.23.0 — 2026-10-29
+
+- The topology links are redrawn as health beacon beams, taking the classic server view's connection strip: every tunnel is a straight horizontal beam between the two cards — a thin base wire with evenly spaced beacon dots in the tunnel's health color, a soft pulse marching along live beams, and the tunnel's name floating above on a halo. Stopped tunnels show a broken dashed wire with no dots, and the legend keeps meaning the colors.
+- Each server card gains a little rack icon whose LEDs mirror the tunnel health (green / amber / red / muted), next to the flag, role caption, name and IP.
+
 ## v1.22.10 — 2026-10-29
 
 - The topology map mirrors for Persian: the Iran (home) card sits on the reading start — the right — with the foreign server opposite, matching the RTL flow; LTR layouts keep Iran on the left. The cables are symmetric, so only the cards trade places.
