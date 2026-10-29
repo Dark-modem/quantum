@@ -3,6 +3,12 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.22.9 — 2026-10-29
+
+- Fix the "TCP port 443 is occupied" failure when creating a Matrix tunnel: the wizard's Port field was the tinc MESH port (which must be free), not the traffic port — it is now labelled «پورت مش» with a hint, starts blank and sends 0 to auto-allocate.
+- The Matrix setup/edit APIs auto-allocate a free mesh port (2097 first, then 21000–21999, skipping other instances' ports, topology-bound tunnel ports and the panel port) and return the chosen port, which the wizard toasts on success.
+- Port-occupancy failures now return their own HTTP 400 error `E-MATRIX-10` ("matrix port occupied") with a self-explanatory hint instead of the generic 500 `E-MATRIX-07`; editing the mesh port is validated the same way and bumps the peer-sync requirement.
+
 ## v1.22.8 — 2026-10-29
 
 - The topology map's node cards quieted down: the server name dropped from pure-white 16px to a soft 14px and the IP from 13px to a dim 12.5px (mono face kept), so the card frame and the cables carry the attention instead of the text shouting.
