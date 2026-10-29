@@ -3,6 +3,14 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.22.1 — 2026-10-29
+
+- Deleting a tunnel now purges its usage records immediately (main, peer, Matrix instance, Xray, Bagher links and the installer paths), and deleting a topology purges its stored tunnels' usage records — nothing of a deleted entity renders again, per the rule that deletion removes all of its information.
+- The «تونل‌های بدون توپولوژی» (Unassigned tunnels) row no longer appears for stale/unknown traffic: it requires a live unassigned tunnel AND measured nonzero traffic; unknown/NaN records can never make the row (or any topology row) visible. With zero topologies and stale history the table is clean.
+- The 7-day retention and rename identity for live entities are unchanged; regression tests cover purge-on-delete (including no resurrection after restart) and the visibility rule.
+- Toast hardening carried in the same tree: toasts gained a dismiss button and a draining life line.
+
+## v1.22.0 — 2026-10-29
 ## v1.22.0 — 2026-10-29
 
 - Add-topology is now a 6-step wizard — role (Iran / Foreign), this server's IP, the other server's IP, the foreign country, the name, then a review — with a circular step counter ("1/6") whose arc fills as you advance, plus progress dots. Nothing is created until the final step, so entering the flow or leaving it mid-way can no longer leave an empty topology behind.
