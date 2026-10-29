@@ -3,6 +3,12 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.16.3 — 2026-10-29
+
+- Polish the topology overview into an aligned table with clear names, role-labelled server endpoints, tunnel counts, status and compact View/Delete actions.
+- Keep populated-topology deletion disabled, with a concise tooltip instead of repeated warning blocks.
+- Preserve mobile/RTL readability, existing topology grouping and attachment controls, and active tunnel configuration.
+
 ## v1.16.2 — 2026-10-29
 
 - Remove the Unassigned tunnels card from the topology overview and its unused UI rendering references.
