@@ -3,6 +3,15 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.16.0 — 2026-10-29
+
+- Server-scoped Dashboard: physical-interface traffic/rates/history and whole-host active connections, independent of the selected tunnel. Unknown readings remain unknown; old tunnel history/cache is not relabeled as server history.
+- Move CPU/RAM/disk to the first Dashboard row. Move the connection hero and tunnel details into the selected tunnel's View, outside the topology pair overview.
+- Add separate durable server_metrics.json and physical server usage ledger with per-interface reset handling; do not count mesh/GRE/virtual interfaces twice.
+- Show lifetime observed server usage, a requested-range server graph and usage rows by current topology names/assignments. Changing a topology name preserves identity and traffic records.
+- Retain previous tunnel counters/history for engine-specific views; physical server usage and tunnel topology usage are different scopes and are not expected to sum identically.
+- Add server selection/reset/history, per-topology grouping/rename/isolation and actual UI renderer regressions.
+
 ## v1.15.0 — 2026-10-29
 
 - Replace the Tunnel sidebar entry with Topology: create server-pair groups first, choose Iran/foreign role, name and endpoint IPs, then add/attach tunnels.
