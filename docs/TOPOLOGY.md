@@ -50,11 +50,11 @@ Changing a group's role while retaining assigned tunnels is rejected; detach fir
 
 ### Delete confirmation
 
-Suggested confirmation text:
+Suggested confirmation text for a topology whose tunnels are all deleted:
 
-> Delete this topology grouping? Its tunnels will remain configured and running, and can be assigned to another topology.
+> Delete this empty topology?
 
-Deletion is allowed even when `tunnel_ids` is nonempty. It removes only metadata and releases ownership. There is deliberately no engine-resource deletion or `detach` confirmation flag.
+Deletion is blocked with HTTP 409 while any assigned tunnel still exists, even if its service is stopped. The error includes `code: "topology_has_tunnels"` and `remaining_tunnel_ids`. Tunnel deletion uses each engine's own controls; deleting the topology never removes engine resources. Stale bindings whose tunnels were actually deleted do not require a separate detach step. When inventory is unavailable, deletion of a bound topology fails closed instead of assuming it is empty.
 
 ## Tunnel inventory
 

@@ -3,6 +3,12 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.16.1 — 2026-10-29
+
+- Refuse topology deletion while any assigned tunnel is still configured, including stopped tunnels; return HTTP 409 with the remaining tunnel IDs.
+- Disable the topology Delete button and display a Persian/English notice requiring tunnel removal first. A deleted tunnel's stale association does not require an extra detach step.
+- Fail closed on unavailable inventory and retain existing engine configurations; add backend/UI deletion-guard regressions.
+
 ## v1.16.0 — 2026-10-29
 
 - Server-scoped Dashboard: physical-interface traffic/rates/history and whole-host active connections, independent of the selected tunnel. Unknown readings remain unknown; old tunnel history/cache is not relabeled as server history.
