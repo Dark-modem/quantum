@@ -3,6 +3,17 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.11.2 — 2026-10-29
+
+Quantum Matrix integration: isolated tinc tunnel, verified on the Iran amd64 and foreign arm64 servers.
+
+- IPv4 and IPv6 outer transports; IPv4 TCP/UDP user ports forwarded over an encrypted tinc mesh.
+- Dedicated `quantum-matrix.service`, `qmx0`, `matrix-tinc/` and QMX firewall chains; never adopts or deletes `/etc/tinc/matrix`.
+- Correct bidirectional mesh routes, return-path SNAT and MSS clamping. Restart restores owned forwarding rules.
+- Bundle pins the hub public key. Node names, addresses, ports and registration payloads are validated; the hub accepts one paired node.
+- Matrix Setup loads from Add Tunnel; table View/Delete/Restart use Matrix-specific handlers.
+- Live tests passed for both families: bidirectional ping, exact 128 KiB TCP echo, 20 exact UDP datagrams, restart, and cleanup with existing firewall rules and effective routes preserved.
+
 ## v2.8.0 — 2026-10-27
 
 Less CPU under heavy use, on every tunnel type and most of all on Bagher, and a fix for saving Xray links. Run `hashem update` on both servers of a tunnel; Bagher's gain needs the foreign server updated.

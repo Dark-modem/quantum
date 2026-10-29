@@ -253,6 +253,19 @@ lines in the Logs tab. `HTTP 0` means the code is a log annotation, not an HTTP 
 | `E-CLUSTER-10` | 502 | DNS provider refused the request | Use a Cloudflare API token with Zone > DNS > Edit for the zone, and a DNS-only (grey cloud) record. |
 | `E-CLUSTER-11` | 500 | hashem could not change the hub links | Read the message; the full log is in journalctl -u gre-panel. |
 
+## E-MATRIX-xx — MATRIX
+
+| Code | HTTP | Meaning | What to do |
+| --- | --- | --- | --- |
+| `E-MATRIX-01` | 400 | matrix is already set up here | Remove the Matrix tunnel first, then set it up again. |
+| `E-MATRIX-02` | 400 | invalid Matrix bundle | Copy the whole hmx1_... bundle from the Iran panel's Matrix card. |
+| `E-MATRIX-03` | 400 | invalid tinc port | The tinc port must be between 22 and 65535. |
+| `E-MATRIX-04` | 400 | invalid forwarded ports | Forwarded ports must be numbers between 1 and 65535 (up to 20). |
+| `E-MATRIX-05` | 400 | no global IPv6 address on this server | The IPv6 family needs a public IPv6 address — add one to the server or pick the IPv4 family. |
+| `E-MATRIX-06` | 400 | invalid IPv6 address | Enter the server's public IPv6 address, e.g. 2001:db8::1. |
+| `E-MATRIX-07` | 500 | matrix setup failed | See the detail: the server log (journalctl -u gre-panel) carries the exact step that failed. |
+| `E-MATRIX-08` | 502 | hub registration failed | The foreign panel could not register with the Iran panel — check that the Iran panel is reachable from this server, then try again. |
+
 ## E-ACCESS-xx — ACCESS
 
 | Code | HTTP | Meaning | What to do |
@@ -262,4 +275,4 @@ lines in the Logs tab. `HTTP 0` means the code is a log annotation, not an HTTP 
 | `E-ACCESS-02` | 401 | current password is incorrect | Verify your current password before changing access settings. |
 | `E-ACCESS-03` | 409 | port conflict detected | The requested port is reserved or used by a tunnel/proxy. Pick a free port. |
 
-Total: 141 codes.
+Total: 149 codes.

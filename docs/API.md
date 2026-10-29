@@ -70,6 +70,13 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `POST` | `/api/login` | none | `handleLogin` |
 | `POST` | `/api/logout` | none | `handleLogout` |
 | `GET` | `/api/logs` | session | `handleLogs` |
+| `POST` | `/api/matrix/foreign-remove` | session + CSRF | `handleMatrixForeignRemove` |
+| `POST` | `/api/matrix/foreign-setup` | session + CSRF | `handleMatrixForeignSetup` |
+| `POST` | `/api/matrix/register` | none | `handleMatrixRegister` |
+| `POST` | `/api/matrix/remove` | session + CSRF | `handleMatrixRemovePost` |
+| `POST` | `/api/matrix/restart` | session + CSRF | `handleMatrixRestartPost` |
+| `POST` | `/api/matrix/setup` | session + CSRF | `handleMatrixSetupPost` |
+| `GET` | `/api/matrix/status` | session | `handleMatrixStatus` |
 | `GET` | `/api/metrics-token` | session | `handleMetricsTokenGet` |
 | `POST` | `/api/metrics-token` | session + CSRF | `handleMetricsTokenPost` |
 | `POST` | `/api/password` | session + CSRF | `handlePassword` |
@@ -154,4 +161,4 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `POST` | `/api/xray` | session + CSRF | `handleXrayPost` |
 | `GET` | `/metrics` | none | `handleMetrics` |
 
-Total: 130 routes.
+Total: 137 routes.
