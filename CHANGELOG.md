@@ -3,6 +3,10 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.20.2 — 2026-10-29
+
+- Toast notifications moved from the bottom-center to the top corner on the sidebar's side (right for Persian, left for English — they follow the UI direction via `inset-inline-start`), for both the typed enterprise toasts and the legacy fallback toast.
+
 ## v1.20.1 — 2026-10-29
 
 - The topbar identity ("This server · IP") no longer jumps between addresses: the public address recorded at setup now wins over live re-detection, so a routing change (traffic leaving through the tunnel) cannot make the shown IP flip to the peer's address.
