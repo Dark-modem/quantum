@@ -265,6 +265,7 @@ lines in the Logs tab. `HTTP 0` means the code is a log annotation, not an HTTP 
 | `E-MATRIX-06` | 400 | invalid IPv6 address | Enter the server's public IPv6 address, e.g. 2001:db8::1. |
 | `E-MATRIX-07` | 500 | matrix setup failed | See the detail: the server log (journalctl -u gre-panel) carries the exact step that failed. |
 | `E-MATRIX-08` | 502 | hub registration failed | The foreign panel could not register with the Iran panel — check that the Iran panel is reachable from this server, then try again. |
+| `E-MATRIX-09` | 409 | another package installation is still running | Matrix waited for apt/dpkg without deleting locks or stopping processes. Wait for the other installation to finish, then retry. |
 
 ## E-ACCESS-xx — ACCESS
 
@@ -275,4 +276,4 @@ lines in the Logs tab. `HTTP 0` means the code is a log annotation, not an HTTP 
 | `E-ACCESS-02` | 401 | current password is incorrect | Verify your current password before changing access settings. |
 | `E-ACCESS-03` | 409 | port conflict detected | The requested port is reserved or used by a tunnel/proxy. Pick a free port. |
 
-Total: 149 codes.
+Total: 150 codes.

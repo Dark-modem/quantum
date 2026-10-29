@@ -3,6 +3,14 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.12.0 — 2026-10-29
+
+- Theme-aligned IPv4/IPv6 segmented choice with keyboard navigation in the Matrix form.
+- Accessible question-mark help dialogs for transport family, tinc port and forwarded user ports, including the Iran:443 → foreign Xray routing example and explicit cutover requirements.
+- Prevent duplicate Matrix setup submissions and show installation/apt-lock waiting feedback.
+- Wait for dpkg's lock with a native timeout; retry apt lists locks without deleting locks or killing the current installer. Report a retryable busy error when the wait expires.
+- Regression tests for apt contention, bounded waiting, unrelated failures and already-installed tinc.
+
 ## v1.11.3 — 2026-10-29
 
 - Fix installation from the private Quantum repository: read tokens from environment, the saved token file or a hidden terminal prompt.
