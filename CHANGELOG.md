@@ -3,6 +3,14 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.17.0 — 2026-10-29
+
+- Redesign the topology overview into a clean, modern list: colored status dots beside names, uppercase column headers, subtle row hover, circular tunnel-count badges and pill-style View/Delete actions.
+- Show each server pair as an accent location label (Iran – Foreign) with a compact `iran-ip ⇌ foreign-ip` line and swap icon.
+- Add a topology search box (name, IP or status) and a list/grid view toggle; grid mode renders responsive cards, and the search-miss empty state offers clearing the query.
+- Keep every behavior intact: delete stays disabled while tunnels remain (with its tooltip), the detail SVG view, attach/detach flows and RTL/mobile layouts are preserved, and the unassigned-tunnel card stays removed.
+- Add Persian translations for the new toolbar strings and extend the layout/UI tests to cover the new markup, search filtering and view toggle.
+
 ## v1.16.3 — 2026-10-29
 
 - Polish the topology overview into an aligned table with clear names, role-labelled server endpoints, tunnel counts, status and compact View/Delete actions.
