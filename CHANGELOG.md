@@ -3,6 +3,11 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.26.0 — 2026-10-30
+
+- The open topology's header carries the row menu's actions next to the back pill: a power toggle that reads Activate or Deactivate from the pair's health, Edit, and an icon-only danger Delete. The name text is gone from the header — the page is the map, the tunnels and the actions.
+- Editing a topology opens a dialog instead of the always-visible settings block: the same fields (name, role, both server IPs, country on the shared in-modal dropdown) saving through the same PATCH, so the detail page keeps its space for the map and tunnels.
+
 ## v1.25.4 — 2026-10-30
 
 - Replace the country picker's native dropdown in the topology wizards with a custom in-modal listbox: flag SVG next to each country name, contained scroll area (no more overflow outside the dialog), keyboard navigation, click-outside/Escape handling and RTL-aware alignment; the same component now serves the add-topology wizard and the edit-topology form.
