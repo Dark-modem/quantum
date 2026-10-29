@@ -3,6 +3,11 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.21.0 — 2026-10-29
+
+- Redraw the topology map with the cluster map's visual language: rounded node cards carrying a health dot and an embedded SVG country flag (emoji flags render as bare letters on Windows), cubic cables colored and dashed by tunnel health with an animated flow on live ones, halo'd tunnel labels, a sunken scroll well and a color legend row.
+- The topology list's server columns share the same inline SVG flags as the map, and the cables hint now leaves the colors to the legend (Persian strings updated).
+
 ## v1.20.2 — 2026-10-29
 
 - Toast notifications moved from the bottom-center to the top corner on the sidebar's side (right for Persian, left for English — they follow the UI direction via `inset-inline-start`), for both the typed enterprise toasts and the legacy fallback toast.
