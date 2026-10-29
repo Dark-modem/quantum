@@ -83,3 +83,16 @@ _install_token='testtoken_12345678901234567890'; export GRE_GITHUB_TOKEN="$_inst
 bash "$ROOT/install.sh" --check > "$T/full-log" 2>&1
 grep -q 'check-only, no installation' "$T/full-log"
 echo 'PASS: full installer --check validates download without touching installation'
+
+# Run the complete installer in a temporary filesystem with a harmless manager.
+# Only its /usr/local/bin destination is redirected; production files stay untouched.
+mkdir -p "$T/install-root/bin" "$T/token-dir"
+sed "s#/usr/local/bin#$T/install-root/bin#g" "$ROOT/install.sh" > "$T/install-full.sh"
+printf '#!/bin/bash\nset -eu\ntest -n "${GRE_GITHUB_TOKEN:-}"\nprintf manager-ran > "$TEST_DIR/manager-ran"\n' > "$T/manager.sh"
+GRE_PANEL_DIR="$T/token-dir" bash "$T/install-full.sh" > "$T/full-log" 2>&1
+[[ -f "$T/manager-ran" ]]
+[[ -L "$T/install-root/bin/hashem" && -L "$T/install-root/bin/gre.sh" ]]
+cmp "$T/manager.sh" "$T/install-root/bin/hashem.sh"
+[[ $(stat -c %a "$T/token-dir/github-token") == 600 ]]
+[[ $(cat "$T/token-dir/github-token") == "$_install_token" ]]
+echo 'PASS: complete installer persists token 600, creates launchers and runs the manager'
