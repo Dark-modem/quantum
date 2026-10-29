@@ -3,6 +3,10 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.21.2 — 2026-10-29
+
+- Topology list actions column tightened: the Tunnels/Actions tracks shrink (176px → 152px) and the actions header and buttons tuck 8px further into the row's end edge (left in Persian, right in English), closing the dead gap between the tunnel count and the buttons.
+
 ## v1.21.1 — 2026-10-29
 
 - Creating a topology now confirms with a "Topology created" toast (the topology's name as the sub line) — it used to happen silently; its failure says "Topology create failed".
