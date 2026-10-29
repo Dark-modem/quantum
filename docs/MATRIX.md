@@ -11,7 +11,15 @@ Matrix-Network is based on **tinc**, not rathole. Quantum uses tinc directly rat
 
 IPv6 means **tinc connects between the servers' global IPv6 addresses**. User port forwarding still accepts the Iran server's IPv4 and reaches the foreign server over the private IPv4 mesh. It does not mean IPv6-only public user listeners.
 
-The current implementation supports **one Quantum Matrix pair per server**. Remove/recreate to change family or pair another node. It can coexist with other tunnel engines provided the ports and private subnets do not overlap.
+The current implementation supports **one Quantum Matrix pair per server**. It can coexist with other tunnel engines provided the ports and private subnets do not overlap.
+
+## Editing
+
+Open the Matrix row → **Edit**. On the Iran hub you can change the forwarded ports or outer transport family/address without regenerating keys or node identity. New occupied ports are rejected. Port-only edits update the forwarding rules without restarting the transport.
+
+A family/address change is staged: the hub returns an updated pinned bundle and marks peer synchronization pending. Copy that bundle into **Edit** on the foreign node to complete the switch. Expect a brief interruption while the two ends use different transport families. A different hub key is rejected; pairing another node still requires a new setup. Failed local edits restore the previous owned configuration.
+
+Matrix is included in Dashboard/status/fleet snapshots even when no GRE/FRP tunnel exists. Running service and confirmed mesh connection are reported separately; qmx0 counters supply the Matrix traffic values.
 
 ## Isolation and removal
 

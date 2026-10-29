@@ -3,6 +3,14 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.13.0 — 2026-10-29
+
+- Recognize Matrix-only tunnels on Dashboard, role/onboarding, status and fleet snapshots; preserve existing primary engine on mixed installs.
+- Distinguish running tinc service from verified mesh connectivity; qmx0 traffic is sampled by the shared background snapshot, not counted as GRE/FRP.
+- Edit Matrix forwarded ports in its View without regenerating keys or restarting the transport. Reject newly occupied ports and roll back failed local changes.
+- Change IPv4/IPv6 or hub transport address through a staged edit: apply the returned pinned bundle in Edit on the foreign node to complete synchronization. The UI reports pending synchronization rather than claiming the tunnel is fully connected.
+- Add authenticated/CSRF Matrix edit API, themed edit dialog, Persian guidance, dashboard renderer regressions and edit rollback tests.
+
 ## v1.12.0 — 2026-10-29
 
 - Theme-aligned IPv4/IPv6 segmented choice with keyboard navigation in the Matrix form.

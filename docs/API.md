@@ -70,6 +70,7 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `POST` | `/api/login` | none | `handleLogin` |
 | `POST` | `/api/logout` | none | `handleLogout` |
 | `GET` | `/api/logs` | session | `handleLogs` |
+| `POST` | `/api/matrix/edit` | session + CSRF | `handleMatrixEdit` |
 | `POST` | `/api/matrix/foreign-remove` | session + CSRF | `handleMatrixForeignRemove` |
 | `POST` | `/api/matrix/foreign-setup` | session + CSRF | `handleMatrixForeignSetup` |
 | `POST` | `/api/matrix/register` | none | `handleMatrixRegister` |
@@ -159,6 +160,7 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `POST` | `/api/watchdog/backup-download` | session + CSRF | `handleBackupDownload` |
 | `GET` | `/api/xray` | session | `handleXrayGet` |
 | `POST` | `/api/xray` | session + CSRF | `handleXrayPost` |
+| `GET` | `/matrix_edit.js` | none | `` |
 | `GET` | `/metrics` | none | `handleMetrics` |
 
-Total: 137 routes.
+Total: 139 routes.
