@@ -3,6 +3,12 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.25.0 — 2026-10-30
+
+- Add the missing bundle section to the Matrix tunnel-creation wizard, role-aware on both sides: on the Iran/hub side the wizard now ends with a bundle screen — the `hmx1_` bundle in a readonly box with a copy button and a Persian hint to paste it on the foreign server — instead of closing silently; on the foreign/node side the Matrix step becomes a paste field for the hub bundle with inline validation (must start with `hmx1_`) that pairs via `/api/matrix/foreign-setup`.
+- The wizard's progress header grows to 4 steps (Type → Settings → Review → Bundle) for hub-side Matrix, with the checkmark flow preserved; the attach-to-topology flow runs on both sides and the foreign-created instance attaches automatically.
+- Persian translations for every new string; extended wizard/layout tests cover both sides, validation and the copy interaction.
+
 ## v1.24.0 — 2026-10-29
 
 - Topology rows gain a Status column and a three-dot actions menu. The pill shows the pair's health in three states — Active (green: at least one tunnel up), Down (red: every tunnel in the pair is cut) and Unknown (yellow: nothing verified yet) — and the menu holds View, Activate/Deactivate and Delete in one place instead of two always-visible buttons.
