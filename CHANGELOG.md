@@ -3,6 +3,11 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.20.1 — 2026-10-29
+
+- The topbar identity ("This server · IP") no longer jumps between addresses: the public address recorded at setup now wins over live re-detection, so a routing change (traffic leaving through the tunnel) cannot make the shown IP flip to the peer's address.
+- Servers whose engine has no GRE device (Backhaul alone, Matrix) no longer leave the topbar IP empty — it used to flicker between the address and "Unknown" as the status and dashboard polls alternated.
+
 ## v1.20.0 — 2026-10-29
 
 - Full rebrand: Hashem → Quantum everywhere — Go module (`github.com/pdnczone/quantum-panel`), User-Agent, systemd units (`quantum-bagher.service`, `quantum-ssh-fwd.service`, …), env vars (`QUANTUM_*`), nftables table, metrics, frontend CSS classes (`quantum-btn`, `quantum-input`), localStorage keys, the installer (`hashem.sh` → `quantum.sh`), CI asset names, docs and Persian translations («هاشم» → «کوانتوم»).
