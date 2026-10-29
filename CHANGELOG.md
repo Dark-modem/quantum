@@ -3,6 +3,13 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.14.0 — 2026-10-29
+
+- Connect a local TCP service from Matrix Edit on the foreign node: bridge mesh-IP:user-port to 127.0.0.1:service-port without modifying Xray configuration or keys.
+- Dedicated per-port systemd bridge units follow the Matrix lifecycle; removal deletes only owned bridge units and state.
+- Require an existing forwarded user port and a listening local destination; exclude SSH and panel ports.
+- Add TCP byte-preservation, role/port validation and exact bridge-removal regressions.
+
 ## v1.13.0 — 2026-10-29
 
 - Recognize Matrix-only tunnels on Dashboard, role/onboarding, status and fleet snapshots; preserve existing primary engine on mixed installs.

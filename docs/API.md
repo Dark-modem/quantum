@@ -73,6 +73,8 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `POST` | `/api/matrix/edit` | session + CSRF | `handleMatrixEdit` |
 | `POST` | `/api/matrix/foreign-remove` | session + CSRF | `handleMatrixForeignRemove` |
 | `POST` | `/api/matrix/foreign-setup` | session + CSRF | `handleMatrixForeignSetup` |
+| `GET` | `/api/matrix/local-service` | session | `handleMatrixLocalService` |
+| `POST` | `/api/matrix/local-service` | session + CSRF | `handleMatrixLocalService` |
 | `POST` | `/api/matrix/register` | none | `handleMatrixRegister` |
 | `POST` | `/api/matrix/remove` | session + CSRF | `handleMatrixRemovePost` |
 | `POST` | `/api/matrix/restart` | session + CSRF | `handleMatrixRestartPost` |
@@ -163,4 +165,4 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `GET` | `/matrix_edit.js` | none | `` |
 | `GET` | `/metrics` | none | `handleMetrics` |
 
-Total: 139 routes.
+Total: 141 routes.

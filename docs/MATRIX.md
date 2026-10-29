@@ -21,6 +21,14 @@ A family/address change is staged: the hub returns an updated pinned bundle and 
 
 Matrix is included in Dashboard/status/fleet snapshots even when no GRE/FRP tunnel exists. Running service and confirmed mesh connection are reported separately; qmx0 counters supply the Matrix traffic values.
 
+## Connecting Xray or another loopback-only service
+
+On the foreign panel, open **Matrix → View → Edit → Connect a local service to Matrix**. Enter the Matrix user port and local service port (443 → 443 for the current Reality inbound). The panel creates a dedicated TCP bridge from `10.254.231.2:443` to `127.0.0.1:443`. Xray can remain bound to loopback: its configuration, UUID, Reality keys and service are not modified.
+
+The hub must already forward that user port, and the local destination must accept TCP connections. The bridge is bound only to the mesh IP, not the foreign public IP. Dedicated `quantum-matrix-local-<port>.service` units follow Matrix restart and are removed with Matrix. **Remove local bridge** removes the bridge independently. UDP service bridging is not implemented here.
+
+This connects an Xray inbound already present on the foreign server. It does not move an Iran-only inbound; that still requires an explicit migration/cutover.
+
 ## Isolation and removal
 
 Owned resources:
