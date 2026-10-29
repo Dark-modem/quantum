@@ -3,6 +3,10 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.25.3 — 2026-10-30
+
+- The topology row kebab is actually visible now: as a flex item its svg collapsed to zero width, leaving an empty cell — the icon gets explicit intrinsic dimensions plus `flex:none`, so the three dots always render.
+
 ## v1.25.2 — 2026-10-30
 
 - The topology row kebab works and looks the part: the menu is positioned against the viewport (fixed, flipped upward near the screen bottom, closed on scroll/resize) so the list's clipping wrapper can no longer cut it off, and the three-dot button is a quiet ghost icon with clearly visible dots instead of a dark outlined circle.
