@@ -3,6 +3,14 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.19.0 — 2026-10-29
+
+- Topology list redesign: the misleading per-topology Healthy/Degraded status column is gone (a topology can hold several tunnels), replaced by two dedicated columns — one for the Iran server (🇮🇷) and one for the Foreign server showing a country flag chosen at creation time (22 countries + Other, globe fallback when unset).
+- The whole topology row is now clickable (mouse + keyboard) to open it, not just the name and View button; clicks on the action buttons are excluded.
+- Delete is always enabled and styled red; when tunnels remain, clicking it shows an error notification instead of being blocked (the backend 409 guard is unchanged), and the confirm modal still applies to empty topologies.
+- Tunnel counts render as plain blue text without the circular badge, and header/content column alignment is fixed with a shared 5-column grid.
+- New optional `country` field (ISO alpha-2) on topologies with validation in create/PATCH; UI and backend regression tests updated.
+
 ## v1.18.1 — 2026-10-29
 
 - Fix: refreshing the page while on the Topology tab no longer kicks you back to the Dashboard. The active tab — and the selected topology, including its detail view — is now written to the URL hash and restored on load; any other tab persists the same way.
