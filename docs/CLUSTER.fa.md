@@ -1,6 +1,6 @@
 <div dir="rtl">
 
-# راهنمای کلاستر هاشم
+# راهنمای کلاستر کوانتوم
 
 [English](CLUSTER.md) · **فارسی**
 
@@ -68,7 +68,7 @@
 ## ۲. اصطلاحات
 
 - **هاب ایران (Hub):** سرور ایران؛ کاربرها به آن وصل می‌شوند.
-- **سرور خارج:** سروری که هاب به آن تونل می‌زند. روی هاب به آن *همتا (peer)* می‌گوییم. شناسه‌ی تونل `0` تونل اصلی است که در راه‌اندازی ساخته شده، و `N` همتای شماره‌ی N است (`hashem peer-list`).
+- **سرور خارج:** سروری که هاب به آن تونل می‌زند. روی هاب به آن *همتا (peer)* می‌گوییم. شناسه‌ی تونل `0` تونل اصلی است که در راه‌اندازی ساخته شده، و `N` همتای شماره‌ی N است (`quantum peer-list`).
 - **لینک / تونل:** یک تونل هاب ↔ سرور خارج. روی هاب یک سرویس `frps` یا `backhaul-server` است.
 - **استخر (Pool):** یک پورت عمومی روی هاب (TCP، UDP یا هر دو) که چند لینک آن را سرویس می‌دهند.
 - **عضو (Member):** یک لینک داخل استخر.
@@ -78,8 +78,8 @@
 
 ## ۳. پیش از شروع
 
-- **نسخه‌ی یکسان** هاشم روی همه‌ی سرورهای کلاستر.
-- **سرورهای خارج روی هاب اضافه شده باشند**، در راه‌اندازی یا با `hashem add-peer` / `hashem add-backhaul-peer`، و پورتی که استخر قرار است سرویس بدهد (مثلاً 443) در فهرست پورت‌هایشان باشد. **ترتیب مهم است:** اول سرور خارجِ اول را اضافه کنید، روی پورتش استخر بسازید، بعد بقیه را با همان پورت اضافه کنید. پورتی که استخر ندارد مال یک تونل است و تونل دوم روی آن تا ساخته شدن استخر رد می‌شود.
+- **نسخه‌ی یکسان** کوانتوم روی همه‌ی سرورهای کلاستر.
+- **سرورهای خارج روی هاب اضافه شده باشند**، در راه‌اندازی یا با `quantum add-peer` / `quantum add-backhaul-peer`، و پورتی که استخر قرار است سرویس بدهد (مثلاً 443) در فهرست پورت‌هایشان باشد. **ترتیب مهم است:** اول سرور خارجِ اول را اضافه کنید، روی پورتش استخر بسازید، بعد بقیه را با همان پورت اضافه کنید. پورتی که استخر ندارد مال یک تونل است و تونل دوم روی آن تا ساخته شدن استخر رد می‌شود.
 - **برای هاب‌های متصل:** پورت پنلِ هر هاب از هاب دیگر در دسترس باشد. منظور پورت HTTP معمولی است، حتی وقتی HTTPS روشن است، چون ضربان امضا می‌شود و محرمانه نیست. ساعت هر دو سرور هم درست باشد (اختلاف کمتر از ۹۰ ثانیه). NTP را روشن کنید: `timedatectl set-ntp true`. پنلی که فقط از پشت reverse proxy در دسترس است قابل اتصال نیست.
 - **برای جابه‌جایی DNS:** یک توکن API کلودفلر با دسترسی *Zone → DNS → Edit* و رکوردی که فقط DNS باشد (ابر خاکستری)، یا وب‌هوک خودتان.
 - **برای بررسی سرویس:** یک سرویس TCP پشت تونل (xray، sing-box، SSH، وب‌سرور…).
@@ -90,7 +90,7 @@
 
 ## ۴. سناریوها، قدم به قدم
 
-هر قدم را می‌شود در پنل (تب **Cluster**)، در منوی ترمینال (`hashem` و بعد **Cluster**) یا با دستور (`hashem cluster …`) انجام داد. در مثال‌ها پورت 443 است.
+هر قدم را می‌شود در پنل (تب **Cluster**)، در منوی ترمینال (`quantum` و بعد **Cluster**) یا با دستور (`quantum cluster …`) انجام داد. در مثال‌ها پورت 443 است.
 
 ### ۴.۱ اصلی/پشتیبان: یک ایران، دو خارج، Failover
 
@@ -102,8 +102,8 @@
 ۴. اولویت A را `0` و B را `1` بگذارید (روی خط B در نقشه کلیک کنید، یا Edit). استخر **سالم** با ۱۰۰٪ روی A نشان داده می‌شود.
 
 ```bash
-hashem cluster pool add 443 --mode failover        # همه‌ی تونل‌هایی که پورت 443 دارند
-hashem cluster member set 443 2 --priority 1       # همتای ۲ پشتیبان است
+quantum cluster pool add 443 --mode failover        # همه‌ی تونل‌هایی که پورت 443 دارند
+quantum cluster member set 443 2 --priority 1       # همتای ۲ پشتیبان است
 ```
 
 وقتی A برگردد، بعد از ۳ بررسی موفقِ پشت‌سرهم ترافیک به A برمی‌گردد. اگر این را نمی‌خواهید، **Failback** را **دستی** کنید (بخش ۴.۷).
@@ -116,8 +116,8 @@ hashem cluster member set 443 2 --priority 1       # همتای ۲ پشتیبا�
 - **Least connections (کمترین اتصال):** اتصال‌های جدید به عضوهایی می‌روند که نسبت به وزنشان کمترین اتصال باز را دارند. برای اتصال‌های طولانی (VLESS، VMess، Trojan، SSH) بهتر است، چون در غیر این صورت سروری که تازه برگشته خالی می‌ماند.
 
 ```bash
-hashem cluster pool add 443 --mode least
-hashem cluster member set 443 1 --weight 2
+quantum cluster pool add 443 --mode least
+quantum cluster member set 443 1 --weight 2
 ```
 
 ### ۴.۳ IP خروجی ثابت برای هر کاربر (Sticky)
@@ -125,7 +125,7 @@ hashem cluster member set 443 1 --weight 2
 بعضی سایت‌ها (بانک‌ها، اینستاگرام، گوگل) با IP‌ای که مدام عوض می‌شود مشکل دارند. در حالت **ثابت برای هر کاربر**، هر کاربر (IP مبدأ) همیشه به همان سرور خارج می‌رود و کاربرها به نسبت وزن پخش می‌شوند. وقتی یک سرور خارج شود، فقط کاربرهای همان سرور جابه‌جا می‌شوند و بقیه سر جایشان می‌مانند.
 
 ```bash
-hashem cluster pool mode 443 sticky
+quantum cluster pool mode 443 sticky
 ```
 
 ### ۴.۴ همیشه سریع‌ترین سرور
@@ -144,9 +144,9 @@ hashem cluster pool mode 443 sticky
 - اگر همه پر باشند، استخر باز هم سرویس می‌دهد و کاربر را رد نمی‌کند.
 
 ```bash
-hashem cluster member set 443 1 --max-conn 500
-hashem cluster member set 443 2 --max-conn 500
-hashem cluster member set 443 3 --backup yes
+quantum cluster member set 443 1 --max-conn 500
+quantum cluster member set 443 2 --max-conn 500
+quantum cluster member set 443 3 --backup yes
 ```
 
 ### ۴.۶ تشخیص سرویسِ مرده پشت تونلِ سالم (بررسی سرویس)
@@ -159,7 +159,7 @@ hashem cluster member set 443 3 --backup yes
 بعد از ۳ شکستِ پشت‌سرهم (تنظیم **Fall**) عضو کنار می‌رود و بعد از ۳ موفقیت (**Rise**) برمی‌گردد.
 
 ```bash
-hashem cluster pool set 443 --check tcp --check-every 3
+quantum cluster pool set 443 --check tcp --check-every 3
 ```
 
 > سرویس هر چند ثانیه یک اتصال کوتاه از هر عضو می‌بیند؛ ممکن است xray آن را اتصالِ ردشده یا خالی ثبت کند. اگر اذیت می‌کند، فاصله را ۵ تا ۱۰ ثانیه بگذارید. این بررسی برای استخرهای TCP است؛ استخرهای UDP به سلامت تونل تکیه می‌کنند.
@@ -169,8 +169,8 @@ hashem cluster pool set 443 --check tcp --check-every 3
 در حالت Failover با **Failback: دستی**، وقتی ترافیک به پشتیبان رفت، تا وقتی پشتیبان سالم است همان‌جا می‌ماند، حتی اگر سرور اول برگردد. هر وقت آماده بودید، روی استخر **برگشت به سرور اول** را بزنید. اتصال‌های جدید به سرور اول می‌روند و اتصال‌های باز همان‌جا می‌مانند.
 
 ```bash
-hashem cluster pool set 443 --no-failback yes
-hashem cluster pool failback 443
+quantum cluster pool set 443 --no-failback yes
+quantum cluster pool failback 443
 ```
 
 ### ۴.۸ تعمیرات بدون قطع کردن کسی
@@ -178,15 +178,15 @@ hashem cluster pool failback 443
 یک عضو را **Drain** کنید: اتصال جدید نمی‌گیرد و اتصال‌های باز تمام می‌شوند. کارتان را انجام دهید و بعد **Resume** کنید.
 
 ```bash
-hashem cluster member drain 443 2
-hashem cluster member resume 443 2
+quantum cluster member drain 443 2
+quantum cluster member resume 443 2
 ```
 
 برای خاموش کردن یک استخر بدون ری‌استارت هیچ سرویسی، آن را **Disable** کنید. پورت به یک تونل (کمترین شناسه) می‌رسد؛ با **Enable** استخر برمی‌گردد.
 
 ### ۴.۹ چند پورت
 
-- برای ساختن چند استخر با هم، در فیلد **پورت عمومی** `443, 8443` یا بازه‌ی `2000-2005` را بنویسید (حداکثر ۵۰ پورت)، یا `hashem cluster pool add 443,8443,2000-2005` را اجرا کنید.
+- برای ساختن چند استخر با هم، در فیلد **پورت عمومی** `443, 8443` یا بازه‌ی `2000-2005` را بنویسید (حداکثر ۵۰ پورت)، یا `quantum cluster pool add 443,8443,2000-2005` را اجرا کنید.
 - پورت‌های یک تونلِ عضو استخر که در هیچ استخری **نیستند** همچنان کار می‌کنند و مستقیم به همان تونل می‌روند. اگر دو تونلِ عضو استخر هر دو چنین پورتی داشته باشند، تونلی که شناسه‌ی کمتری دارد آن را می‌گیرد و تب Cluster هشدار می‌دهد. برای استفاده از هر دو، برای آن پورت هم استخر بسازید.
 - یک عضو می‌تواند استخر را از **پورت دیگری** در سمت خودش سرویس بدهد. **Port** عضو را تنظیم کنید (مثلاً استخر 443 ← پورت عضو 8443).
 
@@ -199,9 +199,9 @@ hashem cluster member resume 443 2
 ۳. روی سرور خارج، آن را در **Cluster ← اتصال به هاب ایرانِ دیگر** بچسبانید، یا این را اجرا کنید:
 
 ```bash
-hashem join-hub --bundle hsh1_... --name mashhad
-hashem hubs                 # هاب‌های ایرانی که این سرور سرویس می‌دهد
-hashem leave-hub --id 2     # قطع سرویس به یکی از آن‌ها
+quantum join-hub --bundle hsh1_... --name mashhad
+quantum hubs                 # هاب‌های ایرانی که این سرور سرویس می‌دهد
+quantum leave-hub --id 2     # قطع سرویس به یکی از آن‌ها
 ```
 
 سرور خارج یک کلاینت دوم (`frpc-h2` یا `backhaul-client-h2`) با اینترفیس GRE جدای `gre-h2` اجرا می‌کند. اگر آدرس‌های GRE داخل باندل روی این سرور قبلاً استفاده شده باشند، به‌جای GRE به IP عمومی هاب وصل می‌شود. گزینه‌ها:
@@ -220,8 +220,8 @@ hashem leave-hub --id 2     # قطع سرویس به یکی از آن‌ها
 ۳. گزینه‌ی **وقتی هیچ سرور خارجی اینجا نمی‌تواند استخری را سرویس بدهد، آن را به هاب دیگر بفرست** روشن بماند (پیش‌فرض).
 
 ```bash
-hashem cluster join-code            # روی تهران
-hashem cluster add-hub hc1_...      # روی مشهد
+quantum cluster join-code            # روی تهران
+quantum cluster add-hub hc1_...      # روی مشهد
 ```
 
 ترافیکِ فرستاده‌شده با آدرس خود تهران خارج می‌شود (MASQUERADE). کاربر جز کمی تأخیر بیشتر چیزی حس نمی‌کند.
@@ -341,7 +341,7 @@ hashem cluster add-hub hc1_...      # روی مشهد
 - هاب‌ها هر ۳ ثانیه روی پورت پنل (`/_hc/beat`) ضربان رد و بدل می‌کنند. هر ضربان با HMAC-SHA256 روی زمان، nonce و بدنه امضا می‌شود. ساعت‌ها باید کمتر از ۹۰ ثانیه اختلاف داشته باشند و nonce تکراری رد می‌شود. درخواستی که درست امضا نشده یک 404 ساده می‌گیرد، پس این مسیرها از بیرون دیده نمی‌شوند.
 - یک هاب وقتی **سالم** حساب می‌شود که یکی از استخرهایش سالم یا Degraded باشد، یا اگر استخری ندارد، یکی از تونل‌هایش وصل باشد.
 - **فرستادن:** هاب متصلی انتخاب می‌شود که در دسترس است و همان استخر (همان پورت و پروتکل) را سالم یا Degraded گزارش می‌کند؛ کمترین تأخیر اول. هابی که خودش در حال فرستادن یک استخر است هیچ‌وقت مقصد نمی‌شود، پس ترافیک دور خودش نمی‌چرخد.
-- **قطع اتصال:** **Cluster ← Hubs ← Remove** یا `hashem cluster remove-hub <id>`. به هاب دیگر هم خبر داده می‌شود.
+- **قطع اتصال:** **Cluster ← Hubs ← Remove** یا `quantum cluster remove-hub <id>`. به هاب دیگر هم خبر داده می‌شود.
 
 ---
 
@@ -413,50 +413,50 @@ HTTPServer(("0.0.0.0", 8787), Hook).serve_forever()
 
 | متریک | برچسب‌ها | معنی |
 |---|---|---|
-| `hashem_cluster_pool_state` | pool | ۲ سالم، ۱ Degraded یا فرستاده‌شده، ۰ قطع یا fail-open |
-| `hashem_cluster_member_up` | pool, link | ۱ وقتی عضو همه‌ی بررسی‌ها را رد کند |
-| `hashem_cluster_member_connections` | pool, link | اتصال‌های TCP باز |
-| `hashem_cluster_member_share` | pool, link | سهمِ فعلی از اتصال‌های جدید |
-| `hashem_cluster_hub_up` | hub | ۱ وقتی هاب متصل جواب بدهد |
+| `quantum_cluster_pool_state` | pool | ۲ سالم، ۱ Degraded یا فرستاده‌شده، ۰ قطع یا fail-open |
+| `quantum_cluster_member_up` | pool, link | ۱ وقتی عضو همه‌ی بررسی‌ها را رد کند |
+| `quantum_cluster_member_connections` | pool, link | اتصال‌های TCP باز |
+| `quantum_cluster_member_share` | pool, link | سهمِ فعلی از اتصال‌های جدید |
+| `quantum_cluster_hub_up` | hub | ۱ وقتی هاب متصل جواب بدهد |
 
 ---
 
 ## ۱۱. دستورهای ترمینال
 
-`hashem cluster …` و `gre-panel cluster …` یکی هستند. پنلِ در حال اجرا تغییرات ترمینال را در کمتر از یک ثانیه می‌بیند.
+`quantum cluster …` و `gre-panel cluster …` یکی هستند. پنلِ در حال اجرا تغییرات ترمینال را در کمتر از یک ثانیه می‌بیند.
 
 <div dir="ltr">
 
 ```text
-hashem cluster status
-hashem cluster events
-hashem cluster rules
+quantum cluster status
+quantum cluster events
+quantum cluster rules
 
-hashem cluster pool add PORTS [--proto tcp|udp|both] [--mode failover|balance|sticky|latency|least]
+quantum cluster pool add PORTS [--proto tcp|udp|both] [--mode failover|balance|sticky|latency|least]
                               [--links 0,2,3] [--name N] [--check tcp|off] [--check-every SEC] [--no-failback yes|no]
                               # PORTS: 443, or 443,8443, or 2000-2005 (one pool each)
-hashem cluster pool set PORT [--mode M] [--name N] [--check tcp|off] [--check-every SEC] [--no-failback yes|no]
-hashem cluster pool mode PORT MODE
-hashem cluster pool rm|enable|disable|failback PORT [--proto P]
+quantum cluster pool set PORT [--mode M] [--name N] [--check tcp|off] [--check-every SEC] [--no-failback yes|no]
+quantum cluster pool mode PORT MODE
+quantum cluster pool rm|enable|disable|failback PORT [--proto P]
 
-hashem cluster member add|rm|drain|resume|set PORT LINK [--weight N] [--priority N] [--port N]
+quantum cluster member add|rm|drain|resume|set PORT LINK [--weight N] [--priority N] [--port N]
                               [--backup yes|no] [--max-conn N] [--proto P]
                               # LINK: 0 = main tunnel, N = peer N
 
-hashem cluster join-code
-hashem cluster add-hub hc1_...
-hashem cluster remove-hub ID
-hashem cluster reset
+quantum cluster join-code
+quantum cluster add-hub hc1_...
+quantum cluster remove-hub ID
+quantum cluster reset
 
 # on a foreign server
-hashem join-hub --bundle hsh1_...|bh1_...|gh1_... [--name LABEL] [--dial auto|gre|public] [--relay-ip IP]
-hashem hubs
-hashem leave-hub --id N
+quantum join-hub --bundle hsh1_...|bh1_...|gh1_... [--name LABEL] [--dial auto|gre|public] [--relay-ip IP]
+quantum hubs
+quantum leave-hub --id N
 ```
 
 </div>
 
-برنامه‌ی ترمینال (`hashem` ← **Cluster**) همین کارها را با منو انجام می‌دهد. روی سرور خارج، هاب‌های ایرانی را که آن سرور سرویس می‌دهد نشان می‌دهد.
+برنامه‌ی ترمینال (`quantum` ← **Cluster**) همین کارها را با منو انجام می‌دهد. روی سرور خارج، هاب‌های ایرانی را که آن سرور سرویس می‌دهد نشان می‌دهد.
 
 ---
 
@@ -472,7 +472,7 @@ hashem leave-hub --id N
 
 ```text
  user ──► hub public IP:443
-            │  iptables nat PREROUTING ─► HASHEM-LB-ENTRY ─► HASHEM-LB ─► HLB-T443
+            │  iptables nat PREROUTING ─► QUANTUM-LB-ENTRY ─► QUANTUM-LB ─► HLB-T443
             │                                  (DNAT by mode: statistic / u32 buckets / single target)
             ├──► 169.254.77.2:443  frps-1            ──tunnel──► foreign A ──► xray
             ├──► 169.254.77.3:443  frps-2            ──tunnel──► foreign B ──► xray
@@ -485,8 +485,8 @@ hashem leave-hub --id N
   - تونل اصلی (`frps` / `backhaul-server`) آدرس `169.254.77.1` را می‌گیرد؛
   - همتای N (`frps-N` / `backhaul-server-N`) آدرس `169.254.77.(N+1)` را می‌گیرد.
 
-  این آدرس‌ها روی اینترفیس dummy به نام `hashem-lb` هستند که `hashem-lb-net.service` آن را در بوت دوباره می‌سازد. در FRP `proxyBindAddr` تنظیم می‌شود و در Backhaul ورودی‌های پورت `169.254.77.N:port` می‌شوند. اسکریپت و پنل روی آدرس‌ها توافق دارند (`lb-binds` و `lb-ports` در `/etc/gre-panel`)، پس بازنویسی یک همتا اتصالش به استخر را خراب نمی‌کند.
-- **قوانین:** پنل قوانین را می‌سازد و با `iptables-restore --noflush` به‌صورت اتمیک اعمال می‌کند، فقط در زنجیره‌های خودش: `HASHEM-LB*` و `HLB-T<port>` / `HLB-U<port>` در nat، و `HASHEM-LB-FILTER` / `HASHEM-LB-FWD` در filter. اتصال مستقیم از بیرون به آدرس‌های خصوصی بسته است. قوانین فقط وقتی تغییری باشد بازنویسی می‌شوند و hookها هر ۳۰ ثانیه دوباره بررسی می‌شوند.
+  این آدرس‌ها روی اینترفیس dummy به نام `quantum-lb` هستند که `quantum-lb-net.service` آن را در بوت دوباره می‌سازد. در FRP `proxyBindAddr` تنظیم می‌شود و در Backhaul ورودی‌های پورت `169.254.77.N:port` می‌شوند. اسکریپت و پنل روی آدرس‌ها توافق دارند (`lb-binds` و `lb-ports` در `/etc/gre-panel`)، پس بازنویسی یک همتا اتصالش به استخر را خراب نمی‌کند.
+- **قوانین:** پنل قوانین را می‌سازد و با `iptables-restore --noflush` به‌صورت اتمیک اعمال می‌کند، فقط در زنجیره‌های خودش: `QUANTUM-LB*` و `HLB-T<port>` / `HLB-U<port>` در nat، و `QUANTUM-LB-FILTER` / `QUANTUM-LB-FWD` در filter. اتصال مستقیم از بیرون به آدرس‌های خصوصی بسته است. قوانین فقط وقتی تغییری باشد بازنویسی می‌شوند و hookها هر ۳۰ ثانیه دوباره بررسی می‌شوند.
 - **بدون پراکسی در فضای کاربر:** کار را خود کرنل انجام می‌دهد. DNAT آدرس واقعی کاربر را نگه می‌دارد، هر اتصالِ موجود روی عضوش می‌ماند (conntrack)، و پنل می‌تواند بدون قطع هیچ اتصالی ری‌استارت شود.
 - **حلقه‌ی بررسی** هر ثانیه اجرا می‌شود و هیچ فرایندی نمی‌سازد: سوکت‌ها را از `/proc/net/{tcp,tcp6,udp,udp6}` می‌خواند و با یک سوکت ICMP خام پینگ می‌کند. وقتی استخری نباشد بیکار است.
 - **فایل‌ها** در `/etc/gre-panel`:
@@ -500,7 +500,7 @@ hashem leave-hub --id N
 | `lb-ports` | پورت‌های استخر |
 
   روی سرور خارج، `hubs.json` فهرست هاب‌های اضافه را دارد.
-- **حذف نصب** قوانین، اینترفیس `hashem-lb` و سرویس‌هایش، و سرویس‌های هاب‌های اضافه (`frpc-hN`، `backhaul-client-hN`، `gre-hN`) را پاک می‌کند.
+- **حذف نصب** قوانین، اینترفیس `quantum-lb` و سرویس‌هایش، و سرویس‌های هاب‌های اضافه (`frpc-hN`، `backhaul-client-hN`، `gre-hN`) را پاک می‌کند.
 
 ---
 
@@ -513,7 +513,7 @@ hashem leave-hub --id N
 | عضو **قطع: به پینگ جواب نمی‌دهد** | مسیر قطع است، هرچند نشست هنوز تایم‌اوت نشده. بعد از Rise بررسیِ موفق خودش برمی‌گردد. |
 | عضو **سرویس از کار افتاده** | تونل سالم است ولی سرویسِ پشتش اتصال را نمی‌پذیرد. xray یا سرویس را روی آن سرور خارج ری‌استارت کنید و با `ss -ltnp` پورت محلی را ببینید. |
 | استخر **بدون سرور سالم** (fail-open) | همه‌ی عضوها بررسی‌ها را رد نمی‌کنند ولی relayها هنوز گوش می‌دهند. دلیلِ هر عضو و رویدادها را ببینید. |
-| **قوانین کرنل اعمال نشد** | معمولاً iptables نصب نیست یا با یک مدیر فایروال تداخل دارد. `hashem cluster rules` و `iptables -t nat -S | grep HASHEM` را ببینید. اگر فقط `nftables` دارید، `iptables-nft` را نصب کنید. |
+| **قوانین کرنل اعمال نشد** | معمولاً iptables نصب نیست یا با یک مدیر فایروال تداخل دارد. `quantum cluster rules` و `iptables -t nat -S | grep QUANTUM` را ببینید. اگر فقط `nftables` دارید، `iptables-nft` را نصب کنید. |
 | هاب متصل **در دسترس نیست** | پورت پنل بین هاب‌ها بسته است، ساعت‌ها بیش از ۹۰ ثانیه اختلاف دارند، یا کلید مخفی‌ها فرق می‌کنند (با کد اتصالِ تازه دوباره وصل کنید). `timedatectl` را ببینید. |
 | فرستادن به هاب دیگر کاری نمی‌کند | هاب دیگر روی همان پورت و پروتکل استخر ندارد، یا استخرش سالم یا Degraded نیست. |
 | DNS: *رکورد proxied است* | رکورد را در Cloudflare خاکستری (فقط DNS) کنید. |
@@ -525,10 +525,10 @@ hashem leave-hub --id N
 <div dir="ltr">
 
 ```bash
-hashem cluster status
-hashem cluster events
-iptables -t nat -S | grep -E 'HASHEM|HLB'
-ip -4 addr show dev hashem-lb
+quantum cluster status
+quantum cluster events
+iptables -t nat -S | grep -E 'QUANTUM|HLB'
+ip -4 addr show dev quantum-lb
 ss -ltn | grep 169.254.77
 conntrack -L -d 169.254.77.0/24 | head
 ```

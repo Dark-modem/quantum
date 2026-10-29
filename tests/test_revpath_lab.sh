@@ -13,8 +13,8 @@ cd "$(dirname "$0")/.." || exit 1
 need() { command -v "$1" >/dev/null 2>&1 || { echo "SKIP test_revpath_lab ($1 missing)"; exit 0; }; }
 need ip; need ping; need iptables
 
-HUB=hashem-lab-hub
-SPOKE=hashem-lab-spoke
+HUB=quantum-lab-hub
+SPOKE=quantum-lab-spoke
 cleanup() { ip netns del "$HUB" 2>/dev/null; ip netns del "$SPOKE" 2>/dev/null; }
 trap cleanup EXIT
 cleanup

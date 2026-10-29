@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hashem — Architecture Report (stable-r148)</title>
+<title>Quantum — Architecture Report (stable-r148)</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Vazirmatn','Segoe UI',Tahoma,sans-serif;background:#020617;color:#e2e8f0;min-height:100vh;padding:2rem;line-height:1.7}
@@ -53,7 +53,7 @@ code{background:#0b1220;border:1px solid #1e293b;border-radius:.3rem;padding:0 .
 </head>
 <body>
 <div class="container">
-  <div class="header-row"><div class="pulse"></div><h1>هاشم — گزارش معماری</h1></div>
+  <div class="header-row"><div class="pulse"></div><h1>کوانتوم — گزارش معماری</h1></div>
   <p class="sub">نسخه‌ی پایدار <span class="mono">stable-r148</span> (commit <span class="mono">61bd634</span>) &nbsp;•&nbsp; فقط از روی کد و مستندات؛ هیچ اندازه‌گیری روی سرور زنده انجام نشده</p>
 
   <nav id="nav">
@@ -68,7 +68,7 @@ code{background:#0b1220;border:1px solid #1e293b;border-radius:.3rem;padding:0 .
   <!-- ===================== 1. ARCH ===================== -->
   <section id="arch" class="on">
     <div class="box">
-      <h2>لایه‌ها و اجزای هاشم</h2>
+      <h2>لایه‌ها و اجزای کوانتوم</h2>
       <svg viewBox="0 0 1000 640" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <marker id="ah" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#64748b"/></marker>
@@ -105,7 +105,7 @@ code{background:#0b1220;border:1px solid #1e293b;border-radius:.3rem;padding:0 .
         <rect x="50" y="402" width="390" height="100" rx="8" fill="rgba(8,51,68,.4)" stroke="#22d3ee" stroke-width="1.5"/>
         <text x="245" y="424" fill="#fff" font-size="12" font-weight="600" text-anchor="middle">Control plane (hub)</text>
         <text x="245" y="442" fill="#94a3b8" font-size="9" text-anchor="middle">gre-panel :7777 (Go, 1 binary, secret base-path) • peers.json</text>
-        <text x="245" y="458" fill="#94a3b8" font-size="9" text-anchor="middle">hashem.sh (CLI+menu, single source of truth) • hashem-watchdog.timer</text>
+        <text x="245" y="458" fill="#94a3b8" font-size="9" text-anchor="middle">quantum.sh (CLI+menu, single source of truth) • quantum-watchdog.timer</text>
         <text x="245" y="474" fill="#94a3b8" font-size="9" text-anchor="middle">rescue • fleet • benchmark • doctor • terminal(WS+PTY, flag)</text>
         <text x="245" y="490" fill="#94a3b8" font-size="9" text-anchor="middle">/etc/gre-panel/*.json  •  /etc/frp/frps*.toml</text>
 
@@ -126,13 +126,13 @@ code{background:#0b1220;border:1px solid #1e293b;border-radius:.3rem;padding:0 .
 
         <rect x="560" y="320" width="390" height="56" rx="8" fill="rgba(8,51,68,.4)" stroke="#22d3ee" stroke-width="1.5"/>
         <text x="755" y="343" fill="#fff" font-size="12" font-weight="600" text-anchor="middle">dial / watchdog / panel (spoke)</text>
-        <text x="755" y="361" fill="#94a3b8" font-size="9" text-anchor="middle">hashem dial auto • hashem-watchdog.timer (60s) • panel :7777/:7778</text>
+        <text x="755" y="361" fill="#94a3b8" font-size="9" text-anchor="middle">quantum dial auto • quantum-watchdog.timer (60s) • panel :7777/:7778</text>
 
         <rect x="560" y="402" width="390" height="100" rx="8" fill="rgba(30,41,59,.6)" stroke="#94a3b8" stroke-width="1.5"/>
         <text x="755" y="424" fill="#fff" font-size="12" font-weight="600" text-anchor="middle">Backend services (local)</text>
         <text x="755" y="442" fill="#94a3b8" font-size="9" text-anchor="middle">Xray / x-ui / Marzban / Pasarguard</text>
         <text x="755" y="458" fill="#94a3b8" font-size="9" text-anchor="middle">127.0.0.1:port  (localPort in frpc.toml)</text>
-        <text x="755" y="474" fill="#94a3b8" font-size="9" text-anchor="middle">Hands-off: hashem never edits x-ui / inbounds</text>
+        <text x="755" y="474" fill="#94a3b8" font-size="9" text-anchor="middle">Hands-off: quantum never edits x-ui / inbounds</text>
 
         <!-- arrows -->
         <line x1="245" y1="100" x2="245" y2="128" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#ah)"/>
@@ -221,11 +221,11 @@ code{background:#0b1220;border:1px solid #1e293b;border-radius:.3rem;padding:0 .
     <div class="box">
       <h2>اتصال هاب و اسپک — چه چیزی بین دو سر باید یکسان باشد</h2>
       <div class="flow">
-        <div class="step"><div class="n">1</div><div><b>روی هاب:</b> <code>hashem setup-iran --local-pub HUB --remote-pub SPOKE …</code> → می‌سازد: GRE، <span class="mono">frps.toml</span>، یونیت‌ها، پنل، و یک <b>bundle</b> <span class="mono">hsh1_…</span> چاپ می‌کند.</div></div>
+        <div class="step"><div class="n">1</div><div><b>روی هاب:</b> <code>quantum setup-iran --local-pub HUB --remote-pub SPOKE …</code> → می‌سازد: GRE، <span class="mono">frps.toml</span>، یونیت‌ها، پنل، و یک <b>bundle</b> <span class="mono">hsh1_…</span> چاپ می‌کند.</div></div>
         <div class="step"><div class="n">2</div><div><b>bundle</b> = <span class="mono">hsh1_&lt;IRAN_PUB&gt;_&lt;FRP_PORT&gt;_&lt;IRAN_GRE&gt;_&lt;FOREIGN_GRE&gt;_&lt;TOKEN&gt;[_ports][_tr-…]</span></div></div>
-        <div class="step"><div class="n">3</div><div><b>روی اسپک:</b> <code>hashem setup-foreign --bundle hsh1_… --local-pub SPOKE</code> → GRE معکوس + <span class="mono">frpc.toml</span> با <span class="mono">serverAddr</span> = IP داخلی GRE هاب.</div></div>
-        <div class="step"><div class="n">4</div><div><b>dial fallback:</b> اگر GRE ping نشد، <span class="mono">frpc</span> خودش به IP عمومی هاب وصل می‌شود (<span class="mono">hashem dial auto</span>).</div></div>
-        <div class="step"><div class="n">5</div><div>اسپک بیشتر: <code>hashem add-peer …</code> روی هاب → <span class="mono">gre-tN + frps-N</span> جدید.</div></div>
+        <div class="step"><div class="n">3</div><div><b>روی اسپک:</b> <code>quantum setup-foreign --bundle hsh1_… --local-pub SPOKE</code> → GRE معکوس + <span class="mono">frpc.toml</span> با <span class="mono">serverAddr</span> = IP داخلی GRE هاب.</div></div>
+        <div class="step"><div class="n">4</div><div><b>dial fallback:</b> اگر GRE ping نشد، <span class="mono">frpc</span> خودش به IP عمومی هاب وصل می‌شود (<span class="mono">quantum dial auto</span>).</div></div>
+        <div class="step"><div class="n">5</div><div>اسپک بیشتر: <code>quantum add-peer …</code> روی هاب → <span class="mono">gre-tN + frps-N</span> جدید.</div></div>
       </div>
       <h3>باید دو سر یکسان باشد (و فقط بخشی در bundle هست)</h3>
       <table>
@@ -250,7 +250,7 @@ code{background:#0b1220;border:1px solid #1e293b;border-radius:.3rem;padding:0 .
         <defs><marker id="a3" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#64748b"/></marker></defs>
         <rect width="100%" height="100%" fill="url(#g)"/>
         <rect x="20" y="20" width="200" height="70" rx="8" fill="rgba(8,51,68,.4)" stroke="#22d3ee" stroke-width="1.5"/>
-        <text x="120" y="45" fill="#fff" font-size="12" font-weight="600" text-anchor="middle">hashem-watchdog.timer</text>
+        <text x="120" y="45" fill="#fff" font-size="12" font-weight="600" text-anchor="middle">quantum-watchdog.timer</text>
         <text x="120" y="63" fill="#94a3b8" font-size="9" text-anchor="middle">هر ۶۰ ثانیه • flock</text>
         <text x="120" y="78" fill="#94a3b8" font-size="9" text-anchor="middle">fail_threshold=2</text>
         <rect x="270" y="20" width="200" height="70" rx="8" fill="rgba(6,78,59,.4)" stroke="#34d399" stroke-width="1.5"/>
@@ -286,7 +286,7 @@ code{background:#0b1220;border:1px solid #1e293b;border-radius:.3rem;padding:0 .
         <text x="830" y="172" fill="#94a3b8" font-size="9" text-anchor="middle">dial_watch_tick: GRE مرده → IP عمومی (خودکار)</text>
         <text x="830" y="188" fill="#94a3b8" font-size="9" text-anchor="middle">carrier: دستی (direct|wss) — AutoPilot فقط لاگ</text>
         <text x="830" y="204" fill="#94a3b8" font-size="9" text-anchor="middle">auto pool: poolCount بر اساس خطای pool-full و بار (روشن)</text>
-        <text x="830" y="220" fill="#94a3b8" font-size="9" text-anchor="middle">hashem-frp-restore: بعد از boot</text>
+        <text x="830" y="220" fill="#94a3b8" font-size="9" text-anchor="middle">quantum-frp-restore: بعد از boot</text>
       </svg>
     </div>
     <div class="cards">
@@ -306,7 +306,7 @@ code{background:#0b1220;border:1px solid #1e293b;border-radius:.3rem;padding:0 .
       <h2>پیش‌فرض‌ها (از کد، نه حدس)</h2>
       <table>
         <tr><th>تنظیم</th><th>پیش‌فرض</th><th class="mono">کجا</th><th>چرا / اثر</th></tr>
-        <tr><td class="mono">transport.tcpMux</td><td><span class="tag off-t">OFF</span></td><td class="mono">perf.go / hashem.sh</td><td>طبق اندازه‌گیری ثبت‌شده، تقریباً نصف throughput روی GRE؛ باید دو سر یکسان باشد</td></tr>
+        <tr><td class="mono">transport.tcpMux</td><td><span class="tag off-t">OFF</span></td><td class="mono">perf.go / quantum.sh</td><td>طبق اندازه‌گیری ثبت‌شده، تقریباً نصف throughput روی GRE؛ باید دو سر یکسان باشد</td></tr>
         <tr><td class="mono">proxy encryption</td><td><span class="tag off-t">OFF</span></td><td class="mono">perf.json</td><td>ترافیک VLESS از قبل رمز است؛ رمزنگاری دوباره فقط CPU می‌سوزاند</td></tr>
         <tr><td class="mono">proxy compression</td><td><span class="tag off-t">OFF</span></td><td class="mono">perf.json</td><td>داده‌ی رمزشده فشرده نمی‌شود؛ هزینه‌ی CPU بدون سود</td></tr>
         <tr><td class="mono">auto pool</td><td><span class="tag on-t">ON</span></td><td class="mono">perf.json auto_pool</td><td>poolCount ۲۰–۲۰۰ و maxPoolCount ۶۰–۵۰۰ (سقف بر اساس RAM)، maxPool ≥ ۱٫۵×pool؛ وضعیت در auto_pool.json</td></tr>
@@ -355,7 +355,7 @@ code{background:#0b1220;border:1px solid #1e293b;border-radius:.3rem;padding:0 .
     </div>
   </section>
 
-  <p class="footer">Hashem • stable-r148 • report generated from source only (no live measurements) • branch <span class="mono">dev</span> ready for changes</p>
+  <p class="footer">Quantum • stable-r148 • report generated from source only (no live measurements) • branch <span class="mono">dev</span> ready for changes</p>
 </div>
 <script>
 document.getElementById('nav').addEventListener('click',function(e){

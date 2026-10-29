@@ -9,7 +9,7 @@ T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fail=0
 check() { if [[ "$2" != "$3" ]]; then echo "FAIL: $1 (want [$2] got [$3])"; fail=1; else echo "ok:   $1"; fi; }
 
-ext() { awk -v n="$1" '$0 ~ "^"n"\\(\\) \\{" {p=1} p {print} p && /^}/ {exit}' hashem.sh; }
+ext() { awk -v n="$1" '$0 ~ "^"n"\\(\\) \\{" {p=1} p {print} p && /^}/ {exit}' quantum.sh; }
 RED='' NC='' GREEN='' YELLOW='' CYAN='' BOLD=''
 for fn in lb_addr_for_svc lb_port_pooled lb_bound_addr lb_frps_bind lb_prefix_ports cli_cluster hubs_init hub_next_id cli_leave_hub; do
     eval "$(ext "$fn")"
@@ -61,7 +61,7 @@ check "no address: entries as given" "443, 2083" "$(lb_prefix_ports "" "443, 208
 
 # the script writers call the hooks
 check "peer_write_frps keeps the bind" 1 "$(ext peer_write_frps | grep -c 'lb_frps_bind')"
-check "setup-iran keeps the bind" 1 "$(grep -c 'lb_frps_bind "${CONFIG_DIR}/frps.toml" frps' hashem.sh)"
+check "setup-iran keeps the bind" 1 "$(grep -c 'lb_frps_bind "${CONFIG_DIR}/frps.toml" frps' quantum.sh)"
 check "backhaul server conf keeps the bind" 1 "$(ext backhaul_write_server_conf | grep -c 'lb_prefix_ports')"
 check "add-peer lets a pooled port be claimed" 1 "$(ext cli_add_peer | grep -c 'lb_port_pooled "$p" && { POOLED=1; continue; }')"
 check "add-backhaul-peer binds a pool member" 1 "$(ext cli_add_backhaul_peer | grep -c 'lb_port_pooled')"
@@ -102,8 +102,8 @@ check "menu: connection limit" 1 "$(ext menu_cluster | grep -c 'member set "$a" 
 check "menu: several ports at once" 1 "$(ext menu_cluster | grep -c 'Several ports at once')"
 
 # CLI wiring and uninstall
-check "join-hub dispatched" 1 "$(grep -c 'join-hub) shift; cli_join_hub' hashem.sh)"
-check "uninstall removes the cluster rules" 2 "$(grep -c 'cluster reset >/dev/null' hashem.sh)"
-check "extra-hub GRE interfaces are ours" 1 "$(grep -c "grep -E '^gre-\[th\]\[0-9\]+\$'" hashem.sh)"
+check "join-hub dispatched" 1 "$(grep -c 'join-hub) shift; cli_join_hub' quantum.sh)"
+check "uninstall removes the cluster rules" 2 "$(grep -c 'cluster reset >/dev/null' quantum.sh)"
+check "extra-hub GRE interfaces are ours" 1 "$(grep -c "grep -E '^gre-\[th\]\[0-9\]+\$'" quantum.sh)"
 
 (( fail )) && exit 1; echo "PASS test_cluster"

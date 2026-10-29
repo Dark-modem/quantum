@@ -10,12 +10,12 @@ export PERF_FILE="$T/panel/perf.json" AUTO_POOL_STATE="$T/panel/auto_pool.json"
 unset PERF_AUTO_POOL
 export AUTOPOOL_RAM_MB=2048   # cap = min(500, 2048*8/5) = 500 -> pool ceiling min(200, 333) = 200
 
-# constants + the functions under test, lifted from hashem.sh
-grep -E '^AUTOPOOL_[A-Z_]+=' "$ROOT/hashem.sh" > "$T/fn.sh"
+# constants + the functions under test, lifted from quantum.sh
+grep -E '^AUTOPOOL_[A-Z_]+=' "$ROOT/quantum.sh" > "$T/fn.sh"
 for fn in perf_get_auto_pool perf_get_int pool_clamp pool_ram_cap autopool_state_get autopool_state_set \
           pool_effective_values autopool_set_toml_key autopool_live_toml_int autopool_count_errors \
           autopool_conn_counts autopool_free_mb autopool_cpu_hot autopool_tick; do
-    awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{" {p=1} p {print} p && /^}/ {p=0}' "$ROOT/hashem.sh"
+    awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{" {p=1} p {print} p && /^}/ {p=0}' "$ROOT/quantum.sh"
 done >> "$T/fn.sh"
 # shellcheck disable=SC1091
 source "$T/fn.sh"

@@ -10,8 +10,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: Hashem version
-      description: Output of `hashem` → System info, or `GET /api/version`
+      label: Quantum version
+      description: Output of `quantum` → System info, or `GET /api/version`
       placeholder: v1.1.0
     validations:
       required: true
@@ -48,7 +48,7 @@ body:
     id: logs
     attributes:
       label: Relevant logs
-      description: Last lines of `hashem logs` or `journalctl -u gre-panel`. Remove secrets first.
+      description: Last lines of `quantum logs` or `journalctl -u gre-panel`. Remove secrets first.
       render: shell
   - type: input
     id: os

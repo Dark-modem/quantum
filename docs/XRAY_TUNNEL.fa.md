@@ -61,8 +61,8 @@ users ──> Iran :2053 ══ Xray (Reality, XHTTP, gRPC, mKCP or CDN) ══>
 
 ## کنار 3x-ui، Marzban و بقیه
 
-- **Xray-core جدا:** نسخه‌ی رسمی با sha256 ثابت، در `/usr/local/lib/hashem/xray`. هیچ‌وقت در `/usr/local/bin/xray` (مسیر نصاب رسمی) یا پوشه‌ی یک پنل نیست.
-- **سرویس‌های جدا:** `hashem-xray-N`، و **هیچ پورت API برای Xray** باز نمی‌شود. هیچ پروسه‌ای با اسم متوقف نمی‌شود.
+- **Xray-core جدا:** نسخه‌ی رسمی با sha256 ثابت، در `/usr/local/lib/quantum/xray`. هیچ‌وقت در `/usr/local/bin/xray` (مسیر نصاب رسمی) یا پوشه‌ی یک پنل نیست.
+- **سرویس‌های جدا:** `quantum-xray-N`، و **هیچ پورت API برای Xray** باز نمی‌شود. هیچ پروسه‌ای با اسم متوقف نمی‌شود.
 - **قبل از راه‌اندازی لینک** پنل بررسی می‌کند کدام برنامه روی کدام پورت گوش می‌دهد. پورتی که برنامه‌ی دیگری گرفته با اسمش رد می‌شود، مثلاً `TCP port 443 is used by 3x-ui (x-ui)`، و یک پورت آزاد پیشنهاد می‌شود. پنل‌های Xray پیدا‌شده روی سرور در تب نشان داده می‌شوند.
 - **سمت خارج فقط** به `127.0.0.1` روی پورت‌های فوروارد‌شده می‌رسد و اینباندهای 3x-ui همان‌طور که هستند می‌مانند. اگر اینباندی PROXY protocol می‌خواهد، آن را در تنظیمات پیشرفته روشن کن.
 
@@ -77,11 +77,11 @@ users ──> Iran :2053 ══ Xray (Reality, XHTTP, gRPC, mKCP or CDN) ══>
 ## ترمینال
 
 ```bash
-hashem xray install     # Xray-core با نسخه‌ی ثابت
-hashem xray status      # نسخه‌ی هسته و سرویس هر لینک
-hashem xray restart     # همچنین: start و stop
-hashem xray logs 200    # لاگ لینک‌ها
-hashem xray uninstall   # سرویس‌ها و هسته را حذف می‌کند؛ لینک‌ها در پنل می‌مانند
+quantum xray install     # Xray-core با نسخه‌ی ثابت
+quantum xray status      # نسخه‌ی هسته و سرویس هر لینک
+quantum xray restart     # همچنین: start و stop
+quantum xray logs 200    # لاگ لینک‌ها
+quantum xray uninstall   # سرویس‌ها و هسته را حذف می‌کند؛ لینک‌ها در پنل می‌مانند
 ```
 
 ## تست‌شده

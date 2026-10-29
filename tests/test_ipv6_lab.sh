@@ -3,14 +3,14 @@
 #
 # Two namespaces joined by a dual-stack veth (192.0.2.1 / 2001:db8:6::1 on the
 # Iran hub, .2 / ::2 on the foreign spoke), a TCP and a UDP echo on the
-# spoke's 127.0.0.1:19001 / :19002, and hashem.sh's own config writers:
+# spoke's 127.0.0.1:19001 / :19002, and quantum.sh's own config writers:
 #
 #  1. Users over IPv6: the link runs over IPv4, a user reaches the Iran ports
 #     29001 (TCP) and 29002 (UDP) over IPv6 and over IPv4, byte-exact.
 #     Backhaul on every transport, and FRP.
 #  2. The link over IPv6: IPv4 between the servers is dropped, the foreign
 #     side dials the hub's IPv6 address. Backhaul on every transport, and FRP.
-#  3. The GRE carriers with hashem.sh's carrier_apply: direct, then 6to4 with
+#  3. The GRE carriers with quantum.sh's carrier_apply: direct, then 6to4 with
 #     IP protocol 47 dropped, then 4in6 with no IPv4 between the servers at
 #     all, then direct again; Backhaul over the tunnel each time.
 #
@@ -107,16 +107,16 @@ except Exception as e:
 PY
 $S python3 "$TMP/echo.py" & pids+=($!)
 
-# hashem.sh's own functions, saved once so both namespaces can source them
+# quantum.sh's own functions, saved once so both namespaces can source them
 # (a heredoc's own "}" lines, like init_carrier_json's JSON, do not end one)
-ext() { awk -v n="$1" '$0 ~ "^"n"\\(\\) \\{" {p=1} p {print} p && h && /^EOF$/ {h=0; next} p && /<< *.?EOF/ {h=1} p && !h && /^}/ {exit}' "$ROOT/hashem.sh"; }
+ext() { awk -v n="$1" '$0 ~ "^"n"\\(\\) \\{" {p=1} p {print} p && h && /^EOF$/ {h=0; next} p && /<< *.?EOF/ {h=1} p && !h && /^}/ {exit}' "$ROOT/quantum.sh"; }
 {
     echo "INSTALL_DIR='$(dirname "$BIN")' BACKHAUL_CONFIG_DIR='$TMP/bh' CONFIG_DIR='$TMP/frp'"
     echo "RED='' GREEN='' YELLOW='' CYAN='' NC='' TMP='$TMP' BIN='$BIN' FRPC='$FRP_DIR/frpc'"
-    grep -E '^(backhaul_transport_ok|backhaul_udp_wanted)\(\)' "$ROOT/hashem.sh"
+    grep -E '^(backhaul_transport_ok|backhaul_udp_wanted)\(\)' "$ROOT/quantum.sh"
     for f in hostport hostonly backhaul_is_v2 backhaul_ensure_tls backhaul_write_server_conf_v1 backhaul_write_client_conf_v1 \
              backhaul_write_server_conf backhaul_write_client_conf backhaul_wait_link; do
-        b="$(ext $f)"; [[ -n "$b" ]] || { echo "echo 'FAIL: $f missing from hashem.sh'; exit 1"; continue; }
+        b="$(ext $f)"; [[ -n "$b" ]] || { echo "echo 'FAIL: $f missing from quantum.sh'; exit 1"; continue; }
         echo "$b"
     done
     cat <<'EOS'
@@ -235,7 +235,7 @@ for t in $TRANSPORTS; do backhaul_round v6link "$t"; done
 v4_unblock
 
 # ---- 3. the GRE carriers: direct -> 6to4 -> 4in6 -> direct ----
-# hashem.sh's own carrier_apply switches gre-tunnel on both servers. The Iran
+# quantum.sh's own carrier_apply switches gre-tunnel on both servers. The Iran
 # end is 10.10.10.2, the foreign end 10.10.10.1, as the panel sets them up;
 # Backhaul tcpmux runs over the inner addresses the whole time.
 {
@@ -244,11 +244,11 @@ v4_unblock
     for f in is_valid_port is_valid_ip6 init_carrier_json carrier_get_active carrier_get_fou_ports carrier_init_kernel \
              gre_path_mtu gre_mtu_for gre_mss mss_clamp_set gre6_env_file gre6_get gre6_set gre6_sit_name \
              gre_dev_kind gre_dev_ends gre6_ula gre6_firewall gre6_rebuild carrier_apply; do
-        b="$(ext $f)"; [[ -n "$b" ]] || { echo "echo 'FAIL: $f missing from hashem.sh'; exit 1"; continue; }
+        b="$(ext $f)"; [[ -n "$b" ]] || { echo "echo 'FAIL: $f missing from quantum.sh'; exit 1"; continue; }
         echo "$b"
     done
 } > "$TMP/carrier.sh"
-bash -n "$TMP/carrier.sh" || { echo "FAIL: the carrier functions taken from hashem.sh do not parse"; exit 1; }
+bash -n "$TMP/carrier.sh" || { echo "FAIL: the carrier functions taken from quantum.sh do not parse"; exit 1; }
 mkdir -p "$TMP/cfg-hub" "$TMP/cfg-spoke"
 { echo "== kernel $(uname -r)"; for m in sit ip6_gre ip6_tunnel; do modprobe "$m" 2>&1 && echo "module $m: ok" || echo "module $m: missing"; done; } >>"$TMP/carrier.log"
 # each call is traced into carrier.log, shown on the CI run when a check fails
@@ -259,7 +259,7 @@ $H sh -c "ip link add gre-tunnel type gre local $HUB4 remote $SPOKE4 ttl 255; ip
 $S sh -c "ip link add gre-tunnel type gre local $SPOKE4 remote $HUB4 ttl 255; ip link set gre-tunnel up mtu 1380
   ip addr add 10.10.10.1/30 dev gre-tunnel; ip route replace 10.10.10.2/32 dev gre-tunnel"
 inner_ping() { local i; for i in $(seq 1 20); do $S ping -c1 -W1 10.10.10.2 >/dev/null 2>&1 && { echo OK; return; }; sleep 0.5; done; echo DOWN; }
-# cs NS FUNC ARGS: one of hashem.sh's carrier functions, run inside NS (read-only here)
+# cs NS FUNC ARGS: one of quantum.sh's carrier functions, run inside NS (read-only here)
 cs() { local ns=$1; shift; ip netns exec "$ns" env PANEL_CONFIG_DIR="$TMP/cfg-ro" bash -c "source '$TMP/carrier.sh'; $*"; }
 kind() { cs "$1" gre_dev_kind gre-tunnel; }
 over_gre() { # name: Backhaul tcpmux over the inner addresses, 256 KiB byte-exact

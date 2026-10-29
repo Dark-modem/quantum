@@ -4,7 +4,7 @@ set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 mkdir -p "$T/bin"
-awk '/^backhaul_session_ok\(\) \{/ {p=1} p {print} p && /^}/ {p=0}' "$ROOT/hashem.sh" > "$T/fn.sh"
+awk '/^backhaul_session_ok\(\) \{/ {p=1} p {print} p && /^}/ {p=0}' "$ROOT/quantum.sh" > "$T/fn.sh"
 [[ -s "$T/fn.sh" ]] || { echo "FAIL backhaul_session_ok not found"; exit 1; }
 # shellcheck disable=SC1091
 source "$T/fn.sh"
@@ -23,10 +23,10 @@ jc "[WARNING] invalid security token received: ***"
 backhaul_session_ok backhaul-server; chk "token rejected" $? 1
 jc "[INFO] something unrelated"
 backhaul_session_ok backhaul-server; chk "no signal -> no false alarm" $? 0
-grep -q 'backhaul_session_ok "\$BH_UNIT"' "$ROOT/hashem.sh" || { echo "FAIL watchdog_check does not use it"; fail=1; }
+grep -q 'backhaul_session_ok "\$BH_UNIT"' "$ROOT/quantum.sh" || { echo "FAIL watchdog_check does not use it"; fail=1; }
 # Backhaul without GRE: a healthy session is the whole check on both sides
 # (the Iran server used to stay "down" forever: no GRE interface to ping)
-body=$(awk '/^watchdog_check\(\) \{/ {p=1} p {print} p && /^}/ {p=0}' "$ROOT/hashem.sh")
+body=$(awk '/^watchdog_check\(\) \{/ {p=1} p {print} p && /^}/ {p=0}' "$ROOT/quantum.sh")
 grep -q '\[\[ "\$BH_UNIT" == "backhaul-client" \]\] && GRE_OK=1' <<<"$body" && { echo "FAIL session only counts on the client"; fail=1; }
 grep -q "backhaul-server-\*" <<<"$body" || { echo "FAIL backhaul-server-N hubs not checked"; fail=1; }
 [[ $fail -eq 0 ]] && echo "PASS test_watchdog_backhaul" || exit 1

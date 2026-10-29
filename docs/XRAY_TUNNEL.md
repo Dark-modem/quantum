@@ -52,8 +52,8 @@ Changing a link later restarts it. If the foreign server needs the change too, t
 
 ## Next to 3x-ui, Marzban and others
 
-- **Its own Xray-core**, the official release pinned by sha256, in `/usr/local/lib/hashem/xray`. That is never `/usr/local/bin/xray` (the official installer's) or a panel's folder.
-- **Its own services**, `hashem-xray-N`, and **no Xray API port**. Nothing is ever stopped by process name.
+- **Its own Xray-core**, the official release pinned by sha256, in `/usr/local/lib/quantum/xray`. That is never `/usr/local/bin/xray` (the official installer's) or a panel's folder.
+- **Its own services**, `quantum-xray-N`, and **no Xray API port**. Nothing is ever stopped by process name.
 - **Before a link starts**, the panel reads who listens where. A port held by another program is refused with its name, for example `TCP port 443 is used by 3x-ui (x-ui)`, and a free port is suggested. Xray panels found on the server are listed in the tab.
 - **The foreign end reaches only** `127.0.0.1` on the forwarded ports. Your 3x-ui inbounds stay as they are. If an inbound expects the PROXY protocol, set it in the advanced settings.
 
@@ -68,11 +68,11 @@ Each link's traffic is counted on its own (`xray-N`) by the panel's counters. Th
 ## Terminal
 
 ```bash
-hashem xray install     # the pinned Xray-core
-hashem xray status      # core version and each link's service
-hashem xray restart     # also: start, stop
-hashem xray logs 200    # the links' log
-hashem xray uninstall   # removes the services and the core; the links stay in the panel
+quantum xray install     # the pinned Xray-core
+quantum xray status      # core version and each link's service
+quantum xray restart     # also: start, stop
+quantum xray logs 200    # the links' log
+quantum xray uninstall   # removes the services and the core; the links stay in the panel
 ```
 
 ## Tested

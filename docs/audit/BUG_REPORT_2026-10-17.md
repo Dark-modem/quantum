@@ -1,6 +1,6 @@
-# گزارش باگ‌های پروژه Hashem Panel — ۱۷ اکتبر ۲۰۲۶
+# گزارش باگ‌های پروژه Quantum Panel — ۱۷ اکتبر ۲۰۲۶
 
-دامنه‌ی بررسی: تمام کد Go در `panel/`، فایل `panel/app.js` (با تمرکز روی قرارداد API و XSS)، `hashem.sh` و `app.py`/`install.sh` سنتینل.
+دامنه‌ی بررسی: تمام کد Go در `panel/`، فایل `panel/app.js` (با تمرکز روی قرارداد API و XSS)، `quantum.sh` و `app.py`/`install.sh` سنتینل.
 روش: خواندن کد. هیچ‌کدام از این موارد روی سرور لینوکس واقعی اجرا نشده است. مواردی که با برچسب **«احتمالی»** مشخص شده‌اند، باید روی سرور تأیید شوند.
 باگ‌های سنتینل قبلاً در همین جلسه رفع شده‌اند و اینجا تکرار نمی‌شوند.
 
@@ -73,7 +73,7 @@
 ### C2. خودِ هش رمز به‌جای رمز پذیرفته می‌شود (pass-the-hash)
 - **محل:** `panel/password.go:61-64`
 - **شرح:** «Plaintext fallback» هر رشته‌ی ذخیره‌شده با طول ۸ یا بیشتر را مستقیم با رمز ورودی مقایسه می‌کند. پس اگر کسی محتوای `pass_hash` (مثلاً `argon2id$v=19$...`) را به‌عنوان رمز بفرستد، لاگین موفق می‌شود.
-- **پیامد:** کسی که به `panel.json`، `panel.json.bak` یا یک بکاپ دسترسی پیدا کند، بدون شکستن هش وارد پنل می‌شود. این هش‌ها در بکاپ‌ها و در `/var/backups/hashem/<ts>_*/gre-panel` (کپی‌های بی‌رمز `backup_configs`) هم هستند.
+- **پیامد:** کسی که به `panel.json`، `panel.json.bak` یا یک بکاپ دسترسی پیدا کند، بدون شکستن هش وارد پنل می‌شود. این هش‌ها در بکاپ‌ها و در `/var/backups/quantum/<ts>_*/gre-panel` (کپی‌های بی‌رمز `backup_configs`) هم هستند.
 - **رفع:** مقایسه‌ی متن ساده فقط وقتی انجام شود که مقدار ذخیره‌شده نه هش legacy باشد و نه با `argon2id$` یا `$argon2id$` شروع شود. بهتر است این fallback کلاً حذف شود.
 
 ### C3. کرش کل پنل به‌خاطر نوشتن هم‌زمان در map کلاستر
@@ -83,7 +83,7 @@
 - **رفع:** `loadClusterConfig` یک deep copy از mapها برگرداند و همه‌ی تغییرات فقط زیر `clusterMu` روی cache انجام شوند. در مانیتور هم اول نتیجه‌ها جمع شوند و بعد زیر قفل اعمال شوند.
 
 ### C4. تزریق در `authorized_keys` و پاک‌شدن همه‌ی کلیدهای SSH روت (Bagher)
-- **محل:** `panel/sshfwd.go:1115-1173` (`handlePeerSSHFwdInstallKey`)، `panel/sshfwd.go:435-464` (`applyBagherBundle`)، `hashem.sh:8976-8979`
+- **محل:** `panel/sshfwd.go:1115-1173` (`handlePeerSSHFwdInstallKey`)، `panel/sshfwd.go:435-464` (`applyBagherBundle`)، `quantum.sh:8976-8979`
 - **شرح:**
   1. `pub_key` بدون اعتبارسنجی داخل خط `authorized_keys` گذاشته می‌شود. اگر کلید شامل `\n` باشد، می‌توان یک کلید **بدون `restrict`** اضافه کرد.
   2. حذف کلید قبلی با `strings.Contains(line, targetKey)` انجام می‌شود. اگر `pub_key` فقط یک کلمه باشد (مثلاً `ssh`)، `targetKey` همان کلمه می‌شود و **همه‌ی خط‌های `authorized_keys` پاک می‌شوند**.
@@ -101,7 +101,7 @@
 - **رفع:** base path و پورت سرور مقابل در `peer_link.json` ذخیره شود (مثلاً در handshake یا از PeerURL). در `sendToPeer` هم ریدایرکت غیرفعال شود (`CheckRedirect: return http.ErrUseLastResponse`) و پاسخ فقط وقتی موفق حساب شود که JSON معتبر باشد.
 
 ### H2. دو کنترلر Auto-Pool با هم دعوا می‌کنند و frpc مدام ری‌استارت می‌شود
-- **محل:** `panel/perf.go:267-397` (`startNativeAutoPoolWorker`) و `hashem.sh:739-853` (`autopool_tick`)
+- **محل:** `panel/perf.go:267-397` (`startNativeAutoPoolWorker`) و `quantum.sh:739-853` (`autopool_tick`)
 - **شرح:** هر دو کنترلر `auto_pool.json` و `transport.poolCount` را در `frpc.toml` تغییر می‌دهند و frpc را ری‌استارت می‌کنند:
   - نسخه‌ی Go: بازه‌ی ۳ تا ۱۰۰، بدون محافظ تعداد کانکشن فعال، و هر ۳۰ ثانیه.
   - نسخه‌ی شل: کمینه‌ی ۲۰، با محافظ `AUTOPOOL_LOW_CONNS` و cooldown.
@@ -111,7 +111,7 @@
 - **رفع:** یکی از دو کنترلر حذف شود. کنترلر Go فقط وضعیت را بخواند و تصمیم‌گیری با شل باشد (که محافظ کانکشن فعال دارد).
 
 ### H3. ویرایش پورت‌های یک peer در ایران، frps همان peer را از کار می‌اندازد (احتمالی)
-- **محل:** `panel/peers_edit.go:569-576` (`editPeerDirect`)، `hashem.sh:3994-4022` (`cli_edit_peer`)
+- **محل:** `panel/peers_edit.go:569-576` (`editPeerDirect`)، `quantum.sh:3994-4022` (`cli_edit_peer`)
 - **شرح:** بلوک‌های `[[proxies]]` (که مخصوص frpc هستند) داخل `frps-N.toml` نوشته می‌شوند. نسخه‌های جدید FRP به‌طور پیش‌فرض `--strict_config` را روشن دارند و فیلد ناشناخته را خطا می‌دانند.
 - **پیامد:** بعد از `reload-or-restart`، frps آن peer بالا نمی‌آید و تونل قطع می‌شود. ضمناً پورت‌ها اصلاً در سمت ایران تعریف نمی‌شوند و باید در frpc سرور خارج عوض شوند.
 - **رفع:** پورت‌ها فقط در `peers.json` و bundle به‌روز شوند و `frps*.toml` دست نخورد. تغییر واقعی باید در frpc سرور خارج اعمال شود.
@@ -120,10 +120,10 @@
 - **محل:** `panel/tunnel.go:885-1188`، `panel/setup_conf.go`
   1. **نام proxyها به‌جای پورت:** `:956-971`، یعنی `st.Proxies` در FRP که نام‌هایی مثل `tcp_443` است، وارد لیست پورت‌های Backhaul می‌شود. نتیجه کانفیگ نامعتبر Backhaul است.
   2. **بدون rollback:** `:1004-1008`، یعنی همه‌ی سرویس‌ها قبل از اینکه سرویس جدید بالا بیاید متوقف می‌شوند. اگر نوشتن فایل یا ری‌استارت شکست بخورد، تونل قبلی هم خاموش می‌ماند.
-  3. **اسکیمای قدیمی Backhaul:** `writeBackhaulServerConfig`/`writeBackhaulClientConfig` همیشه اسکیمای v0.x را می‌نویسند. `hashem.sh:1991-2055` می‌گوید هسته‌ی v2 این اسکیما را رد می‌کند (`E-BH-03`).
-  4. **بدون KCP/QUIC:** `:1019-1026`، یعنی frps تولیدشده `kcpBindPort` و `quicBindPort` ندارد (برخلاف `hashem.sh:2715-2716`). peerهایی که KCP یا QUIC دارند وصل نمی‌شوند.
+  3. **اسکیمای قدیمی Backhaul:** `writeBackhaulServerConfig`/`writeBackhaulClientConfig` همیشه اسکیمای v0.x را می‌نویسند. `quantum.sh:1991-2055` می‌گوید هسته‌ی v2 این اسکیما را رد می‌کند (`E-BH-03`).
+  4. **بدون KCP/QUIC:** `:1019-1026`، یعنی frps تولیدشده `kcpBindPort` و `quicBindPort` ندارد (برخلاف `quantum.sh:2715-2716`). peerهایی که KCP یا QUIC دارند وصل نمی‌شوند.
   5. **آدرس خارجی به‌جای داخلی:** `:986`، یعنی `peerGre = st.Gre.PeerIP` که از `ip tunnel show` آمده و آدرس **public** طرف مقابل است، نه آدرس داخلی GRE. در حالت «GRE+Backhaul» اتصال واقعاً از روی GRE نمی‌رود.
-- **رفع:** فقط پورت‌های عددی یا mapping معتبر استفاده شود. سرویس قبلی بعد از بالا آمدن سرویس جدید متوقف شود. کانفیگ Backhaul از خود `hashem.sh` گرفته شود (یا `backhaul -v` بررسی شود). آدرس peer هم از `grePeerInner(st.Gre.Inner)` گرفته شود.
+- **رفع:** فقط پورت‌های عددی یا mapping معتبر استفاده شود. سرویس قبلی بعد از بالا آمدن سرویس جدید متوقف شود. کانفیگ Backhaul از خود `quantum.sh` گرفته شود (یا `backhaul -v` بررسی شود). آدرس peer هم از `grePeerInner(st.Gre.Inner)` گرفته شود.
 
 ### H5. ترمینال وب بعد از ۳۰ ثانیه بدون خروجی بسته می‌شود (احتمالی)
 - **محل:** `panel/terminal.go:236-247`
@@ -138,29 +138,29 @@
 
 ### H7. نصب از پنل بعد از ۶۰ ثانیه قطع می‌شود
 - **محل:** `panel/setup.go:741`
-- **شرح:** `runInstaller` برای `hashem.sh setup-*` فقط ۶۰ ثانیه وقت دارد. در حالی که دانلود FRP یا Backhaul به‌تنهایی می‌تواند ۴۵ ثانیه × چند mirror × نسخه‌ی جایگزین طول بکشد (`hashem.sh:1742-1851`)، و بعد ۱۰ ثانیه انتظار برای frps و `tune_apply` هم اضافه می‌شود.
+- **شرح:** `runInstaller` برای `quantum.sh setup-*` فقط ۶۰ ثانیه وقت دارد. در حالی که دانلود FRP یا Backhaul به‌تنهایی می‌تواند ۴۵ ثانیه × چند mirror × نسخه‌ی جایگزین طول بکشد (`quantum.sh:1742-1851`)، و بعد ۱۰ ثانیه انتظار برای frps و `tune_apply` هم اضافه می‌شود.
 - **پیامد:** روی لینک‌های کند ایران، نصب نیمه‌کاره kill می‌شود و سیستم در وضعیت نیمه‌نصب می‌ماند.
 - **رفع:** timeout حداقل ۱۰ تا ۱۵ دقیقه شود. خروجی هم بهتر است stream شود یا کار به‌صورت job پس‌زمینه انجام شود.
 
 ### H8. افزودن peer با ترنسپورت غیر از tcp همیشه شکست می‌خورد
-- **محل:** `panel/setup.go:682-684` در مقابل `hashem.sh:3591-3606`
+- **محل:** `panel/setup.go:682-684` در مقابل `quantum.sh:3591-3606`
 - **شرح:** Go پرچم `--frp-transport` را به `add-peer` می‌فرستد، ولی `cli_add_peer` این پرچم را نمی‌شناسد و با «Unknown flag» خارج می‌شود.
 - **رفع:** `--frp-transport` به `cli_add_peer` اضافه شود (و KCP/QUIC/WSS در `peer_write_frps` هم پشتیبانی شود).
 
 ### H9. بنچمارک همیشه KCP/QUIC را پیشنهاد می‌کند، و Apply کردن بعضی گزینه‌ها تونل را خراب می‌کند
-- **محل:** `panel/benchmark.go:294-352` (`probeUDP`)، `:659-683`، `:783-812`، `hashem.sh:1114-1266`
+- **محل:** `panel/benchmark.go:294-352` (`probeUDP`)، `:659-683`، `:783-812`، `quantum.sh:1114-1266`
 - **شرح:**
   - **پروب UDP ساختگی است:** UDP بدون اتصال است، پس dial و write همیشه موفق می‌شوند و نتیجه همیشه ۰٪ loss و حدود ۰.۱ میلی‌ثانیه است. KCP و QUIC همیشه امتیاز حدود ۱۰۰ می‌گیرند و «Recommended» می‌شوند، حتی وقتی سرور مقابل اصلاً گوش نمی‌دهد. برای هاست loopback هم عدد ساختگی گذاشته می‌شود (`:608-613`، `:631-649`).
   - **Apply خطرناک:** اول به peer دستور داده می‌شود (`syncCarrierToPeer`) و بعد روی سرور محلی اعمال می‌شود. برای `frp:kcp` در سرور ایران `frpc.toml` وجود ندارد و خطا برمی‌گردد، ولی سرور خارج قبلاً به KCP سوییچ کرده است. برای `backhaul:*` و `bagher:*` هم `carrier_apply` هیچ شاخه‌ای ندارد، پس GRE را **حذف و دوباره ساخته** و یک carrier بی‌معنی ذخیره می‌کند.
 - **رفع:** پروب UDP حذف شود یا با یک handshake واقعی جایگزین شود. Apply فقط برای carrierهای پشتیبانی‌شده مجاز باشد، و اول سمت محلی اعمال شود.
 
 ### H10. غیرفعال‌کردن لایسنس پایدار نمی‌ماند
-- **محل:** `panel/main.go:174-176`، `panel/license.go:177-194` و `:301-311`، `hashem.sh:9131-9141`
+- **محل:** `panel/main.go:174-176`، `panel/license.go:177-194` و `:301-311`، `quantum.sh:9131-9141`
 - **شرح:**
   - با `key == ""`، `cfg.LicenseKey = ""` ذخیره می‌شود، ولی `saveConfigAtomic` کلید قبلی را از فایل برمی‌گرداند.
-  - `loadLicenseFromDisk` مسیرهای `/root/.hashem/license.key` و `/root/.hashem-license/license.key` را هم می‌خواند و پاک‌شان نمی‌کند.
+  - `loadLicenseFromDisk` مسیرهای `/root/.quantum/license.key` و `/root/.quantum-license/license.key` را هم می‌خواند و پاک‌شان نمی‌کند.
   - `HasFeature` هر ۳۰ ثانیه دوباره از دیسک می‌خواند.
-  - `hashem license deactivate` هم فقط `/etc/gre-panel/license.key` را پاک می‌کند.
+  - `quantum license deactivate` هم فقط `/etc/gre-panel/license.key` را پاک می‌کند.
 - **پیامد:** لایسنس بعد از چند ثانیه یا بعد از ری‌استارت دوباره فعال می‌شود.
 - **رفع:** پاک‌کردن صریح `LicenseKey` در `saveConfigAtomic` مجاز شود و همه‌ی مسیرهای candidate پاک شوند.
 
@@ -171,48 +171,48 @@
 - **رفع:** loopback فقط وقتی trusted باشد که صریحاً در `TRUSTED_PROXY_IPS` آمده باشد، یا یک تنظیم مشخص برای reverse proxy وجود داشته باشد.
 
 ### H12. دانلودها بدون بررسی یکپارچگی اجرا می‌شوند
-- **محل:** `hashem.sh:5605-5672` (`install_panel`)، `panel/update.go:194-225`، `panel/update_channel.go:381-400`، `panel/setup.go:127-137`
+- **محل:** `quantum.sh:5605-5672` (`install_panel`)، `panel/update.go:194-225`، `panel/update_channel.go:381-400`، `panel/setup.go:127-137`
 - **شرح:**
   - `install_panel` (نصب اولیه و `update_all`) باینری پنل را از GitHub یا mirrorهای شخص ثالث (ghproxy و غیره) دانلود می‌کند و **checksum را بررسی نمی‌کند**.
   - در آپدیت Go، فایل checksum هم از **همان mirrorها** گرفته می‌شود. وقتی GitHub فیلتر است، mirror می‌تواند هم باینری و هم checksum را جعل کند.
-  - `fetchScript` و `ensureFreshScript` برای build‌های غیر release، `hashem.sh` را از شاخه‌ی main بدون checksum می‌گیرند و با دسترسی روت اجرا می‌کنند.
+  - `fetchScript` و `ensureFreshScript` برای build‌های غیر release، `quantum.sh` را از شاخه‌ی main بدون checksum می‌گیرند و با دسترسی روت اجرا می‌کنند.
 - **رفع:** checksum فقط از منبع رسمی گرفته شود، یا بهتر، releaseها امضا شوند (مثل لایسنس با Ed25519). کلید عمومی هم داخل باینری قرار بگیرد.
 
 ---
 
 ## متوسط
 
-### M1. `hashem cluster revert` فایل `cluster.json` را خراب می‌کند و قوانین را حذف نمی‌کند
-- **محل:** `hashem.sh:9194-9207`
-- **شرح:** دنبال chainهایی به اسم `HASHEM-CLUSTER-FAILOVER` و `hashem_cluster` می‌گردد، ولی Go از `HASHEM-CLUSTER-PREROUTING` و `HASHEM-CLUSTER-POSTROUTING` استفاده می‌کند، پس هیچ قانونی حذف نمی‌شود. علاوه بر این، `active_failover = false` (یک bool) را در فیلدی می‌نویسد که در Go از نوع string است. `json.Unmarshal` شکست می‌خورد و پنل کانفیگ پیش‌فرض را بارگذاری می‌کند. اولین save بعدی هم nodeها را پاک می‌کند. وضعیت `status` هم همیشه «NORMAL» نشان می‌دهد.
+### M1. `quantum cluster revert` فایل `cluster.json` را خراب می‌کند و قوانین را حذف نمی‌کند
+- **محل:** `quantum.sh:9194-9207`
+- **شرح:** دنبال chainهایی به اسم `QUANTUM-CLUSTER-FAILOVER` و `quantum_cluster` می‌گردد، ولی Go از `QUANTUM-CLUSTER-PREROUTING` و `QUANTUM-CLUSTER-POSTROUTING` استفاده می‌کند، پس هیچ قانونی حذف نمی‌شود. علاوه بر این، `active_failover = false` (یک bool) را در فیلدی می‌نویسد که در Go از نوع string است. `json.Unmarshal` شکست می‌خورد و پنل کانفیگ پیش‌فرض را بارگذاری می‌کند. اولین save بعدی هم nodeها را پاک می‌کند. وضعیت `status` هم همیشه «NORMAL» نشان می‌دهد.
 - **رفع:** chainهای درست flush شوند و `active_failover` و `failover_target` با مقدار `""` نوشته شوند (یا از `gre-panel cluster revert` استفاده شود).
 
-### M2. دستورهای `hashem panel-port|panel-user|panel-path` وجود ندارند
-- **محل:** `hashem.sh:5876-5938` (تعریف داخل بدنه‌ی `cli_set_panel_password`)، `hashem.sh:8212` (help)، `CHANGELOG.md:26`
+### M2. دستورهای `quantum panel-port|panel-user|panel-path` وجود ندارند
+- **محل:** `quantum.sh:5876-5938` (تعریف داخل بدنه‌ی `cli_set_panel_password`)، `quantum.sh:8212` (help)، `CHANGELOG.md:26`
 - **شرح:** این توابع داخل تابع دیگری تعریف شده‌اند و در router خط ۹۲۲۸ هیچ case‌ای برایشان نیست. خروجی همیشه «Unknown command» است.
 - **رفع:** توابع به سطح بالای فایل منتقل و در router ثبت شوند.
 
-### M3. `hashem setup-foreign --bundle bh1_/gh1_` کار نمی‌کند
-- **محل:** `hashem.sh:8303-8311`
+### M3. `quantum setup-foreign --bundle bh1_/gh1_` کار نمی‌کند
+- **محل:** `quantum.sh:8303-8311`
 - **شرح:** بعد از حلقه‌ی `shift`، مقدار `"$@"` خالی است و `cli_setup_backhaul_foreign "$@"` بدون آرگومان صدا زده می‌شود. نتیجه «Invalid remote public IP» است. (پنل مستقیم `setup-backhaul-foreign` را صدا می‌زند، پس فقط مسیر CLI و منو خراب است.)
 - **رفع:** آرگومان‌های اصلی قبل از حلقه ذخیره شوند یا `--bundle "$BUNDLE"` صریح پاس داده شود.
 
 ### M4. `install_panel` ممکن است پنل را خاموش رها کند و اسکریپت جدید را با نسخه‌ی قدیمی بازنویسی کند
-- **محل:** `hashem.sh:5715-5732`
+- **محل:** `quantum.sh:5715-5732`
 - **شرح:**
   - اگر دانلود و build شکست بخورد، پنل اول `stop` می‌شود و بعد `cp` شکست می‌خورد. پیام «keeping the running version» نادرست است و پنل خاموش می‌ماند.
-  - خط `cp "$0" "$HASHEM_BIN"` نسخه‌ی تازه‌دانلودشده‌ی `hashem` (خط ۵۶۷۰) را با اسکریپت در حال اجرا (قدیمی) بازنویسی می‌کند. اگر `$0` خودش `/usr/local/bin/hashem` باشد، `./hashem.sh` از **پوشه‌ی جاری** کپی می‌شود.
+  - خط `cp "$0" "$QUANTUM_BIN"` نسخه‌ی تازه‌دانلودشده‌ی `quantum` (خط ۵۶۷۰) را با اسکریپت در حال اجرا (قدیمی) بازنویسی می‌کند. اگر `$0` خودش `/usr/local/bin/quantum` باشد، `./quantum.sh` از **پوشه‌ی جاری** کپی می‌شود.
 - **رفع:** stop فقط وقتی انجام شود که فایل جدید موجود و معتبر است. آن `cp "$0"` هم حذف شود.
 
 ### M5. هر آپدیت همه‌ی تونل‌ها را ری‌استارت می‌کند
-- **محل:** `hashem.sh:7431` (`perf_apply` در انتهای `update_all`)
+- **محل:** `quantum.sh:7431` (`perf_apply` در انتهای `update_all`)
 - **شرح:** `perf_apply` بدون شرط frpc و همه‌ی frpsها را ری‌استارت می‌کند، در حالی که مستندات می‌گویند «تونل‌ها دست نمی‌خورند».
 - **رفع:** ری‌استارت فقط وقتی انجام شود که کانفیگ live واقعاً تغییر کرده است.
 
 ### M6. بکاپ و ری‌استارت زمان‌بندی‌شده بدون Watchdog اجرا نمی‌شوند، و بکاپ خارج از سرور قابل استفاده نیست
-- **محل:** `hashem.sh:6412-6578`، `:6804-6824`، `panel/watchdog.go:416-478`
+- **محل:** `quantum.sh:6412-6578`، `:6804-6824`، `panel/watchdog.go:416-478`
 - **شرح:**
-  - تنها چیزی که `watchdog_tick` را اجرا می‌کند (شامل بکاپ زمان‌بندی‌شده، ری‌استارت زمان‌بندی‌شده و autopool) تایمر `hashem-watchdog.timer` است، و با «Watchdog off» غیرفعال می‌شود. UI زمان‌بندی را ذخیره می‌کند ولی چیزی اجرا نمی‌شود.
+  - تنها چیزی که `watchdog_tick` را اجرا می‌کند (شامل بکاپ زمان‌بندی‌شده، ری‌استارت زمان‌بندی‌شده و autopool) تایمر `quantum-watchdog.timer` است، و با «Watchdog off» غیرفعال می‌شود. UI زمان‌بندی را ذخیره می‌کند ولی چیزی اجرا نمی‌شود.
   - فایل بکاپ با `backup.key` رمز می‌شود که روی همان سرور است و از UI دانلود یا نمایش داده نمی‌شود. اگر سرور از دست برود، بکاپ دانلودشده قابل باز کردن نیست.
   - `cluster.json`، `sshfwd.json`، `license.key` و `sentinel.json` در بکاپ نیستند.
 - **رفع:** تایمر از «هشدار watchdog» جدا شود. یک راه برای export کلید بکاپ اضافه شود. فایل‌های جاافتاده به `backup_file_list` اضافه شوند.
@@ -246,7 +246,7 @@
 - **محل:** `panel/revfix.go:540-545`، `:341-374`، `:451-481`
 - **شرح:**
   - `worseAfter` فقط وقتی true است که وضعیت قبلی HEALTHY بوده باشد، در حالی که fix فقط وقتی اجرا می‌شود که وضعیت HEALTHY نیست. پس rollback هیچ‌وقت اتفاق نمی‌افتد.
-  - rollback در `sysctlPersist` فقط مقدار runtime را برمی‌گرداند و خط اضافه‌شده در `/etc/sysctl.d/99-hashem-revpath.conf` می‌ماند، پس بعد از reboot تغییر برمی‌گردد.
+  - rollback در `sysctlPersist` فقط مقدار runtime را برمی‌گرداند و خط اضافه‌شده در `/etc/sysctl.d/99-quantum-revpath.conf` می‌ماند، پس بعد از reboot تغییر برمی‌گردد.
   - FwInput پروتکل ۴۷ و ICMP را **از همه‌ی مبداها** در ابتدای INPUT باز می‌کند.
 - **رفع:** مقایسه‌ی بدتر شدن بر اساس تعداد لایه‌های fail انجام شود. rollback فایل persist را هم برگرداند. قانون پروتکل ۴۷ هم به آی‌پی peer محدود شود.
 
@@ -278,7 +278,7 @@
   - `panel/carrier.go:375`
   - `panel/perf.go:263`
   - `panel/sshfwd.go:468`، `:709`
-  - `hashem.sh` (frpc/frps/backhaul بدون `chmod`)
+  - `quantum.sh` (frpc/frps/backhaul بدون `chmod`)
 - **شرح:** `writeEngineFile` عمداً از 0600 استفاده می‌کند ولی این مسیرها نه. توکن FRP و Backhaul برای هر کاربر محلی قابل خواندن می‌شود.
 - **رفع:** همه‌جا از 0600 استفاده شود.
 
@@ -289,26 +289,26 @@
   - `data.failover_target` (یک آی‌پی) با `node.id` مقایسه می‌شود، پس دکمه‌ی «Revert Reroute» روی کارت هدف هیچ‌وقت نمایش داده نمی‌شود. باید با `data.active_failover` مقایسه شود.
 
 ### M17. ناهمخوانی سقف تعداد peer
-- **محل:** `panel/setup.go:373` (۱۰)، `hashem.sh:3481` (`MAX_PEERS=5`)، `panel/peers_edit.go:60` (`"max": 5`)
+- **محل:** `panel/setup.go:373` (۱۰)، `quantum.sh:3481` (`MAX_PEERS=5`)، `panel/peers_edit.go:60` (`"max": 5`)
 - **شرح:** پنل افزودن peer ششم تا دهم را می‌پذیرد، ولی اسکریپت آن را با «Peer table full» رد می‌کند.
 
 ### M18. `fuser -k` هر پروسه‌ای را که پورت انتخاب‌شده را دارد می‌کشد
-- **محل:** `hashem.sh:2749-2751`، `:3576-3578`
+- **محل:** `quantum.sh:2749-2751`، `:3576-3578`
 - **شرح:** اگر کاربر پورتی را انتخاب کند که سرویس دیگری (مثلاً xray) استفاده می‌کند، آن سرویس kill می‌شود.
 - **رفع:** خطا داده شود، یا فقط پروسه‌های frps کشته شوند.
 
 ### M19. «Remove tunnel» تونل‌ها و FOUهای غیرمرتبط را هم حذف می‌کند
-- **محل:** `hashem.sh:4957-4966` (و `:4881-4890` در uninstall)
+- **محل:** `quantum.sh:4957-4966` (و `:4881-4890` در uninstall)
 - **شرح:** همه‌ی خروجی `ip tunnel show` (شامل تونل‌های sit/ipip/gre خود کاربر) و همه‌ی پورت‌های FOU حذف می‌شوند.
 - **رفع:** فقط `gre-tunnel` و `gre-t*` و پورت‌های FOU ثبت‌شده در `carrier.json` حذف شوند.
 
 ### M20. بازه‌ی پورت ephemeral با پورت سرویس‌ها تداخل دارد
-- **محل:** `hashem.sh:5096` و `:5176` (`ip_local_port_range = 1024 65535`)
+- **محل:** `quantum.sh:5096` و `:5176` (`ip_local_port_range = 1024 65535`)
 - **شرح:** اتصال‌های خروجی ممکن است پورت‌هایی مثل ۷۷۷۷ (پنل) یا ۲۰۰۰۰ تا ۶۰۰۰۰ (کنترل FRP) را اشغال کنند. ری‌استارت frps یا پنل با «address already in use» شکست می‌خورد.
 - **رفع:** پورت‌های سرویس با `net.ipv4.ip_local_reserved_ports` رزرو شوند یا بازه محدودتر شود.
 
 ### M21. `setup-foreign` پورت کنترل FRP را روی سرور خارج بررسی می‌کند
-- **محل:** `hashem.sh:8351`
+- **محل:** `quantum.sh:8351`
 - **شرح:** frpc این پورت را bind نمی‌کند، پس بررسی بی‌معنی است. در حالت تعاملی اجازه می‌دهد پورت عوض شود، که با سرور ایران ناهمخوان می‌شود و تونل کار نمی‌کند.
 
 ### M22. bundle از IPهای پیش‌فرض GRE استفاده می‌کند، نه IPهای تنظیم‌شده
@@ -337,9 +337,9 @@
 | L14 | `panel/carrier.go:240-247` | خطای `applyCarrierMode` نادیده گرفته می‌شود و همیشه «ok» برمی‌گردد. |
 | L15 | `panel/peers_edit.go:864-877` | `strings.ReplaceAll(oldIP, newIP)` روی کل unit اجرا می‌شود، پس `1.2.3.4` داخل `1.2.3.45` هم عوض می‌شود. |
 | L16 | `panel/fleet.go:189-193` | اگر snapshot موقتاً خالی باشد، تاریخچه‌ی پینگ همه‌ی peerها پاک می‌شود. |
-| L17 | `hashem.sh:9085` | `hashem license status` آدرس `http://127.0.0.1:7777/api/license` را صدا می‌زند که base path و احراز هویت ندارد، پس همیشه «Check Web UI» نشان می‌دهد. |
-| L18 | `hashem.sh:8977` | در `bagher apply-bundle`، الگوی `sed "/$CLEAN_PUB/d"` با کاراکتر `/` داخل base64 خراب می‌شود و کلید قدیمی حذف نمی‌شود. |
-| L19 | `hashem.sh:6268` | پورت‌های `4773x` و `7000` در `watchdog_check` hardcode شده‌اند، پس اتصال‌های غیرمرتبط هم «GRE OK» حساب می‌شوند. |
+| L17 | `quantum.sh:9085` | `quantum license status` آدرس `http://127.0.0.1:7777/api/license` را صدا می‌زند که base path و احراز هویت ندارد، پس همیشه «Check Web UI» نشان می‌دهد. |
+| L18 | `quantum.sh:8977` | در `bagher apply-bundle`، الگوی `sed "/$CLEAN_PUB/d"` با کاراکتر `/` داخل base64 خراب می‌شود و کلید قدیمی حذف نمی‌شود. |
+| L19 | `quantum.sh:6268` | پورت‌های `4773x` و `7000` در `watchdog_check` hardcode شده‌اند، پس اتصال‌های غیرمرتبط هم «GRE OK» حساب می‌شوند. |
 | L20 | `panel/main.go:337-342` و `panel/password.go:56` | `GRE_PANEL_PASSWORD` بدون trim هش می‌شود ولی هنگام verify ورودی trim می‌شود، پس رمزی که فاصله‌ی اول یا آخر دارد کار نمی‌کند. |
 | L21 | `panel/update.go:82-94` | در صورت شکست دانلود، فایل موقت close نمی‌شود (نشت file descriptor). |
 | L22 | `panel/cluster.go:738-742` | اگر Foreign یا Peer تعریف نشده باشد، «اینترنت در دسترس است» یعنی «تونل UP»، که حکم failover را گمراه‌کننده می‌کند. |

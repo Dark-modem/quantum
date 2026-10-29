@@ -12,7 +12,7 @@ Branch `dev`, nothing committed or pushed. No server, SSH, systemd or Backhaul w
 | `panel/main.go` | 3 routes |
 | `panel/errors.go` | `E-UPDATE-08` (400, invalid channel) — `E-SYS-01` has status 0 in the catalog, so it can't be reused |
 | `panel/index.html` | Update tab: channel select, DEV badge, dev warning, i18n (en + fa) |
-| `hashem.sh` | `update_get_channel`, `update_set_channel`, `update_pick_tag`, `cli_update_channel`; `install_panel` and `update_all` use the channel's tag; `hashem update-channel [stable|dev]`; usage + menu hint |
+| `quantum.sh` | `update_get_channel`, `update_set_channel`, `update_pick_tag`, `cli_update_channel`; `install_panel` and `update_all` use the channel's tag; `quantum update-channel [stable|dev]`; usage + menu hint |
 | `tests/test_update_channel.sh`, `panel/update_channel_test.go` (new) | see Tests |
 
 ## Behaviour
@@ -23,9 +23,9 @@ Branch `dev`, nothing committed or pushed. No server, SSH, systemd or Backhaul w
 - `compareVersions` ranks: semver > `dev-rN` > `panel-rN` > unknown. `panel-r148 < v1.0.0 < v1.0.1 < v1.1.0`, `dev-r5 < dev-r12`.
 - `updateAvailable` is strict "newer". One deliberate extra: on channel `dev`, a host that is not running a `dev-r` build is offered the newest dev build, since otherwise switching to dev would never offer anything.
 - `handleUpdate` refuses if `latest == panelVersion`. The download URL is the channel's tag, and only falls back to `releases/latest/download` when the tag couldn't be determined. Checksum fail-closed, ELF check, `.bak` rollback and restart are unchanged.
-- **Script sync**: `hashem.sh` and `hashem-chaff.sh` come from `releases/download/<tag>/…`, verified against that tag's `checksums.txt` (fail-closed, same `bash -n` and header checks). Only a missing tag asset falls back to the old `main` raw URL. A checksum mismatch never falls back. `ensureFreshScript` (setup.go) uses the running binary's own tag when it is `vX.Y.Z` or `dev-rN`, else `main`.
+- **Script sync**: `quantum.sh` and `quantum-chaff.sh` come from `releases/download/<tag>/…`, verified against that tag's `checksums.txt` (fail-closed, same `bash -n` and header checks). Only a missing tag asset falls back to the old `main` raw URL. A checksum mismatch never falls back. `ensureFreshScript` (setup.go) uses the running binary's own tag when it is `vX.Y.Z` or `dev-rN`, else `main`.
 - `GET /api/releases?channel=` (auth): up to 20 non-draft releases of the channel (tag, name, date, prerelease), sorted by version. Stable also lists legacy `panel-rN` releases. `?channel=beta` gives 400.
-- CLI: `hashem update-channel` prints the current channel. `hashem update-channel dev|stable` sets it, anything else fails. `hashem update` picks the tag via `update_pick_tag` and downloads the panel binary, `grepanel` and `hashem.sh` from that tag. The `main` raw URL is only a fallback for stable. Dev with no dev release aborts without changes.
+- CLI: `quantum update-channel` prints the current channel. `quantum update-channel dev|stable` sets it, anything else fails. `quantum update` picks the tag via `update_pick_tag` and downloads the panel binary, `grepanel` and `quantum.sh` from that tag. The `main` raw URL is only a fallback for stable. Dev with no dev release aborts without changes.
 
 ## Tests
 - Go (`update_channel_test.go`), run with `safe_gotest.sh`:
@@ -46,7 +46,7 @@ Branch `dev`, nothing committed or pushed. No server, SSH, systemd or Backhaul w
 
 ## Publishing v1.0.0 (owner)
 1. Merge `dev` → `main`. (Until the legacy rule is removed, this also creates one more `panel-r<N>` Latest. Harmless: old hosts will upgrade to it, then to v1.0.0.) To avoid that, tag from `dev` without merging.
-2. `git tag -a v1.0.0 -m "…" && git push origin v1.0.0`. The tag step publishes a non-prerelease with `make_latest: true` and the assets `gre-panel-linux-amd64`, `gre-panel-linux-arm64`, `grepanel`, `hashem.sh`, `hashem-chaff.sh`, `hashem-backhaul.sh`, `checksums.txt`, plus the `hashem-v1.0.0-linux-*` copies. This matches the r148 asset names.
+2. `git tag -a v1.0.0 -m "…" && git push origin v1.0.0`. The tag step publishes a non-prerelease with `make_latest: true` and the assets `gre-panel-linux-amd64`, `gre-panel-linux-arm64`, `grepanel`, `quantum.sh`, `quantum-chaff.sh`, `quantum-backhaul.sh`, `checksums.txt`, plus the `quantum-v1.0.0-linux-*` copies. This matches the r148 asset names.
 3. Verify `releases/latest` returns `v1.0.0`. Then delete the legacy `main` → `panel-r<run>` step so main pushes stop becoming Latest.
 
 **How r148 hosts see it:** the old updater reads `/releases/latest` → `v1.0.0`, sees `v1.0.0 != panel-r148`, downloads `…/download/v1.0.0/gre-panel-linux-<arch>` and verifies against `checksums.txt`. It then syncs scripts from `main` (old behaviour). After the update the host runs the new binary: it shows `v1.0.0` and follows the channel logic. Dev prereleases are never "Latest", so old hosts can't be pulled onto dev.
@@ -54,8 +54,8 @@ Branch `dev`, nothing committed or pushed. No server, SSH, systemd or Backhaul w
 ## Open risks
 - `panel-rN` with N > 148 (builds from the legacy `main` rule after r148) is shown as-is, so `panel-r*` can still appear in the UI for those. It also ranks below any semver, so such a host is offered v1.0.0 — that is a lateral hop, not a downgrade of code. Fix by flipping the legacy rule (step 3).
 - r148 and older hosts still sync scripts from `main` on update (their code can't change). A script on `main` newer than v1.0.0's binary can leak to them once.
-- If the owner cuts v1.0.0 from the commit of r148's build but `main` has moved on, `hashem.sh` fetched by r148 hosts from `main` ≠ v1.0.0's. Keep `main` and the tag in step at release time.
-- `hashem.sh` JSON parsing of the release list is `tr`/`awk` text parsing. It only trusts rows with `tag_name`, `draft` and `prerelease` in GitHub's field order. Verified against pretty and minified JSON. A release body containing literal `"prerelease":` unescaped can't occur (JSON escapes quotes).
-- `hashem.sh` itself has no checksum verification of downloaded assets (unchanged, out of scope).
+- If the owner cuts v1.0.0 from the commit of r148's build but `main` has moved on, `quantum.sh` fetched by r148 hosts from `main` ≠ v1.0.0's. Keep `main` and the tag in step at release time.
+- `quantum.sh` JSON parsing of the release list is `tr`/`awk` text parsing. It only trusts rows with `tag_name`, `draft` and `prerelease` in GitHub's field order. Verified against pretty and minified JSON. A release body containing literal `"prerelease":` unescaped can't occur (JSON escapes quotes).
+- `quantum.sh` itself has no checksum verification of downloaded assets (unchanged, out of scope).
 - Mirror API URLs (`mirror.ghproxy.com`, `ghproxy.net`) are trusted for the release list. A hostile mirror could only steer the tag choice. Binaries are still checksum-verified, but the manifest comes from the same mirror path (pre-existing).
 - `install.sh` untouched, as asked.

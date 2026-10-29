@@ -1,4 +1,4 @@
-# Hashem Cluster: How It Works, and a Hands-On Tutorial
+# Quantum Cluster: How It Works, and a Hands-On Tutorial
 
 **English** · [فارسی](CLUSTER_TUTORIAL.fa.md)
 
@@ -14,7 +14,7 @@ This page explains what the cluster does under the hood, in plain words, and the
 
 ### The problem
 
-A normal Hashem setup is one Iran server and one foreign server. Users connect to the Iran server's IP, and the tunnel carries them to the foreign server, where xray (or any service) runs. If the foreign server, its tunnel or xray dies, every user is cut off until someone fixes it by hand.
+A normal Quantum setup is one Iran server and one foreign server. Users connect to the Iran server's IP, and the tunnel carries them to the foreign server, where xray (or any service) runs. If the foreign server, its tunnel or xray dies, every user is cut off until someone fixes it by hand.
 
 ```text
 users ──► Iran server ══tunnel══► foreign server ──► xray
@@ -89,7 +89,7 @@ vpn.example.com           ╠══► foreign A, B, C
 
 You need:
 
-- **Hashem 2.5.0 or later** on every server.
+- **Quantum 2.5.0 or later** on every server.
 - **One Iran server and two foreign servers** to start. A third foreign server and a second Iran server are needed for the later lessons.
 - A service on each foreign server, on the same port. The examples assume xray / 3x-ui on **443**.
 
@@ -101,7 +101,7 @@ The lessons use the panel. Each one also shows the terminal command that does th
 2. Open **Tunnel** on the Iran server and check that the tunnel is up.
 
 ```bash
-hashem peer-list      # on the Iran server: the tunnels, with their ids (0 = main, N = peer N)
+quantum peer-list      # on the Iran server: the tunnels, with their ids (0 = main, N = peer N)
 ```
 
 ### Lesson 2: Your first pool, and a second server on the same port
@@ -113,10 +113,10 @@ hashem peer-list      # on the Iran server: the tunnels, with their ids (0 = mai
 5. Connect with your VPN app as usual. Nothing changes for the user: same IP, same port.
 
 ```bash
-hashem cluster pool add 443 --mode failover       # after A exists
-# add B in Setup (or hashem add-peer ... --ports "443"), then:
-hashem cluster member set 443 2 --priority 1
-hashem cluster status
+quantum cluster pool add 443 --mode failover       # after A exists
+# add B in Setup (or quantum add-peer ... --ports "443"), then:
+quantum cluster member set 443 2 --priority 1
+quantum cluster status
 ```
 
 ### Lesson 3: Break it, watch it recover
@@ -167,7 +167,7 @@ Which mode to pick:
 4. Start the service again: A comes back after 3 good checks.
 
 ```bash
-hashem cluster pool set 443 --check tcp --check-every 3
+quantum cluster pool set 443 --check tcp --check-every 3
 ```
 
 ### Lesson 6: Standby, limits and maintenance
@@ -177,9 +177,9 @@ hashem cluster pool set 443 --check tcp --check-every 3
 3. **Maintenance on B:** click B's line, tick **Drain**, and **Save**. B gets no new users, and the ones on it finish what they are doing. Update or reboot B, then untick **Drain**.
 
 ```bash
-hashem cluster member set 443 3 --backup yes
-hashem cluster member set 443 0 --max-conn 500
-hashem cluster member drain 443 2      # later: member resume 443 2
+quantum cluster member set 443 3 --backup yes
+quantum cluster member set 443 0 --max-conn 500
+quantum cluster member drain 443 2      # later: member resume 443 2
 ```
 
 ### Lesson 7: A second Iran server
@@ -190,15 +190,15 @@ hashem cluster member drain 443 2      # later: member resume 443 2
 4. Users of Iran 1 and of Iran 2 now share the same foreign servers. If Iran 1 dies, Iran 2's users are untouched.
 
 ```bash
-hashem join-hub --bundle hsh1_... --name iran-2     # on each foreign server
-hashem hubs
+quantum join-hub --bundle hsh1_... --name iran-2     # on each foreign server
+quantum hubs
 ```
 
 ### Lesson 8: Iran hubs that back each other up
 
 1. On Iran 1: click **This Iran hub** on the map, then **Show Join Code**, and copy it.
 2. On Iran 2: click **+ Link a Hub** and paste the code. Both maps now show the other hub on the left, with a blue dashed line.
-3. Test: on each foreign server, stop only its client for Iran 1 (`systemctl stop frpc` when Iran 1 was its first hub, else `frpc-hN`; `hashem hubs` lists them). Pool 443 on Iran 1 shows **Forwarded to Another Hub**: users who still reach Iran 1 are sent through Iran 2.
+3. Test: on each foreign server, stop only its client for Iran 1 (`systemctl stop frpc` when Iran 1 was its first hub, else `frpc-hN`; `quantum hubs` lists them). Pool 443 on Iran 1 shows **Forwarded to Another Hub**: users who still reach Iran 1 are sent through Iran 2.
 
 ### Lesson 9: One name for everyone (DNS failover)
 
@@ -223,16 +223,16 @@ Another DNS provider? Choose **Webhook** and let your own script set the record.
 - **Terminal:**
 
   ```bash
-  hashem cluster status
-  hashem cluster events
-  hashem cluster rules
+  quantum cluster status
+  quantum cluster events
+  quantum cluster rules
   ```
 
 ---
 
 ## Checklist before production
 
-- [ ] Every server runs the same Hashem version, and clocks are synced (`timedatectl set-ntp true`).
+- [ ] Every server runs the same Quantum version, and clocks are synced (`timedatectl set-ntp true`).
 - [ ] Each pool has at least two members that are really independent (different providers or data centers).
 - [ ] The service check is on for TCP pools.
 - [ ] Alerts go to Telegram or a webhook.

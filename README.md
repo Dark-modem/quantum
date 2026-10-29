@@ -1,12 +1,12 @@
 <div align="center">
 
-# Hashem Panel
+# Quantum Panel
 
 **Tunnels between an Iran server and foreign servers, managed from one web panel.**
 
 Users connect to the Iran server's public IP; their traffic reaches services on your foreign servers through GRE, FRP, Backhaul, Xray, SSH or a spoofed pipe, with health checks, failover and safe updates built in.
 
-<img src="docs/img/dashboard.png" alt="Hashem dashboard: one Iran server, four foreign servers, live traffic" width="900">
+<img src="docs/img/dashboard.png" alt="Quantum dashboard: one Iran server, four foreign servers, live traffic" width="900">
 
 </div>
 
@@ -43,10 +43,10 @@ The GRE link itself can be wrapped four ways: **Direct** (protocol 47), **WSS** 
 - **One health model** for the dashboard, the map and every card, with latency per link and alerts by webhook or Telegram when a tunnel changes state.
 - **Swap a tunnel's carrier** from either server; both switch, and both go back if the new one does not connect within 45 seconds.
 - **Cluster:** several foreign servers behind one Iran port (failover, balance, sticky, least connections), Iran servers backing each other up, and DNS failover. [Guide](docs/CLUSTER.md)
-- **Watchdog, encrypted backups and diagnostics** (`hashem doctor`), with Quick Repair.
+- **Watchdog, encrypted backups and diagnostics** (`quantum doctor`), with Quick Repair.
 - **Updates you can undo:** stable and dev channels, SHA-256 verified, automatic rollback after a bad start.
 - **Hardened panel:** argon2id passwords, CSRF, optional 2FA, audit log; the web terminal is off by default.
-- **Everything from SSH too:** `hashem` opens a terminal app with the same menus as the panel.
+- **Everything from SSH too:** `quantum` opens a terminal app with the same menus as the panel.
 
 ## Quick install
 
@@ -69,12 +69,12 @@ Run as root. The token is entered privately, without putting it in shell history
 
 1. **Iran server:** choose `1`, pick the tunnel and ports, and copy the bundle it prints (`hsh1_…`).
 2. **Foreign server:** choose `2` and paste the bundle.
-3. **Open the panel** at the URL printed at the end (`http://<server-ip>:7777/<secret>`). Lost it? `hashem show-panel-url`; new password: `hashem reset-password`.
+3. **Open the panel** at the URL printed at the end (`http://<server-ip>:7777/<secret>`). Lost it? `quantum show-panel-url`; new password: `quantum reset-password`.
 
 More foreign servers are added from the panel's **Setup** tab. To read the installer first, or pin it to a release's `checksums.txt`, see [Installing safely](docs/OPERATIONS.md#installing-safely).
 
 > [!IMPORTANT]
-> The panel uses plain HTTP on a long random path by default. Before exposing it, add TLS with `hashem tls issue <domain>` or a reverse proxy ([docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)).
+> The panel uses plain HTTP on a long random path by default. Before exposing it, add TLS with `quantum tls issue <domain>` or a reverse proxy ([docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)).
 
 ## Requirements
 

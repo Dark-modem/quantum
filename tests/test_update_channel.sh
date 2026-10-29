@@ -7,9 +7,9 @@ mkdir -p "$T/bin"
 export PATH="$T/bin:$PATH" GREEN= YELLOW= RED= NC=
 PANEL_CONFIG_DIR="$T/etc"; mkdir -p "$PANEL_CONFIG_DIR"
 fail=0
-ext() { awk -v n="$1" '$0 ~ "^"n"\\(\\) \\{" {p=1} p {print} p && /^}/ {exit}' "$ROOT/hashem.sh"; }
+ext() { awk -v n="$1" '$0 ~ "^"n"\\(\\) \\{" {p=1} p {print} p && /^}/ {exit}' "$ROOT/quantum.sh"; }
 UPDATE_FILE="$PANEL_CONFIG_DIR/update.json"
-UPDATE_API="https://api.github.com/repos/pdnczone/hashem-panel"
+UPDATE_API="https://api.github.com/repos/pdnczone/quantum-panel"
 for f in gh_token gh_curl gh_asset_url resolve_gh_asset release_manifest_fetch release_verify update_get_channel update_set_channel update_tag_ok update_verify_asset update_pick_tag cli_update_channel; do
   body="$(ext $f)"; [[ -n "$body" ]] || { echo "FAIL: $f missing"; exit 1; }; eval "$body"
 done
@@ -106,9 +106,9 @@ cat > "$T/bin/curl" <<'EOT'
 for a; do u="$a"; done
 case "$u" in *checksums.txt) [ -f "$FAKE_DIR/sums" ] && cat "$FAKE_DIR/sums" || exit 22 ;; *) exit 22 ;; esac
 EOT
-printf '%s  hashem.sh\n' "$good" > "$T/sums"; update_verify_asset "$T/f" v1.0.0 hashem.sh; [[ $? -eq 0 ]] || { echo "FAIL verify match"; fail=1; }
-printf '%s  hashem.sh\n' "0000" > "$T/sums"; update_verify_asset "$T/f" v1.0.0 hashem.sh; [[ $? -eq 1 ]] || { echo "FAIL verify mismatch"; fail=1; }
-rm -f "$T/sums"; update_verify_asset "$T/f" v1.0.0 hashem.sh; [[ $? -eq 2 ]] || { echo "FAIL verify no manifest"; fail=1; }
+printf '%s  quantum.sh\n' "$good" > "$T/sums"; update_verify_asset "$T/f" v1.0.0 quantum.sh; [[ $? -eq 0 ]] || { echo "FAIL verify match"; fail=1; }
+printf '%s  quantum.sh\n' "0000" > "$T/sums"; update_verify_asset "$T/f" v1.0.0 quantum.sh; [[ $? -eq 1 ]] || { echo "FAIL verify mismatch"; fail=1; }
+rm -f "$T/sums"; update_verify_asset "$T/f" v1.0.0 quantum.sh; [[ $? -eq 2 ]] || { echo "FAIL verify no manifest"; fail=1; }
 
 [[ $fail -eq 0 ]] && echo "PASS: update channel pick"
 exit $fail

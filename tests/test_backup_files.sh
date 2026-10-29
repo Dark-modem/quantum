@@ -5,7 +5,7 @@ set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 for fn in backup_file_list backup_listing_safe; do
-    awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{" {p=1} p {print} p && /^}/ {p=0}' "$ROOT/hashem.sh"
+    awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{" {p=1} p {print} p && /^}/ {p=0}' "$ROOT/quantum.sh"
 done > "$T/fn.sh"
 [[ -s "$T/fn.sh" ]] || { echo "FAIL functions not found"; exit 1; }
 # shellcheck disable=SC1091
@@ -34,7 +34,7 @@ grep -q security-audit <<< "$list" && { echo "FAIL audit log must not be backed 
 
 printf 'etc/frp/frps.toml\netc/gre-panel/panel.json\netc/systemd/system/gre-tunnel.service\netc/backhaul/client.toml\n' > "$T/ok.txt"
 backup_listing_safe "$T/ok.txt"; chk "normal listing safe" $? 0
-for bad in '/etc/passwd' 'etc/frp/../../root/.ssh/authorized_keys' 'root/.bashrc' 'usr/local/bin/hashem' 'etc/cron.d/x' '../etc/frp/a'; do
+for bad in '/etc/passwd' 'etc/frp/../../root/.ssh/authorized_keys' 'root/.bashrc' 'usr/local/bin/quantum' 'etc/cron.d/x' '../etc/frp/a'; do
     printf 'etc/frp/frps.toml\n%s\n' "$bad" > "$T/bad.txt"
     backup_listing_safe "$T/bad.txt"; chk "unsafe entry '$bad' refused" $? 1
 done

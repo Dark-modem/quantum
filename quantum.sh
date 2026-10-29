@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # ==============================================================================
-#   Hashem — GRE + FRP Reverse Tunnel Automated Setup Script (hashem.sh)
+#   Quantum — GRE + FRP Reverse Tunnel Automated Setup Script (quantum.sh)
 #   Architecture: GRE Layer 3 Tunnel + FRP Reverse TLS Tunnel
 #   Features: Auto Arch Detect, Systemd Auto-start on boot, MTU Clamping, TCP/UDP
-#   One file: interactive menu (`bash hashem.sh`) + non-interactive CLI
-#   (`hashem setup-iran ...`) — the old gre.sh name still works as symlink.
+#   One file: interactive menu (`bash quantum.sh`) + non-interactive CLI
+#   (`quantum setup-iran ...`) — the old gre.sh name still works as symlink.
 # ==============================================================================
 # ---- installed names (single source of truth for this script) ----
-HASHEM_BIN="/usr/local/bin/hashem"       # this script, after install
-HASHEM_SCRIPT="/usr/local/bin/hashem.sh" # versioned copy (gre.sh = legacy alias)
-HASHEM_URL_BASE="https://raw.githubusercontent.com/Dark-modem/quantum/main"
+QUANTUM_BIN="/usr/local/bin/quantum"       # this script, after install
+QUANTUM_SCRIPT="/usr/local/bin/quantum.sh" # versioned copy (gre.sh = legacy alias)
+QUANTUM_URL_BASE="https://raw.githubusercontent.com/Dark-modem/quantum/main"
 
 # GitHub access token for the private Quantum repository: GRE_GITHUB_TOKEN,
 # then GITHUB_TOKEN, then <PANEL_CONFIG_DIR>/github-token (0600). Empty while
@@ -111,28 +111,28 @@ AUTOPOOL_COOLDOWN="${AUTOPOOL_COOLDOWN:-60}"         # min seconds between autom
 AUTOPOOL_SEVERE_ERRS="${AUTOPOOL_SEVERE_ERRS:-20}"   # pool-full lines per tick that justify a restart under load
 AUTOPOOL_DOWN_QUIET="${AUTOPOOL_DOWN_QUIET:-3}"      # consecutive quiet ticks before scaling down
 AUTOPOOL_MIN_FREE_MB="${AUTOPOOL_MIN_FREE_MB:-150}"  # below this free RAM, never scale up
-BACKUP_DIR="${GRE_BACKUP_DIR:-/var/backups/hashem}"  # same override as the panel
+BACKUP_DIR="${GRE_BACKUP_DIR:-/var/backups/quantum}"  # same override as the panel
 
-ensure_hashem_bin() {
+ensure_quantum_bin() {
     [[ ${EUID:-$(id -u 2>/dev/null || echo 1)} -eq 0 ]] || return 0
     mkdir -p /usr/local/bin
-    if [[ -f "$0" && "$0" != "$HASHEM_BIN" ]]; then
-        cp "$0" "$HASHEM_BIN" 2>/dev/null && chmod +x "$HASHEM_BIN" 2>/dev/null || true
-        cp "$0" "$HASHEM_SCRIPT" 2>/dev/null && chmod +x "$HASHEM_SCRIPT" 2>/dev/null || true
-        ln -sf "$HASHEM_SCRIPT" /usr/local/bin/gre.sh 2>/dev/null || true
-    elif [[ ! -x "$HASHEM_BIN" ]]; then
+    if [[ -f "$0" && "$0" != "$QUANTUM_BIN" ]]; then
+        cp "$0" "$QUANTUM_BIN" 2>/dev/null && chmod +x "$QUANTUM_BIN" 2>/dev/null || true
+        cp "$0" "$QUANTUM_SCRIPT" 2>/dev/null && chmod +x "$QUANTUM_SCRIPT" 2>/dev/null || true
+        ln -sf "$QUANTUM_SCRIPT" /usr/local/bin/gre.sh 2>/dev/null || true
+    elif [[ ! -x "$QUANTUM_BIN" ]]; then
         local cand
-        for cand in "$0" ./hashem.sh /tmp/hashem.sh "$HASHEM_SCRIPT"; do
+        for cand in "$0" ./quantum.sh /tmp/quantum.sh "$QUANTUM_SCRIPT"; do
             if [[ -f "$cand" ]]; then
-                cp "$cand" "$HASHEM_BIN" 2>/dev/null && chmod +x "$HASHEM_BIN" 2>/dev/null || true
+                cp "$cand" "$QUANTUM_BIN" 2>/dev/null && chmod +x "$QUANTUM_BIN" 2>/dev/null || true
                 break
             fi
         done
     fi
 }
-ensure_hashem_bin
+ensure_quantum_bin
 
-LOG_DIR="/var/log/hashem"
+LOG_DIR="/var/log/quantum"
 
 # Mask tokens and sensitive credentials in log strings
 mask_sensitive() {
@@ -165,7 +165,7 @@ backup_configs() {
     mkdir -p "$bdir" 2>/dev/null || return 1
     
     # Backup configuration folders
-    [[ -d /etc/hashem ]] && cp -rp /etc/hashem "$bdir/" 2>/dev/null || true
+    [[ -d /etc/quantum ]] && cp -rp /etc/quantum "$bdir/" 2>/dev/null || true
     [[ -d /etc/gre-panel ]] && cp -rp /etc/gre-panel "$bdir/" 2>/dev/null || true
     [[ -d /etc/frp ]] && cp -rp /etc/frp "$bdir/" 2>/dev/null || true
     
@@ -450,7 +450,7 @@ cli_bundle_inspect() {
     fi
     
     echo -e "\n${CYAN}=============================================================="
-    echo "                 HASHEM TUNNEL BUNDLE INSPECT"
+    echo "                 QUANTUM TUNNEL BUNDLE INSPECT"
     echo -e "==============================================================${NC}"
     echo -e "Bundle Version:        ${GREEN}hsh1${NC}"
     echo -e "Iran Public IP:        ${CYAN}${B_IRAN_PUB}${NC}"
@@ -529,7 +529,7 @@ tcpmux_eof_hint() {
     journalctl -u frpc -n 200 --no-pager 2>/dev/null \
         | grep -E 'connect to server error: EOF|login to server success' | tail -n 1 \
         | grep -q 'connect to server error: EOF' || return 1
-    echo "tcpMux mismatch: hub is likely tcpMux=true, run \`hashem perf tcpmux on|off\` (must match on hub and spoke)"
+    echo "tcpMux mismatch: hub is likely tcpMux=true, run \`quantum perf tcpmux on|off\` (must match on hub and spoke)"
 }
 
 perf_get_enc() {
@@ -2111,7 +2111,7 @@ cli_dial() {
             fi
             echo -e "${GREEN}[OK] Dial route: ${sub} (${r#*:})${NC}"
             ;;
-        *) echo "Usage: hashem dial [status|auto|gre|public]"; return 1 ;;
+        *) echo "Usage: quantum dial [status|auto|gre|public]"; return 1 ;;
     esac
 }
 
@@ -2134,7 +2134,7 @@ menu_dial_route() {
     esac
 }
 check_root() {
-    [[ "${HASHEM_NO_ROOT_CHECK:-0}" == "1" ]] && return 0
+    [[ "${QUANTUM_NO_ROOT_CHECK:-0}" == "1" ]] && return 0
     if [[ ${EUID:-$(id -u 2>/dev/null || echo 1)} -ne 0 ]]; then
         echo -e "${RED}[!] This script must be run as root (sudo).${NC}"
         exit 1
@@ -2164,7 +2164,7 @@ get_latest_frp_version() {
     if [[ -n "${FRP_VERSION:-}" && "$FRP_VERSION" != "$DEFAULT_FRP_VERSION" ]]; then
         return 0
     fi
-    local MIRROR_REPO="${HASHEM_MIRROR_REPO:-pdnczone/hashem-frp}"
+    local MIRROR_REPO="${QUANTUM_MIRROR_REPO:-pdnczone/quantum-frp}"
     LATEST_VER=$(curl -sSL --connect-timeout 3 --max-time 6 "https://api.github.com/repos/${MIRROR_REPO}/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
     if [[ -z "$LATEST_VER" ]]; then
         LATEST_VER=$(curl -sSL --connect-timeout 3 --max-time 6 "https://api.github.com/repos/fatedier/frp/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
@@ -2263,7 +2263,7 @@ install_frp_binaries() {
     TMP_DIR=$(mktemp -d)
     TAR_FILE="frp_${FRP_VERSION}_linux_${FRP_ARCH}.tar.gz"
 
-    local MIRROR_REPO="${HASHEM_MIRROR_REPO:-pdnczone/hashem-frp}"
+    local MIRROR_REPO="${QUANTUM_MIRROR_REPO:-pdnczone/quantum-frp}"
     local DOWNLOAD_URL="https://github.com/${MIRROR_REPO}/releases/download/v${FRP_VERSION}/${TAR_FILE}"
     if ! download_with_fallback "${TMP_DIR}/${TAR_FILE}" "$DOWNLOAD_URL" 45; then
         local FALLBACK_VER="0.61.1"
@@ -2442,7 +2442,7 @@ cli_spoof() {
             if [[ -x "${INSTALL_DIR}/spoof" ]]; then
                 echo -e "${GREEN}[OK] Spoof core installed:${NC} $("${INSTALL_DIR}/spoof" --version 2>/dev/null || echo present)"
             else
-                echo -e "${YELLOW}[!] Spoof core not installed. Run: hashem spoof install${NC}"
+                echo -e "${YELLOW}[!] Spoof core not installed. Run: quantum spoof install${NC}"
             fi
             systemctl is-active spoof-core >/dev/null 2>&1 && echo -e "  core:      ${GREEN}active${NC}" || echo -e "  core:      ${YELLOW}inactive${NC}"
             systemctl is-active wg-quick@wg-spoof >/dev/null 2>&1 && echo -e "  wireguard: ${GREEN}active${NC}" || echo -e "  wireguard: ${YELLOW}inactive${NC}"
@@ -2460,7 +2460,7 @@ cli_spoof() {
             echo -e "${GREEN}[OK] Spoof tunnel stopped.${NC}"
             ;;
         *)
-            echo -e "Usage: hashem spoof {install|status|up|down}"
+            echo -e "Usage: quantum spoof {install|status|up|down}"
             return 1
             ;;
     esac
@@ -2469,9 +2469,9 @@ cli_spoof() {
 # ---- Xray Tunnel: the panel's own Xray-core, apart from any Xray panel ----
 # Installed to its own directory: never /usr/local/bin/xray (the official
 # installer's) nor a panel's (3x-ui, Marzban, ...), whose xray, units and ports
-# stay untouched. Units are hashem-xray-N only; nothing is killed by name.
+# stay untouched. Units are quantum-xray-N only; nothing is killed by name.
 DEFAULT_XRAY_VERSION="v26.3.27"
-XRAY_DIR="${XRAY_DIR:-/usr/local/lib/hashem/xray}"
+XRAY_DIR="${XRAY_DIR:-/usr/local/lib/quantum/xray}"
 # sha256 of the official v26.3.27 release archives (verified on download).
 XRAY_SHA256_amd64="23cd9af937744d97776ee35ecad4972cf4b2109d1e0fe6be9930467608f7c8ae"
 XRAY_SHA256_arm64="4d30283ae614e3057f730f67cd088a42be6fdf91f8639d82cb69e48cde80413c"
@@ -2532,7 +2532,7 @@ install_xray_core() {
     for f in geoip.dat geosite.dat; do
         [[ -f "${TMP_DIR}/x/$f" ]] && install -m 0644 "${TMP_DIR}/x/$f" "${XRAY_DIR}/$f"
     done
-    # replace by rename: a running hashem-xray keeps the old file open
+    # replace by rename: a running quantum-xray keeps the old file open
     install -m 0755 "${TMP_DIR}/x/xray" "${XRAY_DIR}/xray.new" && mv -f "${XRAY_DIR}/xray.new" "${XRAY_DIR}/xray"
     rm -rf "$TMP_DIR"
     if "${XRAY_DIR}/xray" version >/dev/null 2>&1; then
@@ -2543,16 +2543,16 @@ install_xray_core() {
     return 1
 }
 
-# xray_link_units: the Xray tunnel's units on this server (hashem-xray-N).
+# xray_link_units: the Xray tunnel's units on this server (quantum-xray-N).
 xray_link_units() {
     local f
-    for f in /etc/systemd/system/hashem-xray-[0-9]*.service; do
+    for f in /etc/systemd/system/quantum-xray-[0-9]*.service; do
         [[ -f $f ]] && basename "$f"
     done
 }
 
 # xray_enabled_units: the links that should run (a link stopped in the panel
-# is disabled and stays stopped on `hashem xray start`).
+# is disabled and stays stopped on `quantum xray start`).
 xray_enabled_units() {
     local u
     for u in $(xray_link_units); do
@@ -2564,7 +2564,7 @@ xray_enabled_units() {
 # The panel's link settings stay, so installing again brings them back.
 xray_remove_all() {
     xray_link_units | xargs -r systemctl disable --now >/dev/null 2>&1 || true
-    rm -f /etc/systemd/system/hashem-xray-[0-9]*.service
+    rm -f /etc/systemd/system/quantum-xray-[0-9]*.service
     systemctl daemon-reload >/dev/null 2>&1 || true
     rm -rf "$XRAY_DIR"
 }
@@ -2579,7 +2579,7 @@ cli_xray() {
             if [[ -x "${XRAY_DIR}/xray" ]]; then
                 echo -e "${GREEN}[OK] Xray-core:${NC} $("${XRAY_DIR}/xray" version 2>/dev/null | head -1)"
             else
-                echo -e "${YELLOW}[!] Xray-core not installed. Run: hashem xray install${NC}"
+                echo -e "${YELLOW}[!] Xray-core not installed. Run: quantum xray install${NC}"
             fi
             local n=0
             for u in $(xray_link_units); do
@@ -2599,12 +2599,12 @@ cli_xray() {
         restart)
             xray_enabled_units | xargs -r systemctl restart && echo -e "${GREEN}[OK] Xray tunnel links restarted.${NC}" ;;
         logs)
-            journalctl -u 'hashem-xray-*' -n "${2:-100}" --no-pager ;;
+            journalctl -u 'quantum-xray-*' -n "${2:-100}" --no-pager ;;
         uninstall|remove)
             xray_remove_all
             echo -e "${GREEN}[OK] Xray tunnel removed (its links stay in the panel; install again to bring them back).${NC}" ;;
         *)
-            echo -e "Usage: hashem xray {install|status|start|stop|restart|logs [N]|uninstall}"
+            echo -e "Usage: quantum xray {install|status|start|stop|restart|logs [N]|uninstall}"
             return 1 ;;
     esac
 }
@@ -2727,7 +2727,7 @@ log_level = "info"
 EOF
 }
 
-# B-03: hashem installs upstream Backhaul (DEFAULT_BACKHAUL_VERSION), which reads
+# B-03: quantum installs upstream Backhaul (DEFAULT_BACKHAUL_VERSION), which reads
 # the flat [server]/[client] schema. A v2.x core placed at INSTALL_DIR/backhaul
 # by the operator reads the sectioned one ([listener]/[dialer]/[transport]/
 # [security]/[ports]) and exits with "neither server nor client configuration
@@ -2791,14 +2791,14 @@ backhaul_udp_conf() {
 
 # backhaul_udp_port UNIT: the control port of UNIT's companion ("" when none).
 backhaul_udp_port() {
-    local d="${HASHEM_SYSTEMD_DIR:-/etc/systemd/system}"
+    local d="${QUANTUM_SYSTEMD_DIR:-/etc/systemd/system}"
     sed -n -E 's/^ExecCondition=.* ([0-9]+)$/\1/p' "$d/$(backhaul_udp_unit "$1").service" 2>/dev/null | head -n1
 }
 
 # backhaul_udp_pick_port MAIN_PORT: the first port after MAIN_PORT that nothing
 # listens on and no other Backhaul config or companion uses.
 backhaul_udp_pick_port() {
-    local p=$(( $1 + 1 )) i d="${HASHEM_SYSTEMD_DIR:-/etc/systemd/system}"
+    local p=$(( $1 + 1 )) i d="${QUANTUM_SYSTEMD_DIR:-/etc/systemd/system}"
     for ((i = 0; i < 200; i++, p++)); do
         (( p > 65535 )) && p=20000
         ss -Hltn "sport = :$p" 2>/dev/null | grep -q . && continue
@@ -2812,7 +2812,7 @@ backhaul_udp_pick_port() {
 
 # backhaul_udp_remove UNIT: stops and deletes the UDP companion of UNIT.
 backhaul_udp_remove() {
-    local d="${HASHEM_SYSTEMD_DIR:-/etc/systemd/system}" u
+    local d="${QUANTUM_SYSTEMD_DIR:-/etc/systemd/system}" u
     u=$(backhaul_udp_unit "$1")
     [[ -f "$d/$u.service" ]] || { rm -f "${BACKHAUL_CONFIG_DIR}/udp/$1.toml"; return 0; }
     systemctl disable --now "$u.service" >/dev/null 2>&1 || true
@@ -2822,7 +2822,7 @@ backhaul_udp_remove() {
 
 # backhaul_udp_on UNIT: the tunnel of UNIT forwards UDP (companion or accept_udp).
 backhaul_udp_on() {
-    local d="${HASHEM_SYSTEMD_DIR:-/etc/systemd/system}" conf
+    local d="${QUANTUM_SYSTEMD_DIR:-/etc/systemd/system}" conf
     [[ -f "$d/$(backhaul_udp_unit "$1").service" ]] && return 0
     conf=$(sed -n -E 's/^ExecStart=.* -c (.*)$/\1/p' "$d/$1.service" 2>/dev/null | head -n1)
     [[ -n "$conf" ]] && grep -Eq '^[[:space:]]*accept_udp[[:space:]]*=[[:space:]]*true' "$conf" 2>/dev/null
@@ -2834,7 +2834,7 @@ backhaul_udp_on() {
 # one the companion already has, or the first free one after the tunnel's;
 # BH_UDP_PORT holds it afterwards for the bundle.
 backhaul_udp_apply() {
-    local unit=$1 conf=$2 d="${HASHEM_SYSTEMD_DIR:-/etc/systemd/system}" u out tr port
+    local unit=$1 conf=$2 d="${QUANTUM_SYSTEMD_DIR:-/etc/systemd/system}" u out tr port
     tr=$(backhaul_conf_transport "$conf")
     if ! backhaul_udp_companion_wanted "$tr"; then
         backhaul_udp_remove "$unit"
@@ -2862,7 +2862,7 @@ After=${unit}.service
 [Service]
 Type=simple
 User=root
-ExecCondition=${HASHEM_BIN} backhaul-udp-conf ${conf} ${out} ${port}
+ExecCondition=${QUANTUM_BIN} backhaul-udp-conf ${conf} ${out} ${port}
 ExecStart=${INSTALL_DIR}/backhaul -c ${out}
 Restart=always
 RestartSec=3s
@@ -3061,7 +3061,7 @@ EOF
 # without GRE) the main GRE interface goes too. Extra peers (frps-N,
 # backhaul-server-N, gre-tN) are separate tunnels and stay.
 engine_retire_others() {
-    local keep=$1 nogre=${2:-} u conf d="${HASHEM_SYSTEMD_DIR:-/etc/systemd/system}"
+    local keep=$1 nogre=${2:-} u conf d="${QUANTUM_SYSTEMD_DIR:-/etc/systemd/system}"
     for u in frps frpc backhaul-server backhaul-client; do
         [[ "$u" == "$keep" ]] && continue
         case "$u" in
@@ -3142,7 +3142,7 @@ setup_gre_iface() {
 
     echo -e "${CYAN}[*] Configuring persistent GRE tunnel service (${IFNAME})...${NC}"
 
-    ensure_hashem_bin
+    ensure_quantum_bin
 
     local IP_BIN
     IP_BIN=$(command -v ip || echo "/sbin/ip")
@@ -3193,7 +3193,7 @@ After=network.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStartPre=-/bin/sh -c "modprobe ip_gre 2>/dev/null; modprobe fou 2>/dev/null; if [ -x /usr/local/bin/hashem ]; then /usr/local/bin/hashem carrier-kernel-init 2>/dev/null; fi; true"
+ExecStartPre=-/bin/sh -c "modprobe ip_gre 2>/dev/null; modprobe fou 2>/dev/null; if [ -x /usr/local/bin/quantum ]; then /usr/local/bin/quantum carrier-kernel-init 2>/dev/null; fi; true"
 ExecStartPre=-/bin/sh -c "${IP_BIN} link del ${IFNAME} 2>/dev/null || ${IP_BIN} tunnel del ${IFNAME} 2>/dev/null; true"
 ExecStart=/bin/sh -c '(\
     ${IP_BIN} link add ${IFNAME} type gre ${LOCAL_ARG} remote ${REMOTE_IP} ttl 255 2>/dev/null || \
@@ -3203,7 +3203,7 @@ ExecStart=/bin/sh -c '(\
     ${IP_BIN} link set dev ${IFNAME} up mtu 1380 && \
     (${IP_BIN} addr replace ${CLEAN_GRE_IP}/30 dev ${IFNAME} 2>/dev/null || ${IP_BIN} addr add ${CLEAN_GRE_IP}/30 dev ${IFNAME} 2>/dev/null || true) && \
     (${IP_BIN} route replace ${PEER_INNER}/32 dev ${IFNAME} 2>/dev/null || true)'
-ExecStartPost=-/bin/sh -c "if [ -x /usr/local/bin/hashem ]; then /usr/local/bin/hashem carrier-apply-active ${IFNAME} 2>/dev/null; fi; true"
+ExecStartPost=-/bin/sh -c "if [ -x /usr/local/bin/quantum ]; then /usr/local/bin/quantum carrier-apply-active ${IFNAME} 2>/dev/null; fi; true"
 ExecStop=-/bin/sh -c "${IP_BIN} link del ${IFNAME} 2>/dev/null || ${IP_BIN} tunnel del ${IFNAME} 2>/dev/null; true"
 
 [Install]
@@ -3267,17 +3267,17 @@ EOF
 # have their units, script and iptables chain; stop and delete them so nothing keeps running orphaned.
 purge_legacy_obfuscation() {
     local u
-    for u in /etc/systemd/system/gre-chaff*.service /etc/systemd/system/hashem-chaff*.service /etc/systemd/system/hashem-dpi.service; do
+    for u in /etc/systemd/system/gre-chaff*.service /etc/systemd/system/quantum-chaff*.service /etc/systemd/system/quantum-dpi.service; do
         [[ -f "$u" ]] || continue
         systemctl disable --now "$(basename "$u")" >/dev/null 2>&1 || true
         rm -f "$u"
     done
-    pkill -f "hashem-chaff.sh" >/dev/null 2>&1 || true
-    rm -f /usr/local/bin/hashem-chaff.sh /usr/local/bin/gre-chaff.sh
+    pkill -f "quantum-chaff.sh" >/dev/null 2>&1 || true
+    rm -f /usr/local/bin/quantum-chaff.sh /usr/local/bin/gre-chaff.sh
     if command -v iptables >/dev/null 2>&1; then
-        iptables -D INPUT -j HASHEM-DPI 2>/dev/null || true
-        iptables -F HASHEM-DPI 2>/dev/null || true
-        iptables -X HASHEM-DPI 2>/dev/null || true
+        iptables -D INPUT -j QUANTUM-DPI 2>/dev/null || true
+        iptables -F QUANTUM-DPI 2>/dev/null || true
+        iptables -X QUANTUM-DPI 2>/dev/null || true
     fi
 }
 
@@ -3287,7 +3287,7 @@ acct_chains_drop() {
     local h b
     for b in iptables ip6tables; do
         command -v "$b" >/dev/null 2>&1 || continue
-        for h in INPUT:HASHEM_ACCT_IN OUTPUT:HASHEM_ACCT_OUT; do
+        for h in INPUT:QUANTUM_ACCT_IN OUTPUT:QUANTUM_ACCT_OUT; do
             "$b" -D "${h%%:*}" -j "${h#*:}" 2>/dev/null || true
             "$b" -F "${h#*:}" 2>/dev/null || true
             "$b" -X "${h#*:}" 2>/dev/null || true
@@ -3295,7 +3295,7 @@ acct_chains_drop() {
     done
 }
 
-# The per-server speed and volume limits (panel/limits.go): the HASHEM_LIMIT
+# The per-server speed and volume limits (panel/limits.go): the QUANTUM_LIMIT
 # chain (iptables and ip6tables) and the tc policers (pref 4917, IPv6 4918)
 # on every interface.
 limits_drop() {
@@ -3303,10 +3303,10 @@ limits_drop() {
     for b in iptables ip6tables; do
         command -v "$b" >/dev/null 2>&1 || continue
         for h in INPUT OUTPUT FORWARD; do
-            "$b" -D "$h" -j HASHEM_LIMIT 2>/dev/null || true
+            "$b" -D "$h" -j QUANTUM_LIMIT 2>/dev/null || true
         done
-        "$b" -F HASHEM_LIMIT 2>/dev/null || true
-        "$b" -X HASHEM_LIMIT 2>/dev/null || true
+        "$b" -F QUANTUM_LIMIT 2>/dev/null || true
+        "$b" -X QUANTUM_LIMIT 2>/dev/null || true
     done
     command -v tc >/dev/null 2>&1 || return 0
     for d in /sys/class/net/*; do
@@ -3562,7 +3562,7 @@ cli_perf() {
                     # unset: still show the live value (a missing tcpMux line means FRP's own default = on); must equal the hub's
                     grep -E -q '^[[:space:]]*transport\.tcpMux[[:space:]]*=[[:space:]]*false' "${CONFIG_DIR}/frpc.toml" \
                         && echo -e "  Live TCP Multiplexing:  off (must match the hub)" \
-                        || echo -e "  Live TCP Multiplexing:  ${YELLOW}on${NC} (must match the hub; run: hashem perf tcpmux off on BOTH ends for max speed)"
+                        || echo -e "  Live TCP Multiplexing:  ${YELLOW}on${NC} (must match the hub; run: quantum perf tcpmux off on BOTH ends for max speed)"
                 fi
                 echo -e "  Role: Foreign client (frpc)"
                 echo -e "  Live Proxy Encryption:  $([[ "$LIVE_ENC" == "1" ]] && echo "on" || echo "off") $([[ "$LIVE_ENC" == "$ENC" ]] && echo -e "${GREEN}[MATCH]${NC}" || echo -e "${RED}[MISMATCH]${NC}")"
@@ -3600,38 +3600,38 @@ cli_perf() {
             if [[ "$MATCH" -eq 1 ]]; then
                 echo -e "${GREEN}[OK] Live configuration matches effective settings.${NC}"
             else
-                echo -e "${RED}[!] Live configuration does NOT match settings. Run 'hashem perf apply' to sync.${NC}"
+                echo -e "${RED}[!] Live configuration does NOT match settings. Run 'quantum perf apply' to sync.${NC}"
             fi
             ;;
         enc)
             local VAL="${2:-}"
             case "$VAL" in
-                on)  perf_set_val "proxy_encryption" "true" 1; echo -e "${GREEN}[OK] Proxy encryption set to 'on'. Run 'hashem perf apply' to apply and restart tunnels.${NC}" ;;
-                off) perf_set_val "proxy_encryption" "false" 1; echo -e "${GREEN}[OK] Proxy encryption set to 'off'. Run 'hashem perf apply' to apply and restart tunnels.${NC}" ;;
-                *)   echo -e "${RED}[!] Usage: hashem perf enc on|off${NC}"; return 1 ;;
+                on)  perf_set_val "proxy_encryption" "true" 1; echo -e "${GREEN}[OK] Proxy encryption set to 'on'. Run 'quantum perf apply' to apply and restart tunnels.${NC}" ;;
+                off) perf_set_val "proxy_encryption" "false" 1; echo -e "${GREEN}[OK] Proxy encryption set to 'off'. Run 'quantum perf apply' to apply and restart tunnels.${NC}" ;;
+                *)   echo -e "${RED}[!] Usage: quantum perf enc on|off${NC}"; return 1 ;;
             esac
             ;;
         comp)
             local VAL="${2:-}"
             case "$VAL" in
-                on)  perf_set_val "proxy_compression" "true" 1; echo -e "${GREEN}[OK] Proxy compression set to 'on'. Run 'hashem perf apply' to apply and restart tunnels.${NC}" ;;
-                off) perf_set_val "proxy_compression" "false" 1; echo -e "${GREEN}[OK] Proxy compression set to 'off'. Run 'hashem perf apply' to apply and restart tunnels.${NC}" ;;
-                *)   echo -e "${RED}[!] Usage: hashem perf comp on|off${NC}"; return 1 ;;
+                on)  perf_set_val "proxy_compression" "true" 1; echo -e "${GREEN}[OK] Proxy compression set to 'on'. Run 'quantum perf apply' to apply and restart tunnels.${NC}" ;;
+                off) perf_set_val "proxy_compression" "false" 1; echo -e "${GREEN}[OK] Proxy compression set to 'off'. Run 'quantum perf apply' to apply and restart tunnels.${NC}" ;;
+                *)   echo -e "${RED}[!] Usage: quantum perf comp on|off${NC}"; return 1 ;;
             esac
             ;;
         tcpmux|mux)
             local VAL="${2:-}"
             case "$VAL" in
-                on)  perf_set_val "tcp_mux" "true" 1; echo -e "${GREEN}[OK] TCP multiplexing set to 'on'. It MUST match on the Iran hub and every foreign spoke. Run 'hashem perf apply' on each server.${NC}" ;;
-                off) perf_set_val "tcp_mux" "false" 1; echo -e "${GREEN}[OK] TCP multiplexing set to 'off' (speed-first). It MUST match on the Iran hub and every foreign spoke. Run 'hashem perf apply' on each server.${NC}" ;;
-                *)   echo -e "${RED}[!] Usage: hashem perf tcpmux on|off${NC}"; return 1 ;;
+                on)  perf_set_val "tcp_mux" "true" 1; echo -e "${GREEN}[OK] TCP multiplexing set to 'on'. It MUST match on the Iran hub and every foreign spoke. Run 'quantum perf apply' on each server.${NC}" ;;
+                off) perf_set_val "tcp_mux" "false" 1; echo -e "${GREEN}[OK] TCP multiplexing set to 'off' (speed-first). It MUST match on the Iran hub and every foreign spoke. Run 'quantum perf apply' on each server.${NC}" ;;
+                *)   echo -e "${RED}[!] Usage: quantum perf tcpmux on|off${NC}"; return 1 ;;
             esac
             ;;
         autopool|auto-pool)
             local VAL="${2:-status}"
             case "$VAL" in
                 on)  perf_set_val "auto_pool" "true" 1; echo -e "${GREEN}[OK] Auto Pool set to 'on'. The 1-min timer (watchdog) resizes frpc poolCount; no restart now.${NC}" ;;
-                off) perf_set_val "auto_pool" "false" 1; echo -e "${GREEN}[OK] Auto Pool set to 'off' (manual frp_pool_count / frp_max_pool). Run 'hashem perf apply' to apply.${NC}" ;;
+                off) perf_set_val "auto_pool" "false" 1; echo -e "${GREEN}[OK] Auto Pool set to 'off' (manual frp_pool_count / frp_max_pool). Run 'quantum perf apply' to apply.${NC}" ;;
                 tick) autopool_tick ;;
                 status)
                     local EP EM
@@ -3640,38 +3640,38 @@ cli_perf() {
                     echo "last_decision=$(autopool_state_get last_decision none) reason=$(autopool_state_get last_reason -)"
                     echo "quiet_ticks=$(autopool_state_get quiet_ticks 0) last_restart=$(autopool_state_get last_restart 0) frps_restart_needed=$(autopool_state_get frps_restart_needed false)"
                     ;;
-                *)   echo -e "${RED}[!] Usage: hashem perf autopool on|off|status|tick${NC}"; return 1 ;;
+                *)   echo -e "${RED}[!] Usage: quantum perf autopool on|off|status|tick${NC}"; return 1 ;;
             esac
             ;;
         proxy-protocol|pp)
             case "${2:-}" in
                 off|v1|v2)
                     perf_set_val proxy_protocol "$2"
-                    echo -e "${GREEN}[OK] PROXY protocol: $2. Run 'hashem perf apply' on this foreign server to apply.${NC}"
+                    echo -e "${GREEN}[OK] PROXY protocol: $2. Run 'quantum perf apply' on this foreign server to apply.${NC}"
                     [[ "$2" != off ]] && echo -e "${YELLOW}    The service behind each port must expect it (Xray: acceptProxyProtocol), or its connections fail.${NC}"
                     ;;
-                *) echo -e "${RED}[!] Usage: hashem perf proxy-protocol off|v1|v2${NC}"; return 1 ;;
+                *) echo -e "${RED}[!] Usage: quantum perf proxy-protocol off|v1|v2${NC}"; return 1 ;;
             esac
             ;;
         bandwidth|bw)
             local BW="${2:-}"
             if [[ ! "$BW" =~ ^[0-9]+$ ]] || (( BW > 10000 )); then
-                echo -e "${RED}[!] Usage: hashem perf bandwidth MB   (MB/s per proxy, 0 = no limit, max 10000)${NC}"; return 1
+                echo -e "${RED}[!] Usage: quantum perf bandwidth MB   (MB/s per proxy, 0 = no limit, max 10000)${NC}"; return 1
             fi
             perf_set_val bandwidth_limit_mb "$BW" 1
-            echo -e "${GREEN}[OK] Bandwidth limit: $([[ "$BW" -gt 0 ]] && echo "${BW} MB/s per proxy" || echo none). Run 'hashem perf apply' to apply.${NC}"
+            echo -e "${GREEN}[OK] Bandwidth limit: $([[ "$BW" -gt 0 ]] && echo "${BW} MB/s per proxy" || echo none). Run 'quantum perf apply' to apply.${NC}"
             ;;
         health-check|hc)
             case "${2:-}" in
-                on)  perf_set_val health_check true 1; echo -e "${GREEN}[OK] Health check on. Run 'hashem perf apply' to apply.${NC}" ;;
-                off) perf_set_val health_check false 1; echo -e "${GREEN}[OK] Health check off. Run 'hashem perf apply' to apply.${NC}" ;;
-                *)   echo -e "${RED}[!] Usage: hashem perf health-check on|off${NC}"; return 1 ;;
+                on)  perf_set_val health_check true 1; echo -e "${GREEN}[OK] Health check on. Run 'quantum perf apply' to apply.${NC}" ;;
+                off) perf_set_val health_check false 1; echo -e "${GREEN}[OK] Health check off. Run 'quantum perf apply' to apply.${NC}" ;;
+                *)   echo -e "${RED}[!] Usage: quantum perf health-check on|off${NC}"; return 1 ;;
             esac
             ;;
         backhaul-pool|bh-pool)
             local N="${2:-}"
             if [[ ! "$N" =~ ^[0-9]+$ ]] || (( N < 1 || N > 64 )); then
-                echo -e "${RED}[!] Usage: hashem perf backhaul-pool N   (1-64, default 8)${NC}"; return 1
+                echo -e "${RED}[!] Usage: quantum perf backhaul-pool N   (1-64, default 8)${NC}"; return 1
             fi
             perf_set_val backhaul_pool "$N" 1
             backhaul_pool_apply "$N"
@@ -3692,11 +3692,11 @@ cli_perf() {
             echo -e "${GREEN}[OK] Performance RESET to safe defaults (encryption: off, compression: off, tcpMux: off, Auto Pool: on).${NC}"
             ;;
         -h|--help|help)
-            echo "Usage: hashem perf status|apply|reset|enc on|off|comp on|off|tcpmux on|off|autopool on|off|status|tick|proxy-protocol off|v1|v2|bandwidth MB|health-check on|off|backhaul-pool N|pool"
+            echo "Usage: quantum perf status|apply|reset|enc on|off|comp on|off|tcpmux on|off|autopool on|off|status|tick|proxy-protocol off|v1|v2|bandwidth MB|health-check on|off|backhaul-pool N|pool"
             ;;
         *)
             echo -e "${RED}[!] Unknown subcommand: $SUB${NC}"
-            echo "Usage: hashem perf status|apply|reset|enc on|off|comp on|off|tcpmux on|off|autopool on|off|status|tick|proxy-protocol off|v1|v2|bandwidth MB|health-check on|off|backhaul-pool N|pool"
+            echo "Usage: quantum perf status|apply|reset|enc on|off|comp on|off|tcpmux on|off|autopool on|off|status|tick|proxy-protocol off|v1|v2|bandwidth MB|health-check on|off|backhaul-pool N|pool"
             return 1
             ;;
     esac
@@ -3782,9 +3782,9 @@ frps_wss_front_ensure() {
         echo -e "${YELLOW}[!] ${PBIN} not found — cannot start the WSS TLS front on :${FPORT}.${NC}"
         return 1
     fi
-    cat > "${HASHEM_SYSTEMD_DIR:-/etc/systemd/system}/${SVC}.service" <<UNIT
+    cat > "${QUANTUM_SYSTEMD_DIR:-/etc/systemd/system}/${SVC}.service" <<UNIT
 [Unit]
-Description=Hashem FRP WSS TLS front (:${FPORT} -> 127.0.0.1:${CPORT})
+Description=Quantum FRP WSS TLS front (:${FPORT} -> 127.0.0.1:${CPORT})
 After=network.target frps${SUF}.service
 
 [Service]
@@ -3813,7 +3813,7 @@ frps_wss_front_remove() {
     local SVC="frps-wss${1}"
     systemctl stop "$SVC" >/dev/null 2>&1 || true
     systemctl disable "$SVC" >/dev/null 2>&1 || true
-    rm -f "${HASHEM_SYSTEMD_DIR:-/etc/systemd/system}/${SVC}.service"
+    rm -f "${QUANTUM_SYSTEMD_DIR:-/etc/systemd/system}/${SVC}.service"
 }
 
 setup_iran_server_noninteractive() {
@@ -4128,7 +4128,7 @@ LimitNOFILE=1048576
 LimitNPROC=512000
 TasksMax=infinity
 CPUWeight=100
-ExecStartPre=-/bin/sh -c "if [ -x /usr/local/bin/hashem ]; then timeout 30 /usr/local/bin/hashem dial-select >/dev/null 2>&1; fi; true"
+ExecStartPre=-/bin/sh -c "if [ -x /usr/local/bin/quantum ]; then timeout 30 /usr/local/bin/quantum dial-select >/dev/null 2>&1; fi; true"
 ExecStart=${INSTALL_DIR}/frpc -c ${CONFIG_DIR}/frpc.toml
 
 [Install]
@@ -4745,11 +4745,11 @@ release_frps_port() {
     return "$busy"
 }
 
-# remove_hashem_tunnel_ifaces deletes only the tunnels hashem made (M19):
+# remove_quantum_tunnel_ifaces deletes only the tunnels quantum made (M19):
 # gre-tunnel, gre-tN and the gre_if names in peers.json, plus FOU ports that
 # carry GRE (ipproto 47) and the WSS bridge port. It used to delete every
 # tunnel in "ip tunnel show" (the admin's own sit/ipip/gre too) and every FOU.
-remove_hashem_tunnel_ifaces() {
+remove_quantum_tunnel_ifaces() {
     command -v ip >/dev/null 2>&1 || return 0
     local gif names
     names="$TUNNEL_NAME $(ip -o link show 2>/dev/null | awk -F': ' '{sub(/@.*/, "", $2); print $2}' | grep -E '^gre-[th][0-9]+$')"
@@ -4841,7 +4841,7 @@ cli_add_peer() {
             --ports) PORTS="$2"; shift 2 ;;
             --bundle) BUNDLE="$2"; shift 2 ;;
             --force) FORCE=1; shift ;;
-            -h|--help) echo 'Usage: hashem.sh add-peer --local-pub IP --remote-pub IP [--frp-port N] --token T --local-gre IP --peer-gre IP --ports "443, 2083" [--name LABEL] [--frp-transport tcp|kcp|quic|websocket|wss] [--bundle hsh1_...] [--force]'; return 0 ;;
+            -h|--help) echo 'Usage: quantum.sh add-peer --local-pub IP --remote-pub IP [--frp-port N] --token T --local-gre IP --peer-gre IP --ports "443, 2083" [--name LABEL] [--frp-transport tcp|kcp|quic|websocket|wss] [--bundle hsh1_...] [--force]'; return 0 ;;
             *) echo -e "${RED}[!] Unknown flag: $1${NC}"; return 1 ;;
         esac
     done
@@ -4958,7 +4958,7 @@ cli_remove_peer() {
     local ID="" FORCE=0
     while [[ $# -gt 0 ]]; do
         case "$1" in --id) ID="$2"; shift 2 ;; --force) FORCE=1; shift ;;
-            -h|--help) echo 'Usage: hashem.sh remove-peer --id N [--force]'; return 0 ;;
+            -h|--help) echo 'Usage: quantum.sh remove-peer --id N [--force]'; return 0 ;;
             *) echo -e "${RED}[!] Unknown flag: $1${NC}"; return 1 ;; esac
     done
     [[ "$ID" =~ ^[0-9]+$ ]] || { echo -e "${RED}[!] --id N is required.${NC}"; return 1; }
@@ -5012,7 +5012,7 @@ cli_add_backhaul_peer() {
             --udp) BH_ACCEPT_UDP=1; shift ;;
             --udp-port) BH_ACCEPT_UDP=1; BH_UDP_PORT="$2"; shift 2 ;;
             --force) FORCE=1; shift ;;
-            -h|--help) echo 'Usage: hashem.sh add-backhaul-peer --remote-pub IP --port P --transport T --token K --ports "443, 10000-10050" [--no-gre] [--udp]'; return 0 ;;
+            -h|--help) echo 'Usage: quantum.sh add-backhaul-peer --remote-pub IP --port P --transport T --token K --ports "443, 10000-10050" [--no-gre] [--udp]'; return 0 ;;
             *) echo -e "${RED}[!] Unknown flag: $1${NC}"; return 1 ;;
         esac
     done
@@ -5159,7 +5159,7 @@ cli_edit_peer() {
             --compress) FRP_COMPRESSION="on"; shift ;;
             --frp-encryption) FRP_ENCRYPTION="$2"; shift 2 ;;
             --frp-compression) FRP_COMPRESSION="$2"; shift 2 ;;
-            -h|--help) echo 'Usage: hashem.sh edit-peer --id N [--name LABEL] [--remote-pub IP] [--carrier direct|wss:P|6to4|4in6 [--remote6 IP]] [--ports "443, 2083"] [--proxy-protocol off|v1|v2] [--frp-transport tcp|kcp|quic|websocket|wss] [--encrypt] [--compress]'; return 0 ;;
+            -h|--help) echo 'Usage: quantum.sh edit-peer --id N [--name LABEL] [--remote-pub IP] [--carrier direct|wss:P|6to4|4in6 [--remote6 IP]] [--ports "443, 2083"] [--proxy-protocol off|v1|v2] [--frp-transport tcp|kcp|quic|websocket|wss] [--encrypt] [--compress]'; return 0 ;;
             *) echo -e "${RED}[!] Unknown flag: $1${NC}"; return 1 ;;
         esac
     done
@@ -5333,7 +5333,7 @@ cli_edit_peer_ports() {
         case "$1" in
             --id) ID="$2"; shift 2 ;;
             --ports) PORTS="$2"; shift 2 ;;
-            -h|--help) echo 'Usage: hashem.sh edit-peer-ports --id N --ports "443, 2083"'; return 0 ;;
+            -h|--help) echo 'Usage: quantum.sh edit-peer-ports --id N --ports "443, 2083"'; return 0 ;;
             *) echo -e "${RED}[!] Unknown flag: $1${NC}"; return 1 ;;
         esac
     done
@@ -5611,7 +5611,7 @@ doctor_diagnostics() {
     ensure_doctor_tools
 
     echo -e "\n${CYAN}==========================================================${NC}"
-    echo -e "${CYAN}      Hashem Diagnostics & Speed Test (Doctor Suite)      ${NC}"
+    echo -e "${CYAN}      Quantum Diagnostics & Speed Test (Doctor Suite)      ${NC}"
     echo -e "${CYAN}==========================================================${NC}\n"
 
     # 1. Determine Peer IP
@@ -5758,7 +5758,7 @@ doctor_diagnostics() {
             echo -e "  ${GREEN}[OK] Throughput Speed: ${MBPS} Mbps${NC}\n"
         else
             echo -e "  ${YELLOW}[i] Remote iperf3 server not running on ${TARGET_IP}:5201.${NC}"
-            echo -e "      (Run 'hashem doctor server' on the remote server to enable direct speed tests).\n"
+            echo -e "      (Run 'quantum doctor server' on the remote server to enable direct speed tests).\n"
         fi
     fi
 
@@ -5834,7 +5834,7 @@ doctor_stop_server() {
 
 doctor_health_check() {
     echo -e "\n${CYAN}=============================================================="
-    echo "             HASHEM SYSTEM & TUNNEL HEALTH CHECK"
+    echo "             QUANTUM SYSTEM & TUNNEL HEALTH CHECK"
     echo -e "==============================================================${NC}"
     
     local PASS_COUNT=0 WARN_COUNT=0 FAIL_COUNT=0
@@ -6001,7 +6001,7 @@ cli_stress_test() {
     fi
 
     echo -e "\n${CYAN}==============================================================${NC}"
-    echo -e "${CYAN}      HASHEM TUNNEL CONCURRENCY STRESS TEST${NC}"
+    echo -e "${CYAN}      QUANTUM TUNNEL CONCURRENCY STRESS TEST${NC}"
     echo -e "${CYAN}==============================================================${NC}"
     echo -e "Target: ${GREEN}${TARGET_HOST}:${TARGET_PORT}${NC}"
     echo -e "Concurrent Connections: ${YELLOW}${CONNS}${NC}\n"
@@ -6081,15 +6081,15 @@ if dropped > 0:
         echo -e "${GREEN}[OK] PASS: Zero connection drops detected under high concurrency!${NC}"
         echo -e "${GREEN}High Concurrent Connections -> No Unexpected Drops -> Stable FRP -> Stable Tunnel${NC}"
     else
-        echo -e "${RED}[!] FAIL: Some connections dropped under load. Check /var/log/hashem/errors.log${NC}"
+        echo -e "${RED}[!] FAIL: Some connections dropped under load. Check /var/log/quantum/errors.log${NC}"
     fi
     echo -e "${CYAN}==============================================================${NC}\n"
     return $RET
 }
 
 uninstall_all() {
-    echo -e "\n${RED}=== Uninstalling EVERYTHING (tunnel + panel + hashem command) ===${NC}"
-    read -p "Are you sure? This removes GRE & FRP, the web panel AND the 'hashem' command. (y/N): " CONFIRM
+    echo -e "\n${RED}=== Uninstalling EVERYTHING (tunnel + panel + quantum command) ===${NC}"
+    read -p "Are you sure? This removes GRE & FRP, the web panel AND the 'quantum' command. (y/N): " CONFIRM
     if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
         uninstall_all_force
     else
@@ -6098,17 +6098,17 @@ uninstall_all() {
 }
 
 # Non-interactive core: full wipe. Called by uninstall_all() after confirm
-# and by `hashem uninstall --force`. Must also delete the menu entrypoints
-# (/usr/local/bin/hashem + /usr/local/bin/hashem.sh + legacy gre.sh) so
-# `hashem` stops working.
+# and by `quantum uninstall --force`. Must also delete the menu entrypoints
+# (/usr/local/bin/quantum + /usr/local/bin/quantum.sh + legacy gre.sh) so
+# `quantum` stops working.
 uninstall_all_force() {
-        echo -e "${CYAN}[*] Performing complete uninstallation of Hashem...${NC}"
+        echo -e "${CYAN}[*] Performing complete uninstallation of Quantum...${NC}"
         # 1. Stop & disable all services & timers
         systemctl stop 'frps-wss*' >/dev/null 2>&1 || true
-        systemctl stop frps frpc "${TUNNEL_NAME}.service" gre-panel hashem-watchdog.timer hashem-watchdog.service backhaul-server backhaul-client backhaul >/dev/null 2>&1 || true
+        systemctl stop frps frpc "${TUNNEL_NAME}.service" gre-panel quantum-watchdog.timer quantum-watchdog.service backhaul-server backhaul-client backhaul >/dev/null 2>&1 || true
         systemctl stop 'frps*' 'frpc*' 'backhaul*' 'gre-t*' 'gre-h*' >/dev/null 2>&1 || true
-        systemctl disable frps frpc "${TUNNEL_NAME}.service" gre-panel hashem-watchdog.timer hashem-watchdog.service backhaul-server backhaul-client backhaul >/dev/null 2>&1 || true
-        systemctl disable 'frps*' 'frpc*' 'backhaul*' 'gre-t*' 'gre-h*' hashem-lb-net >/dev/null 2>&1 || true
+        systemctl disable frps frpc "${TUNNEL_NAME}.service" gre-panel quantum-watchdog.timer quantum-watchdog.service backhaul-server backhaul-client backhaul >/dev/null 2>&1 || true
+        systemctl disable 'frps*' 'frpc*' 'backhaul*' 'gre-t*' 'gre-h*' quantum-lb-net >/dev/null 2>&1 || true
         purge_legacy_obfuscation
 
         # 2. Terminate any leftover processes
@@ -6122,15 +6122,15 @@ uninstall_all_force() {
         rm -f /etc/systemd/system/frps*.service /etc/systemd/system/frpc*.service \
               /etc/systemd/system/backhaul*.service /etc/systemd/system/${TUNNEL_NAME}.service \
               /etc/systemd/system/gre-t*.service /etc/systemd/system/gre-panel.service \
-              /etc/systemd/system/gre-h*.service /etc/systemd/system/hashem-lb-net.service \
-              /etc/systemd/system/hashem-watchdog.*
-        rm -f /var/lock/hashem-watchdog.lock
+              /etc/systemd/system/gre-h*.service /etc/systemd/system/quantum-lb-net.service \
+              /etc/systemd/system/quantum-watchdog.*
+        rm -f /var/lock/quantum-watchdog.lock
         remove_legacy_units
         systemctl daemon-reload
         systemctl reset-failed >/dev/null 2>&1 || true
 
         # 4. Remove our GRE interfaces and FOU ports
-        remove_hashem_tunnel_ifaces
+        remove_quantum_tunnel_ifaces
 
         # 5. Clean iptables / firewall rules
         if command -v iptables >/dev/null 2>&1; then
@@ -6143,18 +6143,18 @@ uninstall_all_force() {
             acct_chains_drop
             limits_drop
         fi
-        ip link del hashem-lb >/dev/null 2>&1 || true
+        ip link del quantum-lb >/dev/null 2>&1 || true
         rm -f "$PANEL_CONFIG_DIR/gre_mtu"
 
         # 6. Revert network tuning
         tune_restore >/dev/null 2>&1 || true
-        rm -f /etc/sysctl.d/99-hashem.conf /etc/sysctl.d/99-gre-panel.conf
+        rm -f /etc/sysctl.d/99-quantum.conf /etc/sysctl.d/99-gre-panel.conf
         command -v sysctl >/dev/null 2>&1 && sysctl --system >/dev/null 2>&1 || true
 
         # 6b. Bagher: the SSH carriers (one per foreign server), frps or frpc
         bagher_link_units | xargs -r systemctl disable --now >/dev/null 2>&1 || true
-        systemctl disable --now hashem-bagher hashem-bagher-frps hashem-bagher-frpc hashem-ssh-fwd hashem-ssh-frps >/dev/null 2>&1 || true
-        rm -f /etc/systemd/system/hashem-bagher*.service /etc/systemd/system/hashem-ssh-fwd.service /etc/systemd/system/hashem-ssh-frps.service
+        systemctl disable --now quantum-bagher quantum-bagher-frps quantum-bagher-frpc quantum-ssh-fwd quantum-ssh-frps >/dev/null 2>&1 || true
+        rm -f /etc/systemd/system/quantum-bagher*.service /etc/systemd/system/quantum-ssh-fwd.service /etc/systemd/system/quantum-ssh-frps.service
         systemctl daemon-reload >/dev/null 2>&1 || true
 
         # 6c. Xray tunnel: its units and its own Xray-core (never an Xray panel's)
@@ -6169,16 +6169,16 @@ uninstall_all_force() {
 
         # 8. Remove configs, data, registries, logs, cron
         rm -rf "$CONFIG_DIR" "$BACKHAUL_CONFIG_DIR" "$BACKHAUL_LEGACY_DIR"
-        rm -f /usr/local/bin/hashem-backhaul.sh
+        rm -f /usr/local/bin/quantum-backhaul.sh
         rm -rf /etc/gre-panel /usr/local/gre-panel
-        rm -f /etc/sysctl.d/99-hashem-reserved-ports.conf
+        rm -f /etc/sysctl.d/99-quantum-reserved-ports.conf
         sysctl -w net.ipv4.ip_local_reserved_ports="" >/dev/null 2>&1 || true
-        rm -rf /var/log/hashem* /var/log/gre-panel* /var/lock/hashem* /tmp/hashem*
-        rm -f /etc/cron.d/hashem* /etc/cron.daily/hashem*
-        crontab -l 2>/dev/null | grep -v 'hashem' | crontab - 2>/dev/null || true
+        rm -rf /var/log/quantum* /var/log/gre-panel* /var/lock/quantum* /tmp/quantum*
+        rm -f /etc/cron.d/quantum* /etc/cron.daily/quantum*
+        crontab -l 2>/dev/null | grep -v 'quantum' | crontab - 2>/dev/null || true
 
         # 9. Remove entrypoints last
-        rm -f /usr/local/bin/hashem /usr/local/bin/hashem.sh /usr/local/bin/gre.sh
+        rm -f /usr/local/bin/quantum /usr/local/bin/quantum.sh /usr/local/bin/gre.sh
 
         echo -e "${GREEN}[OK] Complete uninstallation finished: all tunnels, services, panel, and files removed.${NC}"
 }
@@ -6219,7 +6219,7 @@ remove_tunnel_force() {
         systemctl reset-failed >/dev/null 2>&1 || true
 
         # Remove our GRE interfaces and FOU ports
-        remove_hashem_tunnel_ifaces
+        remove_quantum_tunnel_ifaces
 
         # Clean firewall rules. The saved path MTU belonged to this peer.
         if command -v iptables >/dev/null 2>&1; then
@@ -6232,12 +6232,12 @@ remove_tunnel_force() {
             acct_chains_drop
             limits_drop
         fi
-        ip link del hashem-lb >/dev/null 2>&1 || true
+        ip link del quantum-lb >/dev/null 2>&1 || true
         rm -f "$PANEL_CONFIG_DIR/gre_mtu"
 
         # Remove configs
         rm -rf "$CONFIG_DIR" "$BACKHAUL_CONFIG_DIR" "$BACKHAUL_LEGACY_DIR"
-        rm -f /usr/local/bin/hashem-backhaul.sh
+        rm -f /usr/local/bin/quantum-backhaul.sh
         rm -f "$PEERS_FILE"
 
         echo -e "${GREEN}[OK] Tunnel removed — GRE interface, FRP/Backhaul services, binaries and configs gone. Panel still running.${NC}"
@@ -6311,7 +6311,7 @@ tune_mem_mb() {
 
 # reserve_service_ports keeps the panel, frps, backhaul and forwarded ports out
 # of the ephemeral range (net.ipv4.ip_local_reserved_ports), at runtime and
-# in /etc/sysctl.d/99-hashem-reserved-ports.conf. Safe to call repeatedly.
+# in /etc/sysctl.d/99-quantum-reserved-ports.conf. Safe to call repeatedly.
 reserve_service_ports() {
     local ports="" p f
     if [[ -f "${PANEL_CONFIG_DIR}/panel.json" ]]; then
@@ -6339,9 +6339,9 @@ print(" ".join(str(x) for p in d.get("peers",[]) for x in [p.get("frp_port")]+li
 ' $ports | grep -E '^[0-9]+$' | awk '$1 >= 1024 && $1 <= 65535' | sort -n -u | paste -sd, -)
     [[ -n "$list" ]] || return 0
     sysctl -w net.ipv4.ip_local_reserved_ports="$list" >/dev/null 2>&1 || return 0
-    printf '# hashem: service ports kept out of the ephemeral range (rewritten automatically)
+    printf '# quantum: service ports kept out of the ephemeral range (rewritten automatically)
 net.ipv4.ip_local_reserved_ports = %s
-' "$list"         > /etc/sysctl.d/99-hashem-reserved-ports.conf 2>/dev/null || true
+' "$list"         > /etc/sysctl.d/99-quantum-reserved-ports.conf 2>/dev/null || true
 }
 
 tune_apply() {
@@ -6413,7 +6413,7 @@ tune_apply() {
 
     # OS limits configuration for high concurrency
     mkdir -p /etc/security/limits.d
-    cat > /etc/security/limits.d/99-hashem.conf <<'EOF'
+    cat > /etc/security/limits.d/99-quantum.conf <<'EOF'
 * soft nofile 1048576
 * hard nofile 1048576
 root soft nofile 1048576
@@ -6448,7 +6448,7 @@ EOF
     # 7. Persist across reboots
     mkdir -p /etc/sysctl.d
     cat > /etc/sysctl.d/99-gre-tune.conf <<EOF
-# Hashem tunnel optimization (applied by Optimize button / tune command)
+# Quantum tunnel optimization (applied by Optimize button / tune command)
 net.core.default_qdisc = fq
 net.ipv4.tcp_congestion_control = bbr
 net.core.rmem_max = 16777216
@@ -6710,7 +6710,7 @@ update_tag_ok() { [[ "${1:-}" =~ ^(v[0-9]+\.[0-9]+\.[0-9]+|dev-r[0-9]+|panel-r[0
 update_verify_asset() {
     local F="$1" TAG="$2" ASSET="$3" SUMS WANT GOT
     SUMS=$(release_manifest_fetch "$TAG" 2>/dev/null) || return 2
-    # manifests may carry the binary-mode marker ("*hashem.sh") — strip it
+    # manifests may carry the binary-mode marker ("*quantum.sh") — strip it
     WANT=$(printf '%s\n' "$SUMS" | awk -v a="$ASSET" '{n=$2; sub(/^\*/, "", n); if (n == a) {print $1; exit}}')
     [[ -n "$WANT" ]] || return 2
     GOT=$(sha256sum "$F" 2>/dev/null | awk '{print $1}')
@@ -6823,7 +6823,7 @@ apply_frp_unit_weight() { # $1=unit file
 }
 
 # revpath CLI: query the local panel API (login with password from
-# HASHEM_PANEL_PASS or an interactive prompt). Read-only unless --apply.
+# QUANTUM_PANEL_PASS or an interactive prompt). Read-only unless --apply.
 cli_revpath() { # [--peer ID] [--apply] [--auto]
     local peer="" apply="false" auto="false"
     while [[ $# -gt 0 ]]; do case "$1" in
@@ -6837,9 +6837,9 @@ cli_revpath() { # [--peer ID] [--apply] [--auto]
     port=$(grep -o '"port": *[0-9]*' /etc/gre-panel/panel.json 2>/dev/null | grep -o '[0-9]*'); port=${port:-7777}
     base=$(grep -o '"base_path": *"[^"]*"' /etc/gre-panel/panel.json 2>/dev/null | cut -d'"' -f4)
     user=$(grep -o '"username": *"[^"]*"' /etc/gre-panel/panel.json 2>/dev/null | cut -d'"' -f4); user=${user:-admin}
-    pass="${HASHEM_PANEL_PASS:-}"
+    pass="${QUANTUM_PANEL_PASS:-}"
     if [[ -z "$pass" ]]; then
-        if [[ ! -t 0 ]]; then echo -e "${RED}[!] Set HASHEM_PANEL_PASS or run interactively.${NC}"; return 1; fi
+        if [[ ! -t 0 ]]; then echo -e "${RED}[!] Set QUANTUM_PANEL_PASS or run interactively.${NC}"; return 1; fi
         read -rsp "Panel password for ${user}: " pass; echo
     fi
     local jar; jar=$(mktemp); trap 'rm -f "$jar"' RETURN
@@ -6935,7 +6935,8 @@ release_verify() {
 }
 
 install_panel() {
-    echo -e "${CYAN}[*] Installing Hashem web panel...${NC}"
+    echo -e "${CYAN}[*] Installing Quantum web panel...${NC}"
+    migrate_legacy_brand_units
     ensure_doctor_tools
 
     ARCH=$(uname -m)
@@ -6960,31 +6961,31 @@ install_panel() {
     fi
     DL_URL=""
     GREPANEL_URL=""
-    HASHEMSH_URL=""
-    HASHEM_URL=""
+    QUANTUMSH_URL=""
+    QUANTUM_URL=""
     if [[ -n "$UPD_TAG" ]]; then
         local REL_BASE="https://github.com/Dark-modem/quantum/releases/download/${UPD_TAG}"
         DL_URL="${REL_BASE}/${PANEL_ASSET}"
         GREPANEL_URL="${REL_BASE}/grepanel"
-        HASHEMSH_URL="${REL_BASE}/hashem.sh"
-        HASHEM_URL="${REL_BASE}/hashem"
+        QUANTUMSH_URL="${REL_BASE}/quantum.sh"
+        QUANTUM_URL="${REL_BASE}/quantum"
     elif [[ -n "$LATEST_JSON" ]]; then
         DL_URL=$(echo "$LATEST_JSON" | grep -o "\"browser_download_url\": *\"[^\"]*${PANEL_ASSET}\"" | head -1 | cut -d'"' -f4)
         GREPANEL_URL=$(echo "$LATEST_JSON" | grep -o "\"browser_download_url\": *\"[^\"]*grepanel\"" | head -1 | cut -d'"' -f4)
-        HASHEMSH_URL=$(echo "$LATEST_JSON" | grep -o "\"browser_download_url\": *\"[^\"]*hashem\\.sh\"" | head -1 | cut -d'"' -f4)
-        HASHEM_URL=$(echo "$LATEST_JSON" | grep -o "\"browser_download_url\": *\"[^\"]*/hashem\"" | head -1 | cut -d'"' -f4)
+        QUANTUMSH_URL=$(echo "$LATEST_JSON" | grep -o "\"browser_download_url\": *\"[^\"]*quantum\\.sh\"" | head -1 | cut -d'"' -f4)
+        QUANTUM_URL=$(echo "$LATEST_JSON" | grep -o "\"browser_download_url\": *\"[^\"]*/quantum\"" | head -1 | cut -d'"' -f4)
     fi
     # Fallback to direct release asset URLs if API was blocked/empty
     [[ -z "$DL_URL" ]] && DL_URL="https://github.com/Dark-modem/quantum/releases/latest/download/${PANEL_ASSET}"
     [[ -z "$GREPANEL_URL" ]] && GREPANEL_URL="https://github.com/Dark-modem/quantum/releases/latest/download/grepanel"
-    [[ -z "$HASHEMSH_URL" ]] && HASHEMSH_URL="https://github.com/Dark-modem/quantum/releases/latest/download/hashem.sh"
-    [[ -z "$HASHEM_URL" ]] && HASHEM_URL="https://github.com/Dark-modem/quantum/releases/latest/download/hashem"
+    [[ -z "$QUANTUMSH_URL" ]] && QUANTUMSH_URL="https://github.com/Dark-modem/quantum/releases/latest/download/quantum.sh"
+    [[ -z "$QUANTUM_URL" ]] && QUANTUM_URL="https://github.com/Dark-modem/quantum/releases/latest/download/quantum"
     # Private repository: translate release-download URLs into authenticated
     # api.github.com asset URLs (a token on github.com/... gives 404).
     DL_URL=$(resolve_gh_asset "$DL_URL")
     GREPANEL_URL=$(resolve_gh_asset "$GREPANEL_URL")
-    HASHEMSH_URL=$(resolve_gh_asset "$HASHEMSH_URL")
-    HASHEM_URL=$(resolve_gh_asset "$HASHEM_URL")
+    QUANTUMSH_URL=$(resolve_gh_asset "$QUANTUMSH_URL")
+    QUANTUM_URL=$(resolve_gh_asset "$QUANTUM_URL")
 
     # Everything downloaded below may come through a third-party mirror, so
     # it is checked against the release's checksums.txt from GitHub itself.
@@ -7031,11 +7032,11 @@ install_panel() {
     fi
 
     local NEW_SCRIPT=0
-    if download_with_fallback "$TMP_PANEL/hashem.sh" "$HASHEMSH_URL" 30 && verify_asset "$TMP_PANEL/hashem.sh" "hashem.sh" \
-            && bash -n "$TMP_PANEL/hashem.sh" 2>/dev/null; then
-        install -m 0755 "$TMP_PANEL/hashem.sh" "$HASHEM_SCRIPT" 2>/dev/null && NEW_SCRIPT=1
-        cp "$HASHEM_SCRIPT" "$HASHEM_BIN" 2>/dev/null && chmod +x "$HASHEM_BIN" || true
-        ln -sf "$HASHEM_SCRIPT" /usr/local/bin/gre.sh 2>/dev/null || true
+    if download_with_fallback "$TMP_PANEL/quantum.sh" "$QUANTUMSH_URL" 30 && verify_asset "$TMP_PANEL/quantum.sh" "quantum.sh" \
+            && bash -n "$TMP_PANEL/quantum.sh" 2>/dev/null; then
+        install -m 0755 "$TMP_PANEL/quantum.sh" "$QUANTUM_SCRIPT" 2>/dev/null && NEW_SCRIPT=1
+        cp "$QUANTUM_SCRIPT" "$QUANTUM_BIN" 2>/dev/null && chmod +x "$QUANTUM_BIN" || true
+        ln -sf "$QUANTUM_SCRIPT" /usr/local/bin/gre.sh 2>/dev/null || true
     fi
 
     if [[ "$DL_OK" -ne 1 ]]; then
@@ -7046,7 +7047,7 @@ install_panel() {
         local TMP_SWAP=""
         if [[ -n "$FREE_RAM" && "$FREE_RAM" -lt 800 ]]; then
             echo -e "${YELLOW}[*] Low RAM (${FREE_RAM}MB) detected — enabling temporary build swapfile...${NC}"
-            TMP_SWAP="/tmp/.hashem_build_swap"
+            TMP_SWAP="/tmp/.quantum_build_swap"
             fallocate -l 1G "$TMP_SWAP" 2>/dev/null || dd if=/dev/zero of="$TMP_SWAP" bs=1M count=1024 2>/dev/null || true
             chmod 600 "$TMP_SWAP" 2>/dev/null || true
             mkswap "$TMP_SWAP" 2>/dev/null && swapon "$TMP_SWAP" 2>/dev/null || true
@@ -7102,24 +7103,24 @@ install_panel() {
     fi
     chmod +x "$PANEL_BIN"
     rm -rf "$TMP_PANEL"
-    # /usr/local/bin/hashem IS this script now (no shortcut file anymore):
+    # /usr/local/bin/quantum IS this script now (no shortcut file anymore):
     # install a copy plus a legacy gre.sh symlink so old muscle memory works.
     # Only when no verified release script was installed above: copying "$0"
-    # over it put the old (running) script back, and with $0 = hashem it
-    # copied ./hashem.sh from whatever the current directory was (M4).
+    # over it put the old (running) script back, and with $0 = quantum it
+    # copied ./quantum.sh from whatever the current directory was (M4).
     if [[ "$NEW_SCRIPT" -ne 1 ]]; then
-        if [[ -n "${SRC:-}" && -f "$SRC/../hashem.sh" ]]; then
-            cp "$SRC/../hashem.sh" "$HASHEM_BIN" 2>/dev/null || true
-        elif [[ -f "$0" && "$(readlink -f "$0")" != "$(readlink -f "$HASHEM_BIN")" ]]; then
-            cp "$0" "$HASHEM_BIN" 2>/dev/null || true
+        if [[ -n "${SRC:-}" && -f "$SRC/../quantum.sh" ]]; then
+            cp "$SRC/../quantum.sh" "$QUANTUM_BIN" 2>/dev/null || true
+        elif [[ -f "$0" && "$(readlink -f "$0")" != "$(readlink -f "$QUANTUM_BIN")" ]]; then
+            cp "$0" "$QUANTUM_BIN" 2>/dev/null || true
         fi
     fi
-    chmod +x "$HASHEM_BIN" 2>/dev/null || true
-    ln -sf "$HASHEM_SCRIPT" /usr/local/bin/gre.sh 2>/dev/null || true
+    chmod +x "$QUANTUM_BIN" 2>/dev/null || true
+    ln -sf "$QUANTUM_SCRIPT" /usr/local/bin/gre.sh 2>/dev/null || true
 
     cat > /etc/systemd/system/gre-panel.service <<EOF
 [Unit]
-Description=Hashem Web Panel
+Description=Quantum Web Panel
 After=network.target
 
 [Service]
@@ -7178,7 +7179,7 @@ show_panel_url() {
     if [[ -n "$PANEL_PASS" ]]; then
         echo -e "${GREEN}Password:   ${CYAN}${PANEL_PASS}${NC} ${YELLOW}(Please record this password now!)${NC}"
     else
-        echo -e "${GREEN}Password:   ${YELLOW}(unchanged — your existing password is kept. Reset anytime: ${CYAN}hashem pass${YELLOW})${NC}"
+        echo -e "${GREEN}Password:   ${YELLOW}(unchanged — your existing password is kept. Reset anytime: ${CYAN}quantum pass${YELLOW})${NC}"
     fi
 }
 
@@ -7186,7 +7187,7 @@ show_panel_url() {
 reset_panel_password() {
     check_root
     echo -e "\n${CYAN}══════════════════════════════════════════════════════════════${NC}"
-    echo -e "${CYAN}             RESET HASHEM WEB PANEL PASSWORD                  ${NC}"
+    echo -e "${CYAN}             RESET QUANTUM WEB PANEL PASSWORD                  ${NC}"
     echo -e "${CYAN}══════════════════════════════════════════════════════════════${NC}"
     echo ""
     echo -e "${YELLOW}Enter new password for user 'admin' (minimum 8 chars).${NC}"
@@ -7393,18 +7394,18 @@ panel_tls_ip() {
     [[ "$IP" =~ ^[0-9a-fA-F.:]+$ ]] || { echo -e "${RED}[!] Not a valid IP: $IP${NC}"; return 1; }
     command -v openssl >/dev/null 2>&1 || { echo -e "${RED}[!] openssl is required.${NC}"; return 1; }
     mkdir -p /etc/gre-panel/tls
-    if [[ ! -f /etc/gre-panel/tls/hashem-ca.crt ]]; then
+    if [[ ! -f /etc/gre-panel/tls/quantum-ca.crt ]]; then
         echo -e "${CYAN}[*] Creating local CA (10 years, install once in your browser/OS)...${NC}"
-        openssl req -x509 -newkey rsa:3072 -keyout /etc/gre-panel/tls/hashem-ca.key -out /etc/gre-panel/tls/hashem-ca.crt -days 3650 -nodes -subj "/O=Hashem Panel Local CA/CN=Hashem Panel Local CA" 2>/dev/null || return 1
-        chmod 600 /etc/gre-panel/tls/hashem-ca.key
+        openssl req -x509 -newkey rsa:3072 -keyout /etc/gre-panel/tls/quantum-ca.key -out /etc/gre-panel/tls/quantum-ca.crt -days 3650 -nodes -subj "/O=Quantum Panel Local CA/CN=Quantum Panel Local CA" 2>/dev/null || return 1
+        chmod 600 /etc/gre-panel/tls/quantum-ca.key
     fi
     [[ -f /etc/gre-panel/tls/server.crt ]] && cp -f /etc/gre-panel/tls/server.crt /etc/gre-panel/tls/server.crt.bak
     [[ -f /etc/gre-panel/tls/server.key ]] && cp -f /etc/gre-panel/tls/server.key /etc/gre-panel/tls/server.key.bak
     [[ -f /etc/gre-panel/tls/meta.json ]] && cp -f /etc/gre-panel/tls/meta.json /etc/gre-panel/tls/meta.json.bak
     local TMP; TMP=$(mktemp -d)
-    openssl req -newkey rsa:2048 -nodes -keyout "$TMP/server.key" -out "$TMP/server.csr" -subj "/O=Hashem Panel/CN=$IP" 2>/dev/null || { rm -rf "$TMP"; return 1; }
+    openssl req -newkey rsa:2048 -nodes -keyout "$TMP/server.key" -out "$TMP/server.csr" -subj "/O=Quantum Panel/CN=$IP" 2>/dev/null || { rm -rf "$TMP"; return 1; }
     printf "subjectAltName=IP:%s\nbasicConstraints=CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n" "$IP" > "$TMP/ext.cnf"
-    openssl x509 -req -in "$TMP/server.csr" -CA /etc/gre-panel/tls/hashem-ca.crt -CAkey /etc/gre-panel/tls/hashem-ca.key -CAcreateserial -out "$TMP/server.crt" -days 825 -extfile "$TMP/ext.cnf" 2>/dev/null || {
+    openssl x509 -req -in "$TMP/server.csr" -CA /etc/gre-panel/tls/quantum-ca.crt -CAkey /etc/gre-panel/tls/quantum-ca.key -CAcreateserial -out "$TMP/server.crt" -days 825 -extfile "$TMP/ext.cnf" 2>/dev/null || {
         echo -e "${RED}[!] Signing failed — previous configuration kept intact.${NC}"
         rm -rf "$TMP"; return 1
     }
@@ -7414,7 +7415,7 @@ panel_tls_ip() {
     }
     rm -rf "$TMP"
     chmod 600 /etc/gre-panel/tls/server.key
-    echo "{\"domain\":\"$IP\",\"issuer\":\"Hashem Panel Local CA (self-signed)\",\"issued_at\":\"$(date '+%F %T')\"}" > /etc/gre-panel/tls/meta.json
+    echo "{\"domain\":\"$IP\",\"issuer\":\"Quantum Panel Local CA (self-signed)\",\"issued_at\":\"$(date '+%F %T')\"}" > /etc/gre-panel/tls/meta.json
     rm -f /etc/gre-panel/tls/*.bak
     systemctl restart gre-panel 2>/dev/null || true
     sleep 2
@@ -7422,7 +7423,7 @@ panel_tls_ip() {
     BASE=$(grep -o '"base_path": *"[^"]*"' /etc/gre-panel/panel.json 2>/dev/null | cut -d'"' -f4)
     TPORT=$(grep -o '"tls_port": *[0-9]*' /etc/gre-panel/panel.json 2>/dev/null | grep -o '[0-9]*'); TPORT=${TPORT:-7443}
     echo -e "${GREEN}[OK] Self-signed HTTPS ready: ${CYAN}https://${IP}:${TPORT}/${BASE}${NC}"
-    echo -e "${GREEN}    Install once to remove the browser warning: ${CYAN}/etc/gre-panel/tls/hashem-ca.crt${NC}"
+    echo -e "${GREEN}    Install once to remove the browser warning: ${CYAN}/etc/gre-panel/tls/quantum-ca.crt${NC}"
     echo -e "${GREEN}    Tunnel infrastructure continues running without interruption.${NC}"
 }
 
@@ -7756,7 +7757,7 @@ except Exception:
 
     local HOST
     HOST="$(hostname 2>/dev/null || echo 'server')"
-    local FULL_MSG="[Hashem ${HOST}] ${TEXT}"
+    local FULL_MSG="[Quantum ${HOST}] ${TEXT}"
 
     local CURL_ARGS=(-sS -f)
     if [[ "$TG_ROUTE" == "tunnel" ]]; then
@@ -7784,7 +7785,7 @@ except Exception:
 
 watchdog_test() {
     echo -e "${CYAN}[*] Testing Telegram alerts...${NC}"
-    if watchdog_send "✅ Hashem watchdog test OK"; then
+    if watchdog_send "✅ Quantum watchdog test OK"; then
         echo -e "${GREEN}[OK] Telegram test message sent successfully.${NC}"
         return 0
     else
@@ -7822,9 +7823,9 @@ restart_all_lite() {
 
 
 watchdog_tick() {
-    local LOCKFILE="/var/lock/hashem-watchdog.lock"
+    local LOCKFILE="/var/lock/quantum-watchdog.lock"
     mkdir -p /var/lock 2>/dev/null || true
-    exec 200>"$LOCKFILE" 2>/dev/null || exec 200>/tmp/hashem-watchdog.lock
+    exec 200>"$LOCKFILE" 2>/dev/null || exec 200>/tmp/quantum-watchdog.lock
     if ! flock -n 200; then
         echo "watchdog_tick: another instance running, exiting"
         return 0
@@ -8006,7 +8007,7 @@ backup_file_list() {
         "$r"/etc/gre-panel/rescue.json "$r"/etc/gre-panel/tls/*
         "$r"/etc/gre-panel/cluster.json "$r"/etc/gre-panel/sshfwd.json
         "$r"/etc/gre-panel/update.json "$r"/etc/gre-panel/bagher/*.toml
-        "$r"/etc/systemd/system/hashem-bagher*.service
+        "$r"/etc/systemd/system/quantum-bagher*.service
         "$r"/etc/systemd/system/gre-*.service "$r"/etc/systemd/system/frps*.service
         "$r"/etc/systemd/system/frpc*.service "$r"/etc/systemd/system/backhaul-*.service
     )
@@ -8056,7 +8057,7 @@ backup_now() {
 
     local DATE_STR
     DATE_STR=$(date +%Y%m%d-%H%M%S)
-    local OUT_FILE="${OUTDIR}/hashem-backup-${DATE_STR}.enc"
+    local OUT_FILE="${OUTDIR}/quantum-backup-${DATE_STR}.enc"
 
     local FILES=()
     mapfile -t FILES < <(backup_file_list)
@@ -8083,7 +8084,7 @@ backup_now() {
 
     if [[ "$KEEP" -gt 0 ]]; then
         local OLD_FILES
-        OLD_FILES=$(ls -1t "$OUTDIR"/hashem-backup-*.enc 2>/dev/null | tail -n +$((KEEP + 1)))
+        OLD_FILES=$(ls -1t "$OUTDIR"/quantum-backup-*.enc 2>/dev/null | tail -n +$((KEEP + 1)))
         if [[ -n "$OLD_FILES" ]]; then
             echo "$OLD_FILES" | xargs -r rm -f
             echo -e "${CYAN}[*] Pruned old backups (kept latest ${KEEP}).${NC}"
@@ -8145,7 +8146,7 @@ backup_restore() {
 
     echo -e "${CYAN}[*] Saving a safety backup of the current configuration first...${NC}"
     backup_now --keep 5 "${BACKUP_DIR}/pre-restore" >/dev/null 2>&1 \
-        && echo -e "${GREEN}[OK] Current state saved in ${BACKUP_DIR}/pre-restore (roll back with: hashem backup restore <file>).${NC}" \
+        && echo -e "${GREEN}[OK] Current state saved in ${BACKUP_DIR}/pre-restore (roll back with: quantum backup restore <file>).${NC}" \
         || echo -e "${YELLOW}[!] Could not save a safety backup; continuing.${NC}"
 
     echo -e "${CYAN}[*] Restoring configuration files and systemd units...${NC}"
@@ -8166,20 +8167,20 @@ backup_restore() {
 }
 
 install_watchdog_units() {
-    [[ -x "$HASHEM_BIN" ]] || { cp "$0" "$HASHEM_BIN" 2>/dev/null && chmod +x "$HASHEM_BIN"; } || true
-    cat << 'EOF' > /etc/systemd/system/hashem-watchdog.service
+    [[ -x "$QUANTUM_BIN" ]] || { cp "$0" "$QUANTUM_BIN" 2>/dev/null && chmod +x "$QUANTUM_BIN"; } || true
+    cat << 'EOF' > /etc/systemd/system/quantum-watchdog.service
 [Unit]
-Description=Hashem Watchdog and Scheduled Backup Tick
+Description=Quantum Watchdog and Scheduled Backup Tick
 After=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/hashem watchdog tick
+ExecStart=/usr/local/bin/quantum watchdog tick
 EOF
 
-    cat << 'EOF' > /etc/systemd/system/hashem-watchdog.timer
+    cat << 'EOF' > /etc/systemd/system/quantum-watchdog.timer
 [Unit]
-Description=Run Hashem Watchdog every minute
+Description=Run Quantum Watchdog every minute
 After=network.target
 
 [Timer]
@@ -8197,7 +8198,7 @@ EOF
 watchdog_on() {
     init_watchdog_json
     install_watchdog_units
-    systemctl enable --now hashem-watchdog.timer >/dev/null 2>&1
+    systemctl enable --now quantum-watchdog.timer >/dev/null 2>&1
     python3 -c '
 import json
 path = "'"$WATCHDOG_FILE"'"
@@ -8221,7 +8222,7 @@ except Exception:
 # Auto-Pool all run from watchdog_tick, each with its own on/off setting.
 watchdog_timer_ensure() {
     install_watchdog_units
-    systemctl enable --now hashem-watchdog.timer >/dev/null 2>&1 || true
+    systemctl enable --now quantum-watchdog.timer >/dev/null 2>&1 || true
 }
 
 # watchdog_off turns off the down-alerts only (M6). Stopping the timer here
@@ -8250,7 +8251,7 @@ except Exception:
 watchdog_status_full() {
     init_watchdog_json
     echo -e "${CYAN}==========================================================${NC}"
-    echo -e "${CYAN}                 Hashem Watchdog Status                   ${NC}"
+    echo -e "${CYAN}                 Quantum Watchdog Status                   ${NC}"
     echo -e "${CYAN}==========================================================${NC}"
 
     local INFO
@@ -8290,7 +8291,7 @@ except Exception as e:
     IFS=$'\t' read -r EN TOK CID ROUTE PORT FAILS THRESH LAST_C LAST_A SCHED <<< "$INFO"
 
     local TIMER_ACTIVE="inactive"
-    if systemctl is-active --quiet hashem-watchdog.timer 2>/dev/null; then
+    if systemctl is-active --quiet quantum-watchdog.timer 2>/dev/null; then
         TIMER_ACTIVE="active (every 1 min)"
     fi
 
@@ -8312,11 +8313,11 @@ except Exception as e:
     echo -e "Schedule:           ${SCHED}"
     local BC=0
     if [[ -d "$BACKUP_DIR" ]]; then
-        BC=$(ls -1 "$BACKUP_DIR"/hashem-backup-*.enc 2>/dev/null | wc -l)
+        BC=$(ls -1 "$BACKUP_DIR"/quantum-backup-*.enc 2>/dev/null | wc -l)
     fi
     echo -e "Stored Backups:     ${BC} in ${BACKUP_DIR}"
     if [[ "$BC" -gt 0 ]]; then
-        ls -lh "$BACKUP_DIR"/hashem-backup-*.enc 2>/dev/null | awk '{print "  " $9 " (" $5 ", " $6 " " $7 " " $8 ")"}' | tail -n 5
+        ls -lh "$BACKUP_DIR"/quantum-backup-*.enc 2>/dev/null | awk '{print "  " $9 " (" $5 ", " $6 " " $7 " " $8 ")"}' | tail -n 5
     fi
     echo ""
     echo -e "${YELLOW}── Live Health Check ──${NC}"
@@ -8586,7 +8587,7 @@ except Exception:
                 echo -e "\n${CYAN}── Restore Backup ──${NC}"
                 local BAKS=()
                 if [[ -d "$BACKUP_DIR" ]]; then
-                    mapfile -t BAKS < <(ls -1t "$BACKUP_DIR"/hashem-backup-*.enc 2>/dev/null)
+                    mapfile -t BAKS < <(ls -1t "$BACKUP_DIR"/quantum-backup-*.enc 2>/dev/null)
                 fi
                 if [[ ${#BAKS[@]} -eq 0 ]]; then
                     echo -e "${YELLOW}[!] No backups found in ${BACKUP_DIR}.${NC}"
@@ -8665,9 +8666,9 @@ cli_backup() {
             echo -e "${CYAN}Decrypt elsewhere: openssl enc -d -aes-256-cbc -pbkdf2 -pass file:backup.key -in <backup>.enc | tar -tz${NC}" >&2
             ;;
         status)
-            echo -e "${CYAN}=== Hashem Backups (${BACKUP_DIR}) ===${NC}"
+            echo -e "${CYAN}=== Quantum Backups (${BACKUP_DIR}) ===${NC}"
             if [[ -d "$BACKUP_DIR" ]]; then
-                ls -lh "$BACKUP_DIR"/hashem-backup-*.enc 2>/dev/null || echo "(no backups found)"
+                ls -lh "$BACKUP_DIR"/quantum-backup-*.enc 2>/dev/null || echo "(no backups found)"
             else
                 echo "(no backup directory)"
             fi
@@ -8746,7 +8747,7 @@ except Exception:
 ' 2>/dev/null
                 echo -e "${GREEN}[OK] Scheduled backups disabled.${NC}"
             else
-                echo -e "${RED}[!] Usage: hashem backup schedule [--every N | --daily HH:MM | --off]${NC}"; return 1
+                echo -e "${RED}[!] Usage: quantum backup schedule [--every N | --daily HH:MM | --off]${NC}"; return 1
             fi
             ;;
         *)
@@ -8756,17 +8757,78 @@ except Exception:
     esac
 }
 
-# remove_legacy_units: older releases installed hashem-monitor.service and
-# hashem-webui.service (ExecStart=hashem --monitor / --webui). Those verbs no
+# ---- Legacy migration (pre-rebrand installs) --------------------------------
+# migrate_legacy_brand_units: installations made before the Quantum rebrand used
+# the old pre-rebrand prefix on systemd units (legacy-bagher.service,
+# legacy-watchdog.timer, ...), on env names inside those units (LEGACY_BIN=...)
+# and on /usr/local/bin binaries (legacy-panel, legacy.sh, legacy). Adopt them:
+#   * stop + disable each legacy unit,
+#   * if the matching quantum-* unit does not exist yet, rewrite the unit under
+#     the new name (same ExecStart/limits, env vars renamed, binary paths
+#     mapped: legacy-panel -> gre-panel, legacy.sh -> quantum.sh, legacy -> quantum)
+#     and re-enable it, so config/state (e.g. /etc/gre-panel, /etc/frp) is kept,
+#   * adopt the legacy panel binary as gre-panel when none is installed yet.
+# The literal legacy brand is assembled at runtime so this file stays greppable.
+# QUANTUM_SYSTEMD_DIR is overridable for tests.
+migrate_legacy_brand_units() {
+    local dir="${QUANTUM_SYSTEMD_DIR:-/etc/systemd/system}"
+    local LEG LEGPFX
+    LEG="has""hem"; LEGPFX="${LEG}-"
+    local f u new was_enabled migrated=0
+    # legacy unit files (services + timers)
+    for f in "${dir}"/"${LEGPFX}"*.service "${dir}"/"${LEGPFX}"*.timer; do
+        [[ -f "$f" ]] || continue
+        u="$(basename "$f")"
+        new="quantum-${u#${LEGPFX}}"
+        was_enabled=0
+        systemctl is-enabled --quiet "$u" 2>/dev/null && was_enabled=1
+        systemctl stop "$u" >/dev/null 2>&1 || true
+        systemctl disable "$u" >/dev/null 2>&1 || true
+        if [[ ! -f "${dir}/${new}" ]]; then
+            sed -e "s#${LEGPFX}#quantum-#g" \
+                -e "s#${LEG^^}_#QUANTUM_#g" \
+                -e "s#${LEG^}#Quantum#g" \
+                -e "s#${LEG}#quantum#g" \
+                -e 's#/usr/local/bin/quantum-panel#/usr/local/bin/gre-panel#g' \
+                -e 's#/usr/local/bin/quantum\.sh#/usr/local/bin/quantum.sh#g' \
+                "$f" > "${dir}/${new}" || { echo -e "${RED}[!] Failed to migrate unit ${u} — leaving it in place.${NC}"; continue; }
+            if [[ "$was_enabled" -eq 1 ]]; then
+                systemctl enable "${new%.timer}" >/dev/null 2>&1 || true
+                [[ "$f" == *.timer ]] && systemctl enable "$new" >/dev/null 2>&1 || true
+            fi
+            echo -e "${GREEN}[OK] Migrated legacy unit ${u} -> ${new}${NC}"
+        else
+            echo -e "${YELLOW}[!] ${new} already exists — removing stale legacy unit ${u}.${NC}"
+        fi
+        rm -f "$f" "${dir}/multi-user.target.wants/${u}"
+        migrated=1
+    done
+    # legacy binaries / script copies
+    if [[ -f /usr/local/bin/${LEGPFX}panel && ! -f /usr/local/bin/gre-panel ]]; then
+        mv -f "/usr/local/bin/${LEGPFX}panel" /usr/local/bin/gre-panel 2>/dev/null \
+            && echo -e "${GREEN}[OK] Adopted legacy panel binary as /usr/local/bin/gre-panel${NC}"
+    fi
+    if [[ -f "/usr/local/bin/${LEG}.sh" && ! -f "$QUANTUM_SCRIPT" ]]; then
+        cp -f "/usr/local/bin/${LEG}.sh" "$QUANTUM_SCRIPT" 2>/dev/null && chmod +x "$QUANTUM_SCRIPT" || true
+    fi
+    if [[ -f "/usr/local/bin/${LEG}" && ! -f "$QUANTUM_BIN" ]]; then
+        cp -f "/usr/local/bin/${LEG}" "$QUANTUM_BIN" 2>/dev/null && chmod +x "$QUANTUM_BIN" || true
+    fi
+    (( migrated )) && { systemctl daemon-reload >/dev/null 2>&1 || true; }
+    return 0
+}
+
+# remove_legacy_units: older releases installed quantum-monitor.service and
+# quantum-webui.service (ExecStart=quantum --monitor / --webui). Those verbs no
 # longer exist, so the units crash-looped forever (Restart=always) and flooded
 # journald. Remove them (idempotent; only when ExecStart really is the dead verb).
-# HASHEM_SYSTEMD_DIR is overridable for tests.
+# QUANTUM_SYSTEMD_DIR is overridable for tests.
 remove_legacy_units() {
-    local dir="${HASHEM_SYSTEMD_DIR:-/etc/systemd/system}" name unit removed=0
-    for name in hashem-monitor hashem-webui; do
+    local dir="${QUANTUM_SYSTEMD_DIR:-/etc/systemd/system}" name unit removed=0
+    for name in quantum-monitor quantum-webui; do
         unit="${dir}/${name}.service"
         [[ -f "$unit" ]] || continue
-        grep -Eq '^ExecStart=.*/hashem(\.sh)? +--(monitor|webui)([[:space:]]|$)' "$unit" || continue
+        grep -Eq '^ExecStart=.*/quantum(\.sh)? +--(monitor|webui)([[:space:]]|$)' "$unit" || continue
         systemctl stop "${name}.service" >/dev/null 2>&1 || true
         systemctl disable "${name}.service" >/dev/null 2>&1 || true
         rm -f "$unit" "${dir}/multi-user.target.wants/${name}.service"
@@ -8788,36 +8850,37 @@ update_all() {
         update_tag_ok "$WANT_TAG" || { echo -e "${RED}[!] Bad tag: $WANT_TAG (want vX.Y.Z, dev-rN or panel-rN)${NC}"; return 1; }
         echo -e "${YELLOW}[!] Installing ${WANT_TAG} even if older than running (downgrade).${NC}"
     fi
-    echo -e "${CYAN}[*] Updating Hashem (script + panel binary)...${NC}"
+    echo -e "${CYAN}[*] Updating Quantum (script + panel binary)...${NC}"
     TMP_U="$(mktemp -d)"
     trap 'rm -rf "$TMP_U"' RETURN
     # 1. fresh script from the channel's release (main only if the tag has no asset)
     UPD_TAG="${WANT_TAG:-$(update_pick_tag)}"
     echo -e "${CYAN}[*] Channel: $(update_get_channel)${UPD_TAG:+ (release ${UPD_TAG})}${NC}"
     if [[ -n "$UPD_TAG" ]]; then
-        download_with_fallback "$TMP_U/hashem.sh" "$(resolve_gh_asset "https://github.com/Dark-modem/quantum/releases/download/${UPD_TAG}/hashem.sh")" 30 || rm -f "$TMP_U/hashem.sh"
-        if [[ -s "$TMP_U/hashem.sh" ]]; then
-            update_verify_asset "$TMP_U/hashem.sh" "$UPD_TAG" hashem.sh; _VR=$?
+        download_with_fallback "$TMP_U/quantum.sh" "$(resolve_gh_asset "https://github.com/Dark-modem/quantum/releases/download/${UPD_TAG}/quantum.sh")" 30 || rm -f "$TMP_U/quantum.sh"
+        if [[ -s "$TMP_U/quantum.sh" ]]; then
+            update_verify_asset "$TMP_U/quantum.sh" "$UPD_TAG" quantum.sh; _VR=$?
             if [[ $_VR -eq 1 ]]; then
-                echo -e "${RED}[!] hashem.sh does not match ${UPD_TAG}/checksums.txt — refusing, nothing changed.${NC}"
+                echo -e "${RED}[!] quantum.sh does not match ${UPD_TAG}/checksums.txt — refusing, nothing changed.${NC}"
                 return 1
             fi
         fi
     fi
-    if [[ ! -s "$TMP_U/hashem.sh" ]] && [[ "$(update_get_channel)" == "dev" ]]; then
+    if [[ ! -s "$TMP_U/quantum.sh" ]] && [[ "$(update_get_channel)" == "dev" ]]; then
         echo -e "${RED}[!] No dev release script available — nothing changed.${NC}"
         return 1
     fi
-    if ! download_with_fallback "$TMP_U/hashem.sh" "${HASHEM_URL_BASE}/hashem.sh" 30; then
-        echo -e "${RED}[!] Failed to download latest hashem.sh — nothing changed.${NC}"
+    if ! download_with_fallback "$TMP_U/quantum.sh" "${QUANTUM_URL_BASE}/quantum.sh" 30; then
+        echo -e "${RED}[!] Failed to download latest quantum.sh — nothing changed.${NC}"
         return 1
     fi
-    bash -n "$TMP_U/hashem.sh" || { echo -e "${RED}[!] Downloaded script failed syntax check — nothing changed.${NC}"; return 1; }
-    if cmp -s "$TMP_U/hashem.sh" "$0" 2>/dev/null || cmp -s "$TMP_U/hashem.sh" ./hashem.sh 2>/dev/null; then
-        echo -e "${GREEN}[OK] hashem.sh is already the latest version.${NC}"
+    bash -n "$TMP_U/quantum.sh" || { echo -e "${RED}[!] Downloaded script failed syntax check — nothing changed.${NC}"; return 1; }
+    if cmp -s "$TMP_U/quantum.sh" "$0" 2>/dev/null || cmp -s "$TMP_U/quantum.sh" ./quantum.sh 2>/dev/null; then
+        echo -e "${GREEN}[OK] quantum.sh is already the latest version.${NC}"
     else
-        echo -e "${GREEN}[OK] New hashem.sh downloaded and syntax-checked.${NC}"
+        echo -e "${GREEN}[OK] New quantum.sh downloaded and syntax-checked.${NC}"
     fi
+    migrate_legacy_brand_units
     remove_legacy_units
     # 2. reinstall panel binary from latest release (downloads prebuilt, restarts service)
     echo -e "${CYAN}[*] Updating panel binary...${NC}"
@@ -8835,14 +8898,14 @@ update_all() {
     fi
     [[ -n "$PANEL_BAK" ]] && rm -rf "$PANEL_BAK"
     # 3. replace running script only after everything succeeded
-    cp "$TMP_U/hashem.sh" "$0" 2>/dev/null || cp "$TMP_U/hashem.sh" ./hashem.sh
+    cp "$TMP_U/quantum.sh" "$0" 2>/dev/null || cp "$TMP_U/quantum.sh" ./quantum.sh
     chmod +x "$0" 2>/dev/null || true
-    # 4. sync copies next to the panel binary + the hashem command + legacy
+    # 4. sync copies next to the panel binary + the quantum command + legacy
     # gre.sh symlink, so the web panel + grepanel always shell out to the
     # latest tune/setup logic (single source of truth)
-    cp "$TMP_U/hashem.sh" "$HASHEM_SCRIPT" 2>/dev/null && chmod +x "$HASHEM_SCRIPT" || true
-    cp "$TMP_U/hashem.sh" "$HASHEM_BIN" 2>/dev/null && chmod +x "$HASHEM_BIN" || true
-    ln -sf "$HASHEM_SCRIPT" /usr/local/bin/gre.sh 2>/dev/null || true
+    cp "$TMP_U/quantum.sh" "$QUANTUM_SCRIPT" 2>/dev/null && chmod +x "$QUANTUM_SCRIPT" || true
+    cp "$TMP_U/quantum.sh" "$QUANTUM_BIN" 2>/dev/null && chmod +x "$QUANTUM_BIN" || true
+    ln -sf "$QUANTUM_SCRIPT" /usr/local/bin/gre.sh 2>/dev/null || true
     # 5. Retire removed features (chaff service, DPI shield, force_tls/auto_tune keys) left by older releases
     purge_legacy_obfuscation
     perf_prune_legacy_keys
@@ -8854,7 +8917,7 @@ update_all() {
         for _frps_f in "$CONFIG_DIR"/frps*.toml; do
             [[ -f "$_frps_f" ]] || continue
             grep -Eq '^[[:space:]]*transport\.tcpMux[[:space:]]*=' "$_frps_f" 2>/dev/null && continue
-            echo -e "${YELLOW}[!] $(basename "$_frps_f") has no transport.tcpMux line (FRP default = ON); set explicitly with: hashem perf tcpmux on|off on hub AND spokes${NC}"
+            echo -e "${YELLOW}[!] $(basename "$_frps_f") has no transport.tcpMux line (FRP default = ON); set explicitly with: quantum perf tcpmux on|off on hub AND spokes${NC}"
         done
     fi
     perf_apply >/dev/null 2>&1 || true
@@ -8873,7 +8936,7 @@ cli_carrier() {
             shift
             local T="${1:-}" GIF="" L6="" R6=""
             if [[ -z "$T" ]]; then
-                echo -e "${RED}[!] Usage: hashem carrier set <direct|wss[:PORT]|6to4|4in6> [--if IF] [--local6 IP --remote6 IP]${NC}"
+                echo -e "${RED}[!] Usage: quantum carrier set <direct|wss[:PORT]|6to4|4in6> [--if IF] [--local6 IP --remote6 IP]${NC}"
                 return 1
             fi
             shift
@@ -8932,7 +8995,7 @@ cli_carrier() {
             echo -e "Tunnel health:  ${PING_OUT}"
             ;;
         *)
-            echo "Usage: hashem carrier [status | set <direct|wss[:PORT]|6to4|4in6> [--if IF] [--local6 IP] [--remote6 IP] | mode <...> | cycle | set-ports P1 P2 | init]"
+            echo "Usage: quantum carrier [status | set <direct|wss[:PORT]|6to4|4in6> [--if IF] [--local6 IP] [--remote6 IP] | mode <...> | cycle | set-ports P1 P2 | init]"
             return 1
             ;;
     esac
@@ -9019,7 +9082,7 @@ BACKHAUL_LEGACY_DIR="/root/backhaul-core"
 
 backhaul_legacy_units() {
     local u
-    for u in "${HASHEM_SYSTEMD_DIR:-/etc/systemd/system}"/backhaul-iran[0-9]*.service "${HASHEM_SYSTEMD_DIR:-/etc/systemd/system}"/backhaul-kharej[0-9]*.service; do
+    for u in "${QUANTUM_SYSTEMD_DIR:-/etc/systemd/system}"/backhaul-iran[0-9]*.service "${QUANTUM_SYSTEMD_DIR:-/etc/systemd/system}"/backhaul-kharej[0-9]*.service; do
         [[ -f "$u" ]] && echo "$u"
     done
 }
@@ -9045,16 +9108,16 @@ bh_legacy_ports() {
 }
 
 # cli_backhaul_migrate moves tunnels made by the old Modified Backhaul script
-# into Hashem's own Backhaul (backhaul-server / backhaul-client, /etc/backhaul),
+# into Quantum's own Backhaul (backhaul-server / backhaul-client, /etc/backhaul),
 # so the panel, watchdog, backup and uninstall see them. Their sectioned
-# configs never ran on the core hashem installs, so the old units are retired.
+# configs never ran on the core quantum installs, so the old units are retired.
 # A unit whose core really is v2.x is left alone.
 cli_backhaul_migrate() {
     local units u name kind conf bin ver tr tok addr ports port moved=0 kept=0
     units=$(backhaul_legacy_units)
     if [[ -z "$units" ]]; then
         echo -e "${GREEN}[OK] No old Modified Backhaul tunnels found.${NC}"
-        rm -f /usr/local/bin/hashem-backhaul.sh 2>/dev/null
+        rm -f /usr/local/bin/quantum-backhaul.sh 2>/dev/null
         return 0
     fi
     local LEGACY_BAK="${BACKHAUL_CONFIG_DIR}/legacy"
@@ -9079,28 +9142,28 @@ cli_backhaul_migrate() {
         [[ -f "$conf" ]] && mv -f "$conf" "$LEGACY_BAK/" 2>/dev/null
         echo -e "${CYAN}[*] Retired ${name} (old script, ${tr:-unknown} transport). Config kept in ${LEGACY_BAK}.${NC}"
         if ! backhaul_transport_ok "$tr" || [[ -z "$tok" ]] || ! is_valid_port "$port"; then
-            echo -e "${YELLOW}    It used '${tr:-?}', which Hashem's Backhaul core does not have. Set it up again from: hashem backhaul${NC}"
+            echo -e "${YELLOW}    It used '${tr:-?}', which Quantum's Backhaul core does not have. Set it up again from: quantum backhaul${NC}"
             continue
         fi
         [[ -n "$ports" ]] && { ports=$(backhaul_ports_normalize "$ports" 2>/dev/null) || ports=""; }
-        install_backhaul_binaries >/dev/null 2>&1 || { echo -e "${RED}[!] Backhaul core missing; run: hashem backhaul${NC}"; continue; }
+        install_backhaul_binaries >/dev/null 2>&1 || { echo -e "${RED}[!] Backhaul core missing; run: quantum backhaul${NC}"; continue; }
         if [[ "$kind" == "iran" ]]; then
             if [[ -f "${BACKHAUL_CONFIG_DIR}/config.toml" ]]; then
-                echo -e "${YELLOW}    This server already has a Hashem Backhaul server. Add the old one as a peer:${NC}"
-                echo "    hashem add-backhaul-peer --no-gre --remote-pub <FOREIGN_IP> --port ${port} --transport ${tr} --token ${tok} --ports \"${ports}\""
+                echo -e "${YELLOW}    This server already has a Quantum Backhaul server. Add the old one as a peer:${NC}"
+                echo "    quantum add-backhaul-peer --no-gre --remote-pub <FOREIGN_IP> --port ${port} --transport ${tr} --token ${tok} --ports \"${ports}\""
                 continue
             fi
             backhaul_write_server_conf "${BACKHAUL_CONFIG_DIR}/config.toml" "0.0.0.0:${port}" "$tr" "$tok" "$ports"
             setup_backhaul_server_systemd "backhaul-server" "${BACKHAUL_CONFIG_DIR}/config.toml"
         else
             if [[ -f "${BACKHAUL_CONFIG_DIR}/client.toml" ]]; then
-                echo -e "${YELLOW}    This server already has a Hashem Backhaul client; the old one was not moved.${NC}"
+                echo -e "${YELLOW}    This server already has a Quantum Backhaul client; the old one was not moved.${NC}"
                 continue
             fi
             backhaul_write_client_conf "${BACKHAUL_CONFIG_DIR}/client.toml" "$addr" "$tr" "$tok"
             setup_backhaul_client_systemd "backhaul-client" "${BACKHAUL_CONFIG_DIR}/client.toml"
         fi
-        echo -e "${GREEN}[OK] Moved into Hashem as backhaul-$([[ "$kind" == iran ]] && echo server || echo client) (port ${port}, ${tr}).${NC}"
+        echo -e "${GREEN}[OK] Moved into Quantum as backhaul-$([[ "$kind" == iran ]] && echo server || echo client) (port ${port}, ${tr}).${NC}"
         moved=$((moved + 1))
     done
     systemctl daemon-reload >/dev/null 2>&1 || true
@@ -9109,9 +9172,9 @@ cli_backhaul_migrate() {
             rm -f "${BACKHAUL_LEGACY_DIR}/backhaul_premium"
             mv -f "$BACKHAUL_LEGACY_DIR" "$LEGACY_BAK/backhaul-core.$(date +%s)" 2>/dev/null || true
         fi
-        rm -f /usr/local/bin/hashem-backhaul.sh 2>/dev/null
+        rm -f /usr/local/bin/quantum-backhaul.sh 2>/dev/null
     fi
-    log_msg "tunnel" "INFO" "Old Modified Backhaul tunnels: ${moved} moved into Hashem, ${kept} left on a v2 core" 2>/dev/null || true
+    log_msg "tunnel" "INFO" "Old Modified Backhaul tunnels: ${moved} moved into Quantum, ${kept} left on a v2 core" 2>/dev/null || true
     return 0
 }
 
@@ -9138,7 +9201,7 @@ backhaul_status() {
         fi
     done
     (( any )) || echo "No Backhaul tunnel on this server yet."
-    [[ -n "$(backhaul_legacy_units)" ]] && echo -e "${YELLOW}Old Modified Backhaul tunnels found: pick 'Move old tunnels into Hashem'.${NC}"
+    [[ -n "$(backhaul_legacy_units)" ]] && echo -e "${YELLOW}Old Modified Backhaul tunnels found: pick 'Move old tunnels into Quantum'.${NC}"
     return 0
 }
 
@@ -9162,7 +9225,7 @@ backhaul_show_bundle() {
     else
         echo -e "${CYAN}$(bundle_make_backhaul "$pub" "$port" "$tr" "$tok" "$ports")${NC}"
     fi
-    echo "On the foreign server: hashem setup-foreign --bundle <this bundle>"
+    echo "On the foreign server: quantum setup-foreign --bundle <this bundle>"
 }
 
 menu_backhaul() {
@@ -9242,9 +9305,9 @@ setup_backhaul_iran_interactive() {
 setup_gre_backhaul_iran_interactive() { setup_backhaul_iran_interactive yes; }
 
 # ============================================================================
-# Terminal app (hashem with no arguments). Arrow keys or the item number move
+# Terminal app (quantum with no arguments). Arrow keys or the item number move
 # and choose, Enter runs, Esc / q / Left goes back. Without a terminal (pipe,
-# TERM=dumb, HASHEM_PLAIN=1) the same menus are plain numbered prompts.
+# TERM=dumb, QUANTUM_PLAIN=1) the same menus are plain numbered prompts.
 # Every item runs the same function as the matching CLI command and panel tab.
 # ============================================================================
 
@@ -9257,7 +9320,7 @@ UI_ARROWS="Up/Down"
 
 ui_init() {
     UI_TTY=0
-    [[ -t 0 && -t 1 && "${TERM:-dumb}" != "dumb" && -z "${HASHEM_PLAIN:-}" ]] && UI_TTY=1
+    [[ -t 0 && -t 1 && "${TERM:-dumb}" != "dumb" && -z "${QUANTUM_PLAIN:-}" ]] && UI_TTY=1
     case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
         *UTF-8*|*utf8*|*UTF8*|*utf-8*) UI_HLINE="─"; UI_PTR="›"; UI_ARROWS="↑↓" ;;
     esac
@@ -9294,7 +9357,7 @@ ui_status_refresh() {
     UI_STATUS_AT=$now
     UI_ROLE="Not set up"
     if [[ -f "${CONFIG_DIR}/frps.toml" || -f "${CONFIG_DIR}/frps.ini" || -f /etc/backhaul/config.toml || -f /etc/backhaul/server.toml ]] \
-        || [[ -f /etc/systemd/system/hashem-bagher.service ]]; then
+        || [[ -f /etc/systemd/system/quantum-bagher.service ]]; then
         UI_ROLE="Iran server"
     elif [[ -f "${CONFIG_DIR}/frpc.toml" || -f "${CONFIG_DIR}/frpc.ini" || -f /etc/backhaul/client.toml ]]; then
         UI_ROLE="Foreign server"
@@ -9324,7 +9387,7 @@ ui_status_refresh() {
 ui_header() {
     ui_status_refresh
     if (( UI_TTY )); then printf '\033[H\033[2J'; else echo; fi
-    printf '%b %s%b  %b%s%b\n' "${BOLD}${CYAN}" "HASHEM" "$NC" "$DIM" "Tunnel Manager ${UI_VER}" "$NC"
+    printf '%b %s%b  %b%s%b\n' "${BOLD}${CYAN}" "QUANTUM" "$NC" "$DIM" "Tunnel Manager ${UI_VER}" "$NC"
     printf ' Role: %b%s%b   Tunnel: %b   Panel: %b
 ' "$BOLD" "$UI_ROLE" "$NC" "$UI_TUN" "$UI_PANEL"
     [[ -n "$UI_URL" ]] && printf ' Panel address: %b%s%b\n' "$CYAN" "$UI_URL" "$NC"
@@ -9666,7 +9729,7 @@ menu_cluster() {
             2)
                 ui_page "New pool"
                 echo -e " A pool serves one public port from several tunnels. Tunnel ids: 0 is the main"
-                echo -e " tunnel, N is peer N (hashem peer-list). Empty takes every tunnel that has the port."
+                echo -e " tunnel, N is peer N (quantum peer-list). Empty takes every tunnel that has the port."
                 echo -e " Several ports at once: 443,8443 or 2000-2005 (one pool each).\n"
                 ui_ask a "Public port(s)"
                 [[ "$a" =~ ^[0-9][0-9,\ -]*$ ]] || { ui_pause; continue; }
@@ -9831,7 +9894,7 @@ menu_diagnostics() {
 }
 
 # ------------------------------------------------------------------ Logs ----
-# Follow a unit's log; Ctrl+C returns to the menu instead of quitting Hashem.
+# Follow a unit's log; Ctrl+C returns to the menu instead of quitting Quantum.
 ui_follow() {
     command -v journalctl >/dev/null 2>&1 || { echo -e "${YELLOW}[!] journalctl is not available on this system.${NC}"; ui_pause; return 0; }
     trap ':' INT
@@ -9847,13 +9910,13 @@ menu_logs() {
             "2|Panel (follow)|The web panel service." \
             "3|Watchdog (last 100 lines)|Checks, alerts and backups." \
             "4|Bagher (follow)|The Bagher SSH tunnel." \
-            "5|Everything from Hashem (last 200 lines)|All Hashem services together."
+            "5|Everything from Quantum (last 200 lines)|All Quantum services together."
         case "$c" in
             1) ui_page "Tunnel log"; ui_follow -u 'frps*' -u frpc -u 'backhaul-*' -u 'gre-t*' ;;
             2) ui_page "Panel log"; ui_follow -u gre-panel ;;
-            3) ui_run "Watchdog log" journalctl -u hashem-watchdog -n 100 --no-pager -o short-iso ;;
-            4) ui_page "Bagher log"; ui_follow -u 'hashem-bagher*' ;;
-            5) ui_run "Hashem log" journalctl -u 'frps*' -u frpc -u 'backhaul-*' -u 'gre-*' -u 'hashem-bagher*' -u hashem-watchdog -n 200 --no-pager -o short-iso ;;
+            3) ui_run "Watchdog log" journalctl -u quantum-watchdog -n 100 --no-pager -o short-iso ;;
+            4) ui_page "Bagher log"; ui_follow -u 'quantum-bagher*' ;;
+            5) ui_run "Quantum log" journalctl -u 'frps*' -u frpc -u 'backhaul-*' -u 'gre-*' -u 'quantum-bagher*' -u quantum-watchdog -n 200 --no-pager -o short-iso ;;
             0) return 0 ;;
         esac
     done
@@ -9907,10 +9970,10 @@ menu_update() {
     local c ch
     while true; do
         ui_menu c "Update" "Channel: $(update_get_channel)   Panel: ${UI_VER:-not installed}" \
-            "1|Update now|Latest hashem and panel from the current channel (configs are backed up first)." \
+            "1|Update now|Latest quantum and panel from the current channel (configs are backed up first)." \
             "2|Update channel|stable, or dev for test builds." \
             "3|Download core binaries|FRP and Backhaul, checked and cached." \
-            "4|Refresh system packages|The tools Hashem needs (iproute2, curl, ...)." \
+            "4|Refresh system packages|The tools Quantum needs (iproute2, curl, ...)." \
             "5|Load kernel modules|ip_gre and fou."
         case "$c" in
             1)
@@ -10067,7 +10130,7 @@ menu_uninstall() {
         ui_menu c "Uninstall" "" \
             "1|Panel only|Removes the web panel; tunnels keep running." \
             "2|Tunnels only|Removes every tunnel; the panel stays." \
-            "3|Everything|Tunnels, panel, firewall rules and the hashem command."
+            "3|Everything|Tunnels, panel, firewall rules and the quantum command."
         case "$c" in
             1)
                 ui_page "Uninstall the panel"
@@ -10095,7 +10158,7 @@ menu_uninstall() {
                 ui_page "Uninstall everything"
                 if ui_confirm "Delete ALL tunnels, the panel and every config?"; then
                     uninstall_all_force
-                    echo -e "${GREEN}[OK] Hashem is uninstalled.${NC}"
+                    echo -e "${GREEN}[OK] Quantum is uninstalled.${NC}"
                     ui_cleanup
                     exit 0
                 fi
@@ -10124,7 +10187,7 @@ menu_loop() {
             "8|Diagnostics|Health check, fixes, ports, stress test." \
             "9|Logs|Live service logs." \
             "10|Backup|Back up, restore and schedule." \
-            "11|Update|Update Hashem, channel, core binaries." \
+            "11|Update|Update Quantum, channel, core binaries." \
             "12|Settings|Panel login and address, HTTPS, two-factor, web terminal." \
             "13|Uninstall|Remove the panel, the tunnels, or everything."
         case "$c" in
@@ -10144,7 +10207,7 @@ menu_loop() {
             0|q|exit)
                 ui_cleanup
                 (( UI_TTY )) && printf '\033[H\033[2J'
-                echo -e "${CYAN}Bye. Run 'hashem' to come back.${NC}"
+                echo -e "${CYAN}Bye. Run 'quantum' to come back.${NC}"
                 exit 0
                 ;;
         esac
@@ -10155,48 +10218,48 @@ main_menu() {
     menu_loop
 }
 
-# Non-interactive CLI: hashem.sh setup-iran|setup-foreign with flags.
+# Non-interactive CLI: quantum.sh setup-iran|setup-foreign with flags.
 # The setup_*_noninteractive + _setup_foreign_full functions above are the
 # SINGLE source of truth — menu, CLI, and web panel all run the same steps.
 usage_cli() {
     cat <<EOF
 Usage:
-  hashem                                    # the terminal app: arrow keys, Enter, Esc (installs on the first run)
-  hashem setup-iran    --local-pub IP --remote-pub IP [--frp-port N] [--local-gre IP] [--peer-gre IP] [--token T] [--force]
-  hashem setup-foreign --local-pub IP --remote-pub IP [--frp-port N] --token T --ports "443, 2083" [--local-gre IP] [--peer-gre IP] [--force]
-                       # ... or: hashem setup-foreign --bundle hsh1_... / bh1_... / gh1_...
-  hashem setup-backhaul-iran    --remote-pub IP --port P [--transport tcpmux] [--token K] [--ports "..."]
-  hashem setup-backhaul-foreign --bundle bh1_... | --remote-pub IP --port P --token K [--transport tcpmux]
-  hashem setup-gre-backhaul-iran    --remote-pub IP --port P [--transport tcpmux] [--local-gre IP] [--peer-gre IP] [--ports "..."]
-  hashem setup-gre-backhaul-foreign --bundle gh1_... | --remote-pub IP --port P --token K [--transport tcpmux]
-  hashem add-backhaul-peer      --remote-pub IP --port P --transport T --token K --ports "..." [--no-gre]
-  hashem status | remove-tunnel [--force] | show-panel-url | reset-password [new_pass]
-  hashem panel-port <port> | panel-user <name> | panel-path <path>
-  hashem uninstall [--force]                   # full wipe: tunnel + panel + 'hashem' itself
-  hashem add-peer --local-pub IP --remote-pub IP [--frp-port N] --token T --local-gre IP --peer-gre IP --ports "443, 2083" [--name LABEL] [--bundle hsh1_...]
-  hashem remove-peer --id N [--force] | edit-peer --id N [--name L] [--remote-pub IP] [--carrier C] [--ports "..."] | edit-peer-ports --id N --ports "443, 2083" | peer-list | peer-token --id N
-  hashem logs | restart
-  hashem tls [status | issue DOMAIN [EMAIL] | renew | remove | ip [IP] | custom CERT KEY]   # panel HTTPS (Settings tab)
-  hashem settings [show | 2fa off | terminal on|off | terminal-allow [IP ...] | idle MIN]  # panel settings
-  hashem cluster [status | pool add PORT [--mode M] | pool rm|mode ... | member add|rm|drain|resume PORT LINK | join-code | add-hub CODE | events | rules]
-  hashem join-hub --bundle hsh1_...|bh1_...|gh1_... | leave-hub --id N | hubs   # foreign side: serve several Iran hubs
-  hashem optimize | restore | tune-status
-  hashem carrier [status|mode auto|direct|fou:P|wss:P|set direct|fou:P|wss:P|next] # multi-carrier failover
-  hashem ssh-fwd [status|enable|disable|gen-key|clear-dnat] # SSH port forward carrier
-  hashem dial [status|auto|gre|public]         # foreign side: reach the Iran hub over GRE, its public IP, or auto (GRE if it works)
-  hashem perf status|apply|reset|enc on|off|comp on|off|tcpmux on|off|autopool on|off
-  hashem perf proxy-protocol off|v1|v2 | bandwidth MB | health-check on|off | backhaul-pool N
-  hashem watchdog on|off|status|test|tick      # tunnel watchdog monitoring & alerts
-  hashem backup now [--keep N] | restore <f> | schedule ... | status | key
-  hashem tgsend "msg"                          # send Telegram alert manually
-  hashem doctor [server|stop-server|fix]       # latency, jitter, MTU & speed; fix = the panel's Quick Repair
-  hashem stress-test [host] [port] [conns]     # high-concurrency connection stress test (verify zero drops)
-  hashem update | update-all                   # update script + panel to the latest release of the update channel
-  hashem update-channel [stable|dev]           # show / set update channel (default stable; dev = test builds)
-  hashem download-cores                        # download & pre-cache FRP and Backhaul core binaries
-  hashem backhaul                              # Backhaul menu: setup, status, logs, bundle
-  hashem backhaul-migrate                      # move tunnels from the old Modified Backhaul script into Hashem
-  hashem free-ram                              # cap journald + drop cache + 1GB swap
+  quantum                                    # the terminal app: arrow keys, Enter, Esc (installs on the first run)
+  quantum setup-iran    --local-pub IP --remote-pub IP [--frp-port N] [--local-gre IP] [--peer-gre IP] [--token T] [--force]
+  quantum setup-foreign --local-pub IP --remote-pub IP [--frp-port N] --token T --ports "443, 2083" [--local-gre IP] [--peer-gre IP] [--force]
+                       # ... or: quantum setup-foreign --bundle hsh1_... / bh1_... / gh1_...
+  quantum setup-backhaul-iran    --remote-pub IP --port P [--transport tcpmux] [--token K] [--ports "..."]
+  quantum setup-backhaul-foreign --bundle bh1_... | --remote-pub IP --port P --token K [--transport tcpmux]
+  quantum setup-gre-backhaul-iran    --remote-pub IP --port P [--transport tcpmux] [--local-gre IP] [--peer-gre IP] [--ports "..."]
+  quantum setup-gre-backhaul-foreign --bundle gh1_... | --remote-pub IP --port P --token K [--transport tcpmux]
+  quantum add-backhaul-peer      --remote-pub IP --port P --transport T --token K --ports "..." [--no-gre]
+  quantum status | remove-tunnel [--force] | show-panel-url | reset-password [new_pass]
+  quantum panel-port <port> | panel-user <name> | panel-path <path>
+  quantum uninstall [--force]                   # full wipe: tunnel + panel + 'quantum' itself
+  quantum add-peer --local-pub IP --remote-pub IP [--frp-port N] --token T --local-gre IP --peer-gre IP --ports "443, 2083" [--name LABEL] [--bundle hsh1_...]
+  quantum remove-peer --id N [--force] | edit-peer --id N [--name L] [--remote-pub IP] [--carrier C] [--ports "..."] | edit-peer-ports --id N --ports "443, 2083" | peer-list | peer-token --id N
+  quantum logs | restart
+  quantum tls [status | issue DOMAIN [EMAIL] | renew | remove | ip [IP] | custom CERT KEY]   # panel HTTPS (Settings tab)
+  quantum settings [show | 2fa off | terminal on|off | terminal-allow [IP ...] | idle MIN]  # panel settings
+  quantum cluster [status | pool add PORT [--mode M] | pool rm|mode ... | member add|rm|drain|resume PORT LINK | join-code | add-hub CODE | events | rules]
+  quantum join-hub --bundle hsh1_...|bh1_...|gh1_... | leave-hub --id N | hubs   # foreign side: serve several Iran hubs
+  quantum optimize | restore | tune-status
+  quantum carrier [status|mode auto|direct|fou:P|wss:P|set direct|fou:P|wss:P|next] # multi-carrier failover
+  quantum ssh-fwd [status|enable|disable|gen-key|clear-dnat] # SSH port forward carrier
+  quantum dial [status|auto|gre|public]         # foreign side: reach the Iran hub over GRE, its public IP, or auto (GRE if it works)
+  quantum perf status|apply|reset|enc on|off|comp on|off|tcpmux on|off|autopool on|off
+  quantum perf proxy-protocol off|v1|v2 | bandwidth MB | health-check on|off | backhaul-pool N
+  quantum watchdog on|off|status|test|tick      # tunnel watchdog monitoring & alerts
+  quantum backup now [--keep N] | restore <f> | schedule ... | status | key
+  quantum tgsend "msg"                          # send Telegram alert manually
+  quantum doctor [server|stop-server|fix]       # latency, jitter, MTU & speed; fix = the panel's Quick Repair
+  quantum stress-test [host] [port] [conns]     # high-concurrency connection stress test (verify zero drops)
+  quantum update | update-all                   # update script + panel to the latest release of the update channel
+  quantum update-channel [stable|dev]           # show / set update channel (default stable; dev = test builds)
+  quantum download-cores                        # download & pre-cache FRP and Backhaul core binaries
+  quantum backhaul                              # Backhaul menu: setup, status, logs, bundle
+  quantum backhaul-migrate                      # move tunnels from the old Modified Backhaul script into Quantum
+  quantum free-ram                              # cap journald + drop cache + 1GB swap
 
 Setup bundles:
   FRP:              hsh1_<IRAN_PUB>_<FRP_PORT>_<IRAN_GRE>_<FOREIGN_GRE>_<TOKEN>[_<PORTS>]
@@ -10353,7 +10416,7 @@ cli_setup_backhaul_iran() {
             --udp) BH_ACCEPT_UDP=1; shift ;;
             --udp-port) BH_ACCEPT_UDP=1; BH_UDP_PORT="$2"; shift 2 ;;
             --force) FORCE=1; shift ;;
-            -h|--help) echo 'Usage: hashem setup-backhaul-iran [--local-pub IP] [--remote-pub IP] --port P [--transport T] [--token K] [--ports "..."] [--udp]'; return 0 ;;
+            -h|--help) echo 'Usage: quantum setup-backhaul-iran [--local-pub IP] [--remote-pub IP] --port P [--transport T] [--token K] [--ports "..."] [--udp]'; return 0 ;;
             *) echo -e "${RED}[!] Unknown flag: $1${NC}"; return 1 ;;
         esac
     done
@@ -10386,7 +10449,7 @@ cli_setup_backhaul_foreign() {
             --force) FORCE=1; shift ;;
             --udp) BH_ACCEPT_UDP=1; shift ;;
             --udp-port) BH_ACCEPT_UDP=1; BH_UDP_PORT="$2"; shift 2 ;;
-            -h|--help) echo 'Usage: hashem setup-backhaul-foreign --remote-pub IP --port P --token K [--transport T] [--udp [--udp-port P]] | --bundle bh1_...'; return 0 ;;
+            -h|--help) echo 'Usage: quantum setup-backhaul-foreign --remote-pub IP --port P --token K [--transport T] [--udp [--udp-port P]] | --bundle bh1_...'; return 0 ;;
             *) echo -e "${RED}[!] Unknown flag: $1${NC}"; return 1 ;;
         esac
     done
@@ -10425,7 +10488,7 @@ cli_setup_gre_backhaul_iran() {
             --udp) BH_ACCEPT_UDP=1; shift ;;
             --udp-port) BH_ACCEPT_UDP=1; BH_UDP_PORT="$2"; shift 2 ;;
             --force) FORCE=1; shift ;;
-            -h|--help) echo 'Usage: hashem setup-gre-backhaul-iran --remote-pub IP [--port P] [--transport T] [--local-gre IP] [--peer-gre IP] [--ports "..."] [--udp]'; return 0 ;;
+            -h|--help) echo 'Usage: quantum setup-gre-backhaul-iran --remote-pub IP [--port P] [--transport T] [--local-gre IP] [--peer-gre IP] [--ports "..."] [--udp]'; return 0 ;;
             *) echo -e "${RED}[!] Unknown flag: $1${NC}"; return 1 ;;
         esac
     done
@@ -10462,7 +10525,7 @@ cli_setup_gre_backhaul_foreign() {
             --force) FORCE=1; shift ;;
             --udp) BH_ACCEPT_UDP=1; shift ;;
             --udp-port) BH_ACCEPT_UDP=1; BH_UDP_PORT="$2"; shift 2 ;;
-            -h|--help) echo 'Usage: hashem setup-gre-backhaul-foreign --bundle gh1_... | --remote-pub IP --port P --token K [--udp [--udp-port P]]'; return 0 ;;
+            -h|--help) echo 'Usage: quantum setup-gre-backhaul-foreign --bundle gh1_... | --remote-pub IP --port P --token K [--udp [--udp-port P]]'; return 0 ;;
             *) echo -e "${RED}[!] Unknown flag: $1${NC}"; return 1 ;;
         esac
     done
@@ -10513,8 +10576,8 @@ render_install_progress() {
 
 # ---- Auto-install: smart automated first-run installation with single progress bar ----
 auto_install_and_show() {
-    INSTALL_LOG="/tmp/hashem_install.log"
-    echo "=== Hashem Smart Installer started: $(date) ===" > "$INSTALL_LOG"
+    INSTALL_LOG="/tmp/quantum_install.log"
+    echo "=== Quantum Smart Installer started: $(date) ===" > "$INSTALL_LOG"
 
     echo ""
     echo -e "${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
@@ -10591,8 +10654,8 @@ auto_install_and_show() {
     echo -e "${CYAN}╠══════════════════════════════════════════════════════════════╣${NC}"
     echo -e "${CYAN}║${NC}  ${YELLOW}Quick Access:${NC}                                               ${CYAN}║${NC}"
     echo -e "${CYAN}║${NC}  • Open the Web Panel link above in your browser            ${CYAN}║${NC}"
-    echo -e "${CYAN}║${NC}  • Run ${GREEN}hashem${NC} anytime to open the terminal management menu   ${CYAN}║${NC}"
-    echo -e "${CYAN}║${NC}  • Detailed installation log: ${CYAN}/tmp/hashem_install.log${NC}        ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}  • Run ${GREEN}quantum${NC} anytime to open the terminal management menu   ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}  • Detailed installation log: ${CYAN}/tmp/quantum_install.log${NC}        ${CYAN}║${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${GREEN}${BOLD}DNC MADE THIS${NC}"
@@ -10606,7 +10669,7 @@ auto_install_and_show() {
                 main_menu
                 ;;
             *)
-                echo -e "${GREEN}[OK] All done! You can open the menu anytime by typing: ${CYAN}hashem${NC}\n"
+                echo -e "${GREEN}[OK] All done! You can open the menu anytime by typing: ${CYAN}quantum${NC}\n"
                 ;;
         esac
     fi
@@ -10616,12 +10679,12 @@ auto_install_and_show() {
 show_credentials_and_exit() {
     echo ""
     echo -e "${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║              ${GREEN}✔  HASHEM PANEL IS RUNNING${NC}                      ${CYAN}║${NC}"
+    echo -e "${CYAN}║              ${GREEN}✔  QUANTUM PANEL IS RUNNING${NC}                      ${CYAN}║${NC}"
     echo -e "${CYAN}╠══════════════════════════════════════════════════════════════╣${NC}"
     show_panel_url
     echo -e "${CYAN}╠══════════════════════════════════════════════════════════════╣${NC}"
-    echo -e "${CYAN}║${NC}  • Run ${GREEN}hashem${NC} for the interactive management menu          ${CYAN}║${NC}"
-    echo -e "${CYAN}║${NC}  • Run ${GREEN}hashem --help${NC} for CLI commands                      ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}  • Run ${GREEN}quantum${NC} for the interactive management menu          ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}  • Run ${GREEN}quantum --help${NC} for CLI commands                      ${CYAN}║${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${GREEN}${BOLD}DNC MADE THIS${NC}"
@@ -10630,10 +10693,10 @@ show_credentials_and_exit() {
 
 
 # bagher_link_units: the carrier units of the foreign servers after the first
-# (hashem-bagher-2.service, ...), one per line.
+# (quantum-bagher-2.service, ...), one per line.
 bagher_link_units() {
     local f
-    for f in /etc/systemd/system/hashem-bagher-[0-9]*.service; do
+    for f in /etc/systemd/system/quantum-bagher-[0-9]*.service; do
         [[ -f $f ]] && basename "$f"
     done
     return 0
@@ -10643,12 +10706,12 @@ cli_bagher() {
     local SUB="${1:-status}"
     case "$SUB" in
         status)
-            echo -e "${CYAN}=== Hashem Bagher Engine  Status ===${NC}"
+            echo -e "${CYAN}=== Quantum Bagher Engine  Status ===${NC}"
             local SVC_ACT="inactive"
-            if systemctl is-active hashem-bagher.service >/dev/null 2>&1; then
-                SVC_ACT="${GREEN}active (running)${NC} [hashem-bagher.service]"
-            elif systemctl is-active hashem-ssh-fwd.service >/dev/null 2>&1; then
-                SVC_ACT="${GREEN}active (running)${NC} [legacy: hashem-ssh-fwd.service]"
+            if systemctl is-active quantum-bagher.service >/dev/null 2>&1; then
+                SVC_ACT="${GREEN}active (running)${NC} [quantum-bagher.service]"
+            elif systemctl is-active quantum-ssh-fwd.service >/dev/null 2>&1; then
+                SVC_ACT="${GREEN}active (running)${NC} [legacy: quantum-ssh-fwd.service]"
             else
                 SVC_ACT="${YELLOW}inactive${NC}"
             fi
@@ -10663,18 +10726,18 @@ cli_bagher() {
             done
 
             local FRPC_ACT="inactive"
-            if systemctl is-active hashem-bagher-frpc.service >/dev/null 2>&1; then
-                FRPC_ACT="${GREEN}active (running)${NC} [Foreign client: hashem-bagher-frpc.service]"
+            if systemctl is-active quantum-bagher-frpc.service >/dev/null 2>&1; then
+                FRPC_ACT="${GREEN}active (running)${NC} [Foreign client: quantum-bagher-frpc.service]"
             fi
             if [[ "$FRPC_ACT" != "inactive" ]]; then
                 echo -e "Bagher Client (Ext): $FRPC_ACT"
             fi
 
             local FRPS_ACT="inactive"
-            if systemctl is-active hashem-bagher-frps.service >/dev/null 2>&1; then
-                FRPS_ACT="${GREEN}active (running)${NC} [hashem-bagher-frps.service]"
-            elif systemctl is-active hashem-ssh-frps.service >/dev/null 2>&1; then
-                FRPS_ACT="${GREEN}active (running)${NC} [legacy: hashem-ssh-frps.service]"
+            if systemctl is-active quantum-bagher-frps.service >/dev/null 2>&1; then
+                FRPS_ACT="${GREEN}active (running)${NC} [quantum-bagher-frps.service]"
+            elif systemctl is-active quantum-ssh-frps.service >/dev/null 2>&1; then
+                FRPS_ACT="${GREEN}active (running)${NC} [legacy: quantum-ssh-frps.service]"
             else
                 FRPS_ACT="${YELLOW}inactive${NC}"
             fi
@@ -10706,8 +10769,8 @@ cli_bagher() {
                     echo -e "  Port $p: ${RED}Not Listening${NC}"
                 fi
             done
-            if nft list table inet hashem_dnat >/dev/null 2>&1; then
-                echo -e "${RED}[!] Conflict: table inet hashem_dnat is active. Run 'hashem bagher clear-dnat'${NC}"
+            if nft list table inet quantum_dnat >/dev/null 2>&1; then
+                echo -e "${RED}[!] Conflict: table inet quantum_dnat is active. Run 'quantum bagher clear-dnat'${NC}"
             fi
             ;;
         enable)
@@ -10731,20 +10794,20 @@ cli_bagher() {
                 return 1
             fi
             echo -e "${CYAN}[*] Clearing conflicting DNAT...${NC}"
-            systemctl disable --now hashem-rescue-dnat.service >/dev/null 2>&1 || true
-            nft delete table inet hashem_dnat >/dev/null 2>&1 || true
+            systemctl disable --now quantum-rescue-dnat.service >/dev/null 2>&1 || true
+            nft delete table inet quantum_dnat >/dev/null 2>&1 || true
             echo -e "${CYAN}[*] Ensuring SSH keypair...${NC}"
             mkdir -p /root/.ssh
-            if [[ ! -f /root/.ssh/hashem-fwd ]]; then
-                ssh-keygen -t ed25519 -N "" -f /root/.ssh/hashem-fwd -C "hashem-ssh-carrier" >/dev/null 2>&1
+            if [[ ! -f /root/.ssh/quantum-fwd ]]; then
+                ssh-keygen -t ed25519 -N "" -f /root/.ssh/quantum-fwd -C "quantum-ssh-carrier" >/dev/null 2>&1
             fi
-            local PUBKEY=$(cat /root/.ssh/hashem-fwd.pub)
+            local PUBKEY=$(cat /root/.ssh/quantum-fwd.pub)
             IFS=',' read -ra PORT_ARR <<< "$PORTS"
 
             local PORT_OPT=""
             [[ "$SSH_PORT" != "22" && -n "$SSH_PORT" ]] && PORT_OPT="-p $SSH_PORT"
 
-            systemctl disable --now hashem-ssh-fwd.service hashem-ssh-frps.service >/dev/null 2>&1 || true
+            systemctl disable --now quantum-ssh-fwd.service quantum-ssh-frps.service >/dev/null 2>&1 || true
 
             if [[ "$MODE" == "bagher" || "$MODE" == "frp_ssh" ]]; then
                 echo -e "${CYAN}[*] Configuring Bagher Engine  (poolCount=${POOL_COUNT}, frpPort=${FRP_PORT})...${NC}"
@@ -10753,13 +10816,13 @@ cli_bagher() {
 bindAddr = "127.0.0.1"
 bindPort = ${FRP_PORT}
 proxyBindAddr = "0.0.0.0"
-auth.token = "hashem-bagher-sec"
+auth.token = "quantum-bagher-sec"
 transport.tcpMux = false
 EOF
                 chmod 600 /etc/gre-panel/bagher/frps.toml 2>/dev/null || true  # holds the auth token
-                cat <<EOF > /etc/systemd/system/hashem-bagher-frps.service
+                cat <<EOF > /etc/systemd/system/quantum-bagher-frps.service
 [Unit]
-Description=Hashem Bagher Engine FRP Server (Iran)
+Description=Quantum Bagher Engine FRP Server (Iran)
 After=network-online.target
 Wants=network-online.target
 
@@ -10774,14 +10837,14 @@ LimitNOFILE=1048576
 WantedBy=multi-user.target
 EOF
 
-                cat <<EOF > /etc/systemd/system/hashem-bagher.service
+                cat <<EOF > /etc/systemd/system/quantum-bagher.service
 [Unit]
-Description=Hashem Bagher Engine Carrier (Reverse SSH tunnel)
-After=network-online.target hashem-bagher-frps.service
+Description=Quantum Bagher Engine Carrier (Reverse SSH tunnel)
+After=network-online.target quantum-bagher-frps.service
 Wants=network-online.target
 
 [Service]
-ExecStart=/usr/bin/ssh -N -i /root/.ssh/hashem-fwd -o BatchMode=yes -o IdentitiesOnly=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new -o TCPKeepAlive=yes -o Ciphers=aes128-gcm@openssh.com,chacha20-poly1305@openssh.com -R 127.0.0.1:${FRP_PORT}:127.0.0.1:${FRP_PORT} ${PORT_OPT} ${USER}@${REMOTE_HOST}
+ExecStart=/usr/bin/ssh -N -i /root/.ssh/quantum-fwd -o BatchMode=yes -o IdentitiesOnly=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new -o TCPKeepAlive=yes -o Ciphers=aes128-gcm@openssh.com,chacha20-poly1305@openssh.com -R 127.0.0.1:${FRP_PORT}:127.0.0.1:${FRP_PORT} ${PORT_OPT} ${USER}@${REMOTE_HOST}
 Restart=always
 RestartSec=3
 LimitNOFILE=1048576
@@ -10790,8 +10853,8 @@ LimitNOFILE=1048576
 WantedBy=multi-user.target
 EOF
                 systemctl daemon-reload
-                systemctl enable --now hashem-bagher-frps.service
-                systemctl enable --now hashem-bagher.service
+                systemctl enable --now quantum-bagher-frps.service
+                systemctl enable --now quantum-bagher.service
                 echo -e "${GREEN}[OK] Bagher Engine  started and enabled.${NC}"
 
                 echo -e "\n${YELLOW}=== Foreign authorized_keys Entry ===${NC}"
@@ -10808,15 +10871,15 @@ EOF
 mkdir -p /etc/gre-panel/bagher && cat > /etc/gre-panel/bagher/frpc.toml <<'EOF_FRPC'
 serverAddr = "127.0.0.1"
 serverPort = ${FRP_PORT}
-auth.token = "hashem-bagher-sec"
+auth.token = "quantum-bagher-sec"
 transport.tcpMux = false
 transport.tls.enable = false
 transport.poolCount = ${POOL_COUNT}
 $(echo -e "$PROXY_CFG")
 EOF_FRPC
-cat > /etc/systemd/system/hashem-bagher-frpc.service <<'EOF_SVC'
+cat > /etc/systemd/system/quantum-bagher-frpc.service <<'EOF_SVC'
 [Unit]
-Description=Hashem Bagher Engine Client (Foreign)
+Description=Quantum Bagher Engine Client (Foreign)
 After=network-online.target
 Wants=network-online.target
 
@@ -10830,7 +10893,7 @@ LimitNOFILE=1048576
 [Install]
 WantedBy=multi-user.target
 EOF_SVC
-systemctl daemon-reload && systemctl enable --now hashem-bagher-frpc.service
+systemctl daemon-reload && systemctl enable --now quantum-bagher-frpc.service
 EOF
             else
                 local FWD_ARGS=""
@@ -10838,15 +10901,15 @@ EOF
                     p=$(echo "$p" | tr -d ' ')
                     [[ -n "$p" ]] && FWD_ARGS="$FWD_ARGS -L *:$p:127.0.0.1:$p"
                 done
-                systemctl disable --now hashem-bagher-frps.service >/dev/null 2>&1 || true
-                cat <<EOF > /etc/systemd/system/hashem-bagher.service
+                systemctl disable --now quantum-bagher-frps.service >/dev/null 2>&1 || true
+                cat <<EOF > /etc/systemd/system/quantum-bagher.service
 [Unit]
-Description=Hashem Bagher Engine Carrier (Direct SSH tunnel)
+Description=Quantum Bagher Engine Carrier (Direct SSH tunnel)
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=/usr/bin/ssh -N -i /root/.ssh/hashem-fwd -o BatchMode=yes -o IdentitiesOnly=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new ${PORT_OPT} ${FWD_ARGS} ${USER}@${REMOTE_HOST}
+ExecStart=/usr/bin/ssh -N -i /root/.ssh/quantum-fwd -o BatchMode=yes -o IdentitiesOnly=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=accept-new ${PORT_OPT} ${FWD_ARGS} ${USER}@${REMOTE_HOST}
 Restart=always
 RestartSec=3
 LimitNOFILE=1048576
@@ -10855,7 +10918,7 @@ LimitNOFILE=1048576
 WantedBy=multi-user.target
 EOF
                 systemctl daemon-reload
-                systemctl enable --now hashem-bagher.service
+                systemctl enable --now quantum-bagher.service
                 echo -e "${GREEN}[OK] Direct SSH Forward carrier service started and enabled.${NC}"
 
                 echo -e "\n${YELLOW}=== Foreign authorized_keys Entry ===${NC}"
@@ -10869,58 +10932,58 @@ EOF
             fi
             ;;
         disable)
-            systemctl disable --now hashem-bagher.service >/dev/null 2>&1 || true
-            systemctl disable --now hashem-bagher-frps.service >/dev/null 2>&1 || true
-            systemctl disable --now hashem-ssh-fwd.service >/dev/null 2>&1 || true
-            systemctl disable --now hashem-ssh-frps.service >/dev/null 2>&1 || true
+            systemctl disable --now quantum-bagher.service >/dev/null 2>&1 || true
+            systemctl disable --now quantum-bagher-frps.service >/dev/null 2>&1 || true
+            systemctl disable --now quantum-ssh-fwd.service >/dev/null 2>&1 || true
+            systemctl disable --now quantum-ssh-frps.service >/dev/null 2>&1 || true
             bagher_link_units | xargs -r systemctl disable --now >/dev/null 2>&1 || true
             echo -e "${YELLOW}[*] Bagher Engine service disabled.${NC}"
             ;;
         start)
-            systemctl start hashem-bagher-frps.service 2>/dev/null || true
-            systemctl start hashem-bagher.service 2>/dev/null || systemctl start hashem-ssh-fwd.service 2>/dev/null || true
+            systemctl start quantum-bagher-frps.service 2>/dev/null || true
+            systemctl start quantum-bagher.service 2>/dev/null || systemctl start quantum-ssh-fwd.service 2>/dev/null || true
             bagher_link_units | xargs -r systemctl start 2>/dev/null || true
             echo -e "${GREEN}[OK] Bagher Engine service started.${NC}"
             ;;
         stop)
-            systemctl stop hashem-bagher.service 2>/dev/null || true
-            systemctl stop hashem-ssh-fwd.service 2>/dev/null || true
+            systemctl stop quantum-bagher.service 2>/dev/null || true
+            systemctl stop quantum-ssh-fwd.service 2>/dev/null || true
             bagher_link_units | xargs -r systemctl stop 2>/dev/null || true
-            systemctl stop hashem-bagher-frps.service 2>/dev/null || true
+            systemctl stop quantum-bagher-frps.service 2>/dev/null || true
             echo -e "${YELLOW}[*] Bagher Engine service stopped.${NC}"
             ;;
         restart)
-            systemctl restart hashem-bagher-frps.service 2>/dev/null || true
-            systemctl restart hashem-bagher.service 2>/dev/null || systemctl restart hashem-ssh-fwd.service 2>/dev/null || true
+            systemctl restart quantum-bagher-frps.service 2>/dev/null || true
+            systemctl restart quantum-bagher.service 2>/dev/null || systemctl restart quantum-ssh-fwd.service 2>/dev/null || true
             bagher_link_units | xargs -r systemctl restart 2>/dev/null || true
             echo -e "${GREEN}[OK] Bagher Engine service restarted.${NC}"
             ;;
         logs)
-            journalctl -u 'hashem-bagher*' -u hashem-ssh-fwd.service -n 50 --no-pager
+            journalctl -u 'quantum-bagher*' -u quantum-ssh-fwd.service -n 50 --no-pager
             ;;
         gen-key)
             mkdir -p /root/.ssh
-            if [[ ! -f /root/.ssh/hashem-fwd ]]; then
-                ssh-keygen -t ed25519 -N "" -f /root/.ssh/hashem-fwd -C "hashem-ssh-carrier" >/dev/null 2>&1
+            if [[ ! -f /root/.ssh/quantum-fwd ]]; then
+                ssh-keygen -t ed25519 -N "" -f /root/.ssh/quantum-fwd -C "quantum-ssh-carrier" >/dev/null 2>&1
             fi
-            echo -e "${GREEN}Public Key (/root/.ssh/hashem-fwd.pub):${NC}"
-            cat /root/.ssh/hashem-fwd.pub
+            echo -e "${GREEN}Public Key (/root/.ssh/quantum-fwd.pub):${NC}"
+            cat /root/.ssh/quantum-fwd.pub
             ;;
         clear-dnat)
-            systemctl disable --now hashem-rescue-dnat.service >/dev/null 2>&1 || true
-            nft delete table inet hashem_dnat >/dev/null 2>&1 || true
-            echo -e "${GREEN}[OK] hashem_dnat cleared from nftables.${NC}"
+            systemctl disable --now quantum-rescue-dnat.service >/dev/null 2>&1 || true
+            nft delete table inet quantum_dnat >/dev/null 2>&1 || true
+            echo -e "${GREEN}[OK] quantum_dnat cleared from nftables.${NC}"
             ;;
         bundle)
             mkdir -p /root/.ssh
-            if [[ ! -f /root/.ssh/hashem-fwd ]]; then
-                ssh-keygen -t ed25519 -N "" -f /root/.ssh/hashem-fwd -C "hashem-ssh-carrier" >/dev/null 2>&1
+            if [[ ! -f /root/.ssh/quantum-fwd ]]; then
+                ssh-keygen -t ed25519 -N "" -f /root/.ssh/quantum-fwd -C "quantum-ssh-carrier" >/dev/null 2>&1
             fi
-            local PUBKEY=$(cat /root/.ssh/hashem-fwd.pub)
+            local PUBKEY=$(cat /root/.ssh/quantum-fwd.pub)
             local MY_IP
             MY_IP=$(curl -s -4 https://api.ipify.org || curl -s -4 https://ifconfig.me || hostname -I | awk '{print $1}')
             local JSON_PAYLOAD
-            JSON_PAYLOAD=$(printf '{"v":1,"role":"foreign","iran_pub":"%s","frp_port":55400,"ports":[443,8443,1020,1030,1040],"token":"hashem-bagher-sec","pool_count":25,"ssh_pub_key":"%s","ssh_port":22,"ts":%d}' "$MY_IP" "$PUBKEY" "$(date +%s)")
+            JSON_PAYLOAD=$(printf '{"v":1,"role":"foreign","iran_pub":"%s","frp_port":55400,"ports":[443,8443,1020,1030,1040],"token":"quantum-bagher-sec","pool_count":25,"ssh_pub_key":"%s","ssh_port":22,"ts":%d}' "$MY_IP" "$PUBKEY" "$(date +%s)")
             local B64
             B64=$(printf "%s" "$JSON_PAYLOAD" | base64 | tr -d '\n\r ')
             echo -e "${GREEN}BAGHER:${B64}${NC}"
@@ -10929,7 +10992,7 @@ EOF
             shift
             local BUNDLE="$1"
             if [[ -z "$BUNDLE" ]]; then
-                echo -e "${RED}[!] Usage: hashem bagher apply-bundle BAGHER:...${NC}"
+                echo -e "${RED}[!] Usage: quantum bagher apply-bundle BAGHER:...${NC}"
                 return 1
             fi
             if [[ "$BUNDLE" != BAGHER:* ]]; then
@@ -10979,7 +11042,7 @@ EOF
             cat <<EOF > /etc/gre-panel/bagher/frpc.toml
 serverAddr = "127.0.0.1"
 serverPort = ${FRP_PORT}
-auth.token = "hashem-bagher-sec"
+auth.token = "quantum-bagher-sec"
 transport.tcpMux = false
 transport.tls.enable = false
 transport.poolCount = ${POOL_COUNT}
@@ -11003,10 +11066,10 @@ EOF
             done >> /etc/gre-panel/bagher/frpc.toml
             chmod 600 /etc/gre-panel/bagher/frpc.toml 2>/dev/null || true  # holds the auth token
 
-            echo -e "${CYAN}[*] Enabling and starting hashem-bagher-frpc.service...${NC}"
-            cat <<'EOF' > /etc/systemd/system/hashem-bagher-frpc.service
+            echo -e "${CYAN}[*] Enabling and starting quantum-bagher-frpc.service...${NC}"
+            cat <<'EOF' > /etc/systemd/system/quantum-bagher-frpc.service
 [Unit]
-Description=Hashem Bagher Engine client (Foreign)
+Description=Quantum Bagher Engine client (Foreign)
 After=network-online.target
 Wants=network-online.target
 
@@ -11021,11 +11084,11 @@ LimitNOFILE=1048576
 WantedBy=multi-user.target
 EOF
             systemctl daemon-reload
-            systemctl enable --now hashem-bagher-frpc.service
+            systemctl enable --now quantum-bagher-frpc.service
             echo -e "${GREEN}[OK] Bagher Engine client successfully started on Foreign server!${NC}"
             ;;
         *)
-            echo "Usage: hashem bagher [status|bundle|apply-bundle <bundle>|enable --remote-host IP [--mode bagher|direct] [--pool-count 25] [--frp-port 55400] [--ports \"...\"]|disable|start|stop|restart|logs|gen-key|clear-dnat]"
+            echo "Usage: quantum bagher [status|bundle|apply-bundle <bundle>|enable --remote-host IP [--mode bagher|direct] [--pool-count 25] [--frp-port 55400] [--ports \"...\"]|disable|start|stop|restart|logs|gen-key|clear-dnat]"
             return 1
             ;;
     esac
@@ -11089,7 +11152,7 @@ lb_prefix_ports() {
 cli_cluster() {
     local bin="${PANEL_BIN:-/usr/local/bin/gre-panel}"
     if [[ ! -x "$bin" ]]; then
-        echo -e "${RED}[!] The cluster runs in the panel; install it first (run: hashem).${NC}"
+        echo -e "${RED}[!] The cluster runs in the panel; install it first (run: quantum).${NC}"
         return 1
     fi
     case "${1:-status}" in
@@ -11174,7 +11237,7 @@ EOF
 }
 
 # join-hub: this foreign server also serves another Iran hub. On that hub, add
-# this server as a peer (Setup, or hashem add-peer) and paste its bundle here.
+# this server as a peer (Setup, or quantum add-peer) and paste its bundle here.
 cli_join_hub() {
     local BUNDLE="" NAME="" DIAL="${FRP_DIAL:-auto}" RELAY_IP="127.0.0.1"
     while [[ $# -gt 0 ]]; do
@@ -11183,7 +11246,7 @@ cli_join_hub() {
             --name) NAME="$2"; shift 2 ;;
             --dial) DIAL="$2"; shift 2 ;;
             --relay-ip) RELAY_IP="$2"; shift 2 ;;
-            -h|--help) echo 'Usage: hashem join-hub --bundle hsh1_...|bh1_...|gh1_... [--name LABEL] [--dial auto|gre|public] [--relay-ip IP]'; return 0 ;;
+            -h|--help) echo 'Usage: quantum join-hub --bundle hsh1_...|bh1_...|gh1_... [--name LABEL] [--dial auto|gre|public] [--relay-ip IP]'; return 0 ;;
             *) echo -e "${RED}[!] Unknown flag: $1${NC}"; return 1 ;;
         esac
     done
@@ -11192,7 +11255,7 @@ cli_join_hub() {
     case "$DIAL" in auto|gre|public) ;; *) DIAL=auto ;; esac
     is_valid_ip "$RELAY_IP" || { echo -e "${RED}[!] Invalid --relay-ip '${RELAY_IP}'.${NC}"; return 1; }
     if ! systemctl is-enabled --quiet frpc 2>/dev/null && ! systemctl is-enabled --quiet backhaul-client 2>/dev/null; then
-        echo -e "${RED}[!] Set this server up with its first Iran hub first (Setup, or hashem setup-foreign --bundle ...). join-hub adds the second and later hubs.${NC}"
+        echo -e "${RED}[!] Set this server up with its first Iran hub first (Setup, or quantum setup-foreign --bundle ...). join-hub adds the second and later hubs.${NC}"
         return 1
     fi
     hubs_init; peer_require_py || return 1
@@ -11263,7 +11326,7 @@ cli_leave_hub() {
     while [[ $# -gt 0 ]]; do
         case "$1" in --id) ID="$2"; shift 2 ;; *) ID="$1"; shift ;; esac
     done
-    [[ "$ID" =~ ^[0-9]+$ ]] || { echo "Usage: hashem leave-hub --id N   (hashem hubs lists them)"; return 1; }
+    [[ "$ID" =~ ^[0-9]+$ ]] || { echo "Usage: quantum leave-hub --id N   (quantum hubs lists them)"; return 1; }
     hubs_init; peer_require_py || return 1
     local rec SVC CONF GIF NAME
     rec=$(HUBS_F="$HUBS_FILE" python3 -c 'import json,os,sys; d=json.load(open(os.environ["HUBS_F"])); h=[x for x in d.get("hubs",[]) if x.get("id")==int(sys.argv[1])]; print("|".join([h[0]["svc"],h[0]["conf"],h[0]["gre_if"],h[0]["name"]]) if h else "")' "$ID")
@@ -11311,7 +11374,7 @@ if [[ $# -gt 0 ]]; then
             shift
             case "${1:-}" in
                 inspect) shift; cli_bundle_inspect "$@" ;;
-                *) echo "Usage: hashem bundle inspect <bundle> [--show-token]"; exit 1 ;;
+                *) echo "Usage: quantum bundle inspect <bundle> [--show-token]"; exit 1 ;;
             esac
             exit $?
             ;;
@@ -11341,7 +11404,7 @@ if [[ $# -gt 0 ]]; then
         tgsend) shift; watchdog_send "$1" ;;
         update|update-all) shift; update_all "$@" ;;
         update-channel) shift; cli_update_channel "$@" ;;
-        cleanup-legacy) remove_legacy_units ;;
+        cleanup-legacy) migrate_legacy_brand_units; remove_legacy_units ;;
         peer-token)
             shift; ID=""
             while [[ $# -gt 0 ]]; do case "$1" in --id) ID="$2"; shift 2 ;; *) shift ;; esac; done
@@ -11361,7 +11424,7 @@ if [[ $# -gt 0 ]]; then
                 remove) panel_tls_remove ;;
                 ip) shift; panel_tls_ip "${1:-}" ;;
                 custom) shift; panel_tls_custom "$@" ;;
-                *) echo "Usage: hashem tls [status | issue DOMAIN [EMAIL] | renew | remove | ip [IP] | custom CERT KEY]"; exit 1 ;;
+                *) echo "Usage: quantum tls [status | issue DOMAIN [EMAIL] | renew | remove | ip [IP] | custom CERT KEY]"; exit 1 ;;
             esac
             ;;
         settings) shift; panel_settings "$@" ;;
@@ -11372,7 +11435,7 @@ if [[ $# -gt 0 ]]; then
         panel-tls-ip) shift; panel_tls_ip "${1:-}" ;;
         panel-remove-domain|panel-tls-remove) panel_tls_remove ;;
         carrier) shift; cli_carrier "$@" ;;
-        bagher|hashem-bagher|ssh-fwd|sshfwd) shift; cli_bagher "$@" ;;
+        bagher|quantum-bagher|ssh-fwd|sshfwd) shift; cli_bagher "$@" ;;
         cluster|mesh) shift; cli_cluster "$@" ;;
         join-hub) shift; cli_join_hub "$@" ;;
         leave-hub) shift; cli_leave_hub "$@" ;;

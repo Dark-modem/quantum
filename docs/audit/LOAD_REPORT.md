@@ -37,9 +37,9 @@ Raw data: `docs/audit/load_lab_results.csv` (after),
 - Assertions are leak invariants only: after the clients stop, goroutines and
   FDs return to baseline (+5) and nothing stays in flight. All 32 cells passed
   in both runs. No performance threshold is asserted.
-- Reproduce: `HASHEM_LOADLAB=1 go test -count=1 -timeout 30m -run LoadLab -v ./...`
+- Reproduce: `QUANTUM_LOADLAB=1 go test -count=1 -timeout 30m -run LoadLab -v ./...`
   from `panel/` (about 7 minutes). To keep the CSV, set
-  `HASHEM_LOADLAB_OUT=<path>`.
+  `QUANTUM_LOADLAB_OUT=<path>`.
 
 ## Before vs After (dashboard; the request that hung)
 

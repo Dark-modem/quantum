@@ -1,6 +1,6 @@
-# Secure Deployment Guide for Hashem Panel
+# Secure Deployment Guide for Quantum Panel
 
-This guide explains how to deploy `hashem-panel` securely in production environments.
+This guide explains how to deploy `quantum-panel` securely in production environments.
 
 ---
 
@@ -21,7 +21,7 @@ Deploying behind a reverse proxy (e.g. Nginx or Caddy) provides TLS termination,
 ### Nginx Configuration
 
 ```nginx
-# /etc/nginx/sites-available/hashem-panel
+# /etc/nginx/sites-available/quantum-panel
 server {
     listen 443 ssl http2;
     server_name panel.example.com;
@@ -119,11 +119,11 @@ ufw enable
 | `GRE_PANEL_DIR` | Panel configuration directory | `/etc/gre-panel` |
 | `GRE_FRP_DIR` | FRP configuration directory | `/etc/frp` |
 | `GRE_BACKHAUL_DIR` | Backhaul configuration directory | `/etc/backhaul` |
-| `GRE_SYSCTL_CONF` | Path to sysctl configuration file for reverse path filtering | `/etc/sysctl.d/99-hashem-revpath.conf` |
+| `GRE_SYSCTL_CONF` | Path to sysctl configuration file for reverse path filtering | `/etc/sysctl.d/99-quantum-revpath.conf` |
 | `TRUSTED_PROXY_IPS` | Comma-separated trusted reverse proxy IPs and CIDRs | *(empty)* |
-| `GRE_SCRIPT` / `HASHEM_SCRIPT` | Path to installer script | `/usr/local/bin/hashem.sh` |
-| `HASHEM_PPROF` | Enable pprof diagnostic endpoints (`/debug/pprof/`) behind auth | `0` (disabled) |
-| `HASHEM_MIRROR_REPO` | GitHub mirror repository for FRP/Backhaul binary releases | `pdnczone/hashem-frp` |
+| `GRE_SCRIPT` / `QUANTUM_SCRIPT` | Path to installer script | `/usr/local/bin/quantum.sh` |
+| `QUANTUM_PPROF` | Enable pprof diagnostic endpoints (`/debug/pprof/`) behind auth | `0` (disabled) |
+| `QUANTUM_MIRROR_REPO` | GitHub mirror repository for FRP/Backhaul binary releases | `pdnczone/quantum-frp` |
 
 ---
 

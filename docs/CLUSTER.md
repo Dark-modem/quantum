@@ -1,4 +1,4 @@
-# Hashem Cluster Guide
+# Quantum Cluster Guide
 
 **English** · [فارسی](CLUSTER.fa.md)
 
@@ -66,7 +66,7 @@ What a pool gives you:
 ## 2. Words used here
 
 - **Iran hub (hub):** the Iran server. Users connect to it.
-- **Foreign server:** the server abroad that the hub tunnels to. Hashem calls it a *peer* on the hub. Tunnel id `0` is the main tunnel made in Setup; `N` is peer N (`hashem peer-list`).
+- **Foreign server:** the server abroad that the hub tunnels to. Quantum calls it a *peer* on the hub. Tunnel id `0` is the main tunnel made in Setup; `N` is peer N (`quantum peer-list`).
 - **Link / tunnel:** one hub ↔ foreign server tunnel (an `frps` or `backhaul-server` unit on the hub).
 - **Pool:** one public port on the hub (TCP, UDP or both) served by several links.
 - **Member:** a link in a pool.
@@ -76,8 +76,8 @@ What a pool gives you:
 
 ## 3. Before you start
 
-- **Same version** of Hashem on every server of the cluster.
-- **Foreign servers added on the hub** in Setup (or with `hashem add-peer` / `hashem add-backhaul-peer`), with the port the pool will serve (for example 443) in their port list. **Order matters:** add the first foreign server, make the pool on its port, then add the others with the same port. A port without a pool belongs to one tunnel, so a second tunnel on it is refused until the pool exists.
+- **Same version** of Quantum on every server of the cluster.
+- **Foreign servers added on the hub** in Setup (or with `quantum add-peer` / `quantum add-backhaul-peer`), with the port the pool will serve (for example 443) in their port list. **Order matters:** add the first foreign server, make the pool on its port, then add the others with the same port. A port without a pool belongs to one tunnel, so a second tunnel on it is refused until the pool exists.
 - **For linked hubs:** each hub's panel port (the plain HTTP one, also when HTTPS is on: the heartbeat is signed, not secret) must be reachable from the other hub, and both clocks must be right (within 90 seconds). Enable NTP: `timedatectl set-ntp true`. A panel reachable only through a reverse proxy cannot be linked.
 - **For DNS failover:** a Cloudflare API token with *Zone → DNS → Edit*, and a DNS-only (grey cloud) record; or your own webhook.
 - **For the service check:** a TCP service behind the tunnel (xray, sing-box, SSH, a web server…).
@@ -88,7 +88,7 @@ What a pool gives you:
 
 ## 4. Scenarios, step by step
 
-Every step can be done in the panel (**Cluster** tab), in the terminal menu (`hashem`, then **Cluster**), or with commands (`hashem cluster …`). The examples use port 443.
+Every step can be done in the panel (**Cluster** tab), in the terminal menu (`quantum`, then **Cluster**), or with commands (`quantum cluster …`). The examples use port 443.
 
 ### 4.1 Active/standby: one Iran server, two foreign servers, failover
 
@@ -100,8 +100,8 @@ Goal: everything goes through foreign server A. If A dies, B takes over within s
 4. Give A priority `0` and B priority `1` (click B's line on the map, or Edit). The pool shows **Healthy**, with 100% on A.
 
 ```bash
-hashem cluster pool add 443 --mode failover        # picks every tunnel that has port 443
-hashem cluster member set 443 2 --priority 1       # peer 2 is the backup
+quantum cluster pool add 443 --mode failover        # picks every tunnel that has port 443
+quantum cluster member set 443 2 --priority 1       # peer 2 is the backup
 ```
 
 When A comes back, traffic returns to A after it passes 3 checks in a row. To stop that (see 4.7), set **Failback: Manual**.
@@ -114,8 +114,8 @@ Goal: spread users over three foreign servers, more on the bigger one.
 - **Least connections:** new connections go to the members with the fewest open connections per unit of weight. This is the better choice for long-lived connections (VLESS, VMess, Trojan, SSH), where a server that just came back would otherwise stay empty.
 
 ```bash
-hashem cluster pool add 443 --mode least
-hashem cluster member set 443 1 --weight 2
+quantum cluster pool add 443 --mode least
+quantum cluster member set 443 1 --weight 2
 ```
 
 ### 4.3 A stable exit IP per user (sticky)
@@ -123,7 +123,7 @@ hashem cluster member set 443 1 --weight 2
 Some sites (banks, Instagram, Google) dislike an IP that keeps changing. In **Sticky per user** mode, each user (source IP) always goes to the same foreign server. Users are spread by weight. When a server leaves, only its own users move; everybody else stays put.
 
 ```bash
-hashem cluster pool mode 443 sticky
+quantum cluster pool mode 443 sticky
 ```
 
 ### 4.4 Always the fastest server
@@ -142,9 +142,9 @@ Combined with a **connection limit**, this gives tiers:
 - When everyone is full, the pool still serves rather than refusing users.
 
 ```bash
-hashem cluster member set 443 1 --max-conn 500
-hashem cluster member set 443 2 --max-conn 500
-hashem cluster member set 443 3 --backup yes
+quantum cluster member set 443 1 --max-conn 500
+quantum cluster member set 443 2 --max-conn 500
+quantum cluster member set 443 3 --backup yes
 ```
 
 ### 4.6 Detecting a dead service behind a live tunnel (service check)
@@ -157,7 +157,7 @@ The tunnel can be fine while xray on the foreign server has crashed. Users would
 After 3 failures in a row (the **Fall** setting) the member is out; after 3 passes (**Rise**) it is back.
 
 ```bash
-hashem cluster pool set 443 --check tcp --check-every 3
+quantum cluster pool set 443 --check tcp --check-every 3
 ```
 
 > The service sees one short connection per member every few seconds; xray may log it as a rejected or empty connection. Use 5–10 seconds if that bothers you. The check is for TCP pools; UDP pools rely on the tunnel health.
@@ -167,8 +167,8 @@ hashem cluster pool set 443 --check tcp --check-every 3
 In failover mode with **Failback: Manual**, once traffic has moved to a backup it stays there while the backup works, even when the first server comes back. Press **Fail Back Now** on the pool when you are ready. New connections then go to the first server; open ones stay where they are.
 
 ```bash
-hashem cluster pool set 443 --no-failback yes
-hashem cluster pool failback 443
+quantum cluster pool set 443 --no-failback yes
+quantum cluster pool failback 443
 ```
 
 ### 4.8 Maintenance without cutting anyone
@@ -176,15 +176,15 @@ hashem cluster pool failback 443
 **Drain** a member: it takes no new connections and the open ones finish. Do the maintenance, then **Resume**.
 
 ```bash
-hashem cluster member drain 443 2
-hashem cluster member resume 443 2
+quantum cluster member drain 443 2
+quantum cluster member resume 443 2
 ```
 
 To stop a pool without restarting anything, **Disable** it. The port then goes to one tunnel (the lowest id); **Enable** brings the pool back.
 
 ### 4.9 Many ports
 
-- To create several pools at once, enter `443, 8443` or a range `2000-2005` in the **Public port** field (at most 50 ports), or run `hashem cluster pool add 443,8443,2000-2005`.
+- To create several pools at once, enter `443, 8443` or a range `2000-2005` in the **Public port** field (at most 50 ports), or run `quantum cluster pool add 443,8443,2000-2005`.
 - Ports of a pooled tunnel that are **not** in any pool still work: they pass straight through to that tunnel. If two pooled tunnels both serve such a port, the lower id gets it and the Cluster tab warns you. Make a pool for that port to use both.
 - A member can serve the pool from **another port** on its side. Set the member's **Port** (for example pool 443 → member port 8443).
 
@@ -197,9 +197,9 @@ Goal: two Iran servers (Tehran and Mashhad) both use the same foreign server, so
 3. On the foreign server, paste it into **Cluster → Join Another Iran Hub**, or run:
 
 ```bash
-hashem join-hub --bundle hsh1_... --name mashhad
-hashem hubs                 # lists the Iran hubs this server serves
-hashem leave-hub --id 2     # stop serving one
+quantum join-hub --bundle hsh1_... --name mashhad
+quantum hubs                 # lists the Iran hubs this server serves
+quantum leave-hub --id 2     # stop serving one
 ```
 
 The foreign server runs a second client (`frpc-h2` or `backhaul-client-h2`) with its own GRE interface `gre-h2`. If the bundle's GRE addresses are already used on this server, it dials the hub's public IP instead. Options:
@@ -218,8 +218,8 @@ Goal: if every foreign server of pool 443 is down on Tehran, Tehran forwards por
 3. Keep **Forward a pool to another hub when no foreign server here can serve it** on (the default).
 
 ```bash
-hashem cluster join-code            # on Tehran
-hashem cluster add-hub hc1_...      # on Mashhad
+quantum cluster join-code            # on Tehran
+quantum cluster add-hub hc1_...      # on Mashhad
 ```
 
 The forwarded traffic leaves Tehran with Tehran's own address (MASQUERADE). Users notice nothing except a little extra latency.
@@ -339,7 +339,7 @@ A tunnel whose ports include a pool's port **joins the pool by itself**. A membe
 - Hubs exchange a heartbeat every 3 seconds on the panel's port (`/_hc/beat`). Each heartbeat is signed with HMAC-SHA256 over timestamp, nonce and body. Clocks must agree within 90 seconds, and a replayed nonce is refused. A request that is not correctly signed gets a plain 404, so the routes do not show from outside.
 - A hub is **healthy** when one of its pools is Healthy or Degraded, or, with no pools, when one of its tunnels is up.
 - **Forwarding** picks a linked hub that is up and reports the same pool (same port and protocol) as Healthy or Degraded, the lowest latency first. A hub that is forwarding a pool itself is never a target, so traffic cannot loop.
-- **Unlink:** **Cluster → Hubs → Remove**, or `hashem cluster remove-hub <id>`. The other hub is told.
+- **Unlink:** **Cluster → Hubs → Remove**, or `quantum cluster remove-hub <id>`. The other hub is told.
 
 ---
 
@@ -403,46 +403,46 @@ HTTPServer(("0.0.0.0", 8787), Hook).serve_forever()
 
 | Metric | Labels | Meaning |
 |---|---|---|
-| `hashem_cluster_pool_state` | pool | 2 healthy, 1 degraded or forwarded, 0 down or fail-open |
-| `hashem_cluster_member_up` | pool, link | 1 when the member passes every check |
-| `hashem_cluster_member_connections` | pool, link | open TCP connections |
-| `hashem_cluster_member_share` | pool, link | fraction of new connections it gets now |
-| `hashem_cluster_hub_up` | hub | 1 when the linked hub answers |
+| `quantum_cluster_pool_state` | pool | 2 healthy, 1 degraded or forwarded, 0 down or fail-open |
+| `quantum_cluster_member_up` | pool, link | 1 when the member passes every check |
+| `quantum_cluster_member_connections` | pool, link | open TCP connections |
+| `quantum_cluster_member_share` | pool, link | fraction of new connections it gets now |
+| `quantum_cluster_hub_up` | hub | 1 when the linked hub answers |
 
 ---
 
 ## 11. Terminal commands
 
-`hashem cluster …` and `gre-panel cluster …` are the same. Changes made in the terminal are picked up by the running panel within a second.
+`quantum cluster …` and `gre-panel cluster …` are the same. Changes made in the terminal are picked up by the running panel within a second.
 
 ```text
-hashem cluster status
-hashem cluster events
-hashem cluster rules
+quantum cluster status
+quantum cluster events
+quantum cluster rules
 
-hashem cluster pool add PORTS [--proto tcp|udp|both] [--mode failover|balance|sticky|latency|least]
+quantum cluster pool add PORTS [--proto tcp|udp|both] [--mode failover|balance|sticky|latency|least]
                               [--links 0,2,3] [--name N] [--check tcp|off] [--check-every SEC] [--no-failback yes|no]
                               # PORTS: 443, or 443,8443, or 2000-2005 (one pool each)
-hashem cluster pool set PORT [--mode M] [--name N] [--check tcp|off] [--check-every SEC] [--no-failback yes|no]
-hashem cluster pool mode PORT MODE
-hashem cluster pool rm|enable|disable|failback PORT [--proto P]
+quantum cluster pool set PORT [--mode M] [--name N] [--check tcp|off] [--check-every SEC] [--no-failback yes|no]
+quantum cluster pool mode PORT MODE
+quantum cluster pool rm|enable|disable|failback PORT [--proto P]
 
-hashem cluster member add|rm|drain|resume|set PORT LINK [--weight N] [--priority N] [--port N]
+quantum cluster member add|rm|drain|resume|set PORT LINK [--weight N] [--priority N] [--port N]
                               [--backup yes|no] [--max-conn N] [--proto P]
                               # LINK: 0 = main tunnel, N = peer N
 
-hashem cluster join-code
-hashem cluster add-hub hc1_...
-hashem cluster remove-hub ID
-hashem cluster reset          # remove the rules and private addresses (the panel puts them back while pools exist)
+quantum cluster join-code
+quantum cluster add-hub hc1_...
+quantum cluster remove-hub ID
+quantum cluster reset          # remove the rules and private addresses (the panel puts them back while pools exist)
 
 # on a foreign server
-hashem join-hub --bundle hsh1_...|bh1_...|gh1_... [--name LABEL] [--dial auto|gre|public] [--relay-ip IP]
-hashem hubs
-hashem leave-hub --id N
+quantum join-hub --bundle hsh1_...|bh1_...|gh1_... [--name LABEL] [--dial auto|gre|public] [--relay-ip IP]
+quantum hubs
+quantum leave-hub --id N
 ```
 
-The terminal app (`hashem` → **Cluster**) has the same functions in menus. On a foreign server it shows the Iran hubs that server serves.
+The terminal app (`quantum` → **Cluster**) has the same functions in menus. On a foreign server it shows the Iran hubs that server serves.
 
 ---
 
@@ -470,7 +470,7 @@ All routes are under the panel's secret path. Changes need a session and the CSR
 
 ```text
  user ──► hub public IP:443
-            │  iptables nat PREROUTING ─► HASHEM-LB-ENTRY ─► HASHEM-LB ─► HLB-T443
+            │  iptables nat PREROUTING ─► QUANTUM-LB-ENTRY ─► QUANTUM-LB ─► HLB-T443
             │                                  (DNAT by mode: statistic / u32 buckets / single target)
             ├──► 169.254.77.2:443  frps-1            ──tunnel──► foreign A ──► xray
             ├──► 169.254.77.3:443  frps-2            ──tunnel──► foreign B ──► xray
@@ -481,8 +481,8 @@ All routes are under the panel's secret path. Changes need a session and the CSR
   - the main tunnel (`frps` / `backhaul-server`) gets `169.254.77.1`;
   - peer N (`frps-N` / `backhaul-server-N`) gets `169.254.77.(N+1)`.
 
-  The addresses live on the dummy interface `hashem-lb`, which `hashem-lb-net.service` recreates at boot. FRP gets `proxyBindAddr`; Backhaul port entries become `169.254.77.N:port`. The script and the panel agree on the same addresses (`lb-binds`, `lb-ports` in `/etc/gre-panel`), so rewriting a peer keeps the binding.
-- **Rules.** The panel builds the rules and applies them atomically with `iptables-restore --noflush`, only in its own chains: `HASHEM-LB*` and `HLB-T<port>` / `HLB-U<port>` in nat, `HASHEM-LB-FILTER` / `HASHEM-LB-FWD` in filter. Direct connections to the private addresses from outside are dropped. The rules are rewritten only when something changes, and the hooks are re-checked every 30 seconds.
+  The addresses live on the dummy interface `quantum-lb`, which `quantum-lb-net.service` recreates at boot. FRP gets `proxyBindAddr`; Backhaul port entries become `169.254.77.N:port`. The script and the panel agree on the same addresses (`lb-binds`, `lb-ports` in `/etc/gre-panel`), so rewriting a peer keeps the binding.
+- **Rules.** The panel builds the rules and applies them atomically with `iptables-restore --noflush`, only in its own chains: `QUANTUM-LB*` and `HLB-T<port>` / `HLB-U<port>` in nat, `QUANTUM-LB-FILTER` / `QUANTUM-LB-FWD` in filter. Direct connections to the private addresses from outside are dropped. The rules are rewritten only when something changes, and the hooks are re-checked every 30 seconds.
 - **No user-space proxy.** The kernel does the work: DNAT keeps the client's real address, an existing connection stays on its member (conntrack), and the panel can restart without any connection dropping.
 - **The check loop** runs every second without forking: it reads sockets from `/proc/net/{tcp,tcp6,udp,udp6}` and pings through one raw ICMP socket. With no pool it idles.
 - **Files** in `/etc/gre-panel`:
@@ -496,7 +496,7 @@ All routes are under the panel's secret path. Changes need a session and the CSR
 | `lb-ports` | pooled ports |
 
   On a foreign server, `hubs.json` lists the extra hubs.
-- **Uninstall** removes the rules, the `hashem-lb` interface and units, and the extra-hub units (`frpc-hN`, `backhaul-client-hN`, `gre-hN`).
+- **Uninstall** removes the rules, the `quantum-lb` interface and units, and the extra-hub units (`frpc-hN`, `backhaul-client-hN`, `gre-hN`).
 
 ---
 
@@ -509,7 +509,7 @@ All routes are under the panel's secret path. Changes need a session and the CSR
 | Member **Down: stopped answering ping** | The path is broken although the session has not timed out yet. It comes back by itself after Rise good checks. |
 | Member **Service down** | The tunnel works but the service behind it refuses the connection. Restart xray / the service on that foreign server. Check `ss -ltnp` there for the local port. |
 | Pool **No Healthy Server** (fail-open) | Every member fails its checks while relays still listen. Look at the reasons per member, and at the Events. |
-| **The kernel rules could not be applied** | Usually iptables is missing or conflicts with a firewall manager. Run `hashem cluster rules` and `iptables -t nat -S | grep HASHEM`. If you use `nftables` only, install `iptables-nft`. |
+| **The kernel rules could not be applied** | Usually iptables is missing or conflicts with a firewall manager. Run `quantum cluster rules` and `iptables -t nat -S | grep QUANTUM`. If you use `nftables` only, install `iptables-nft`. |
 | Linked hub **unreachable** | The panel port is closed between the hubs, the clocks differ by more than 90 s, or the hubs have different secrets (re-link with a fresh join code). Run `timedatectl`. |
 | Hub forwarding does nothing | The other hub has no pool on the same port and protocol, or its pool is not Healthy/Degraded. |
 | DNS: *record is proxied* | Turn the record grey (DNS only) in Cloudflare. |
@@ -519,10 +519,10 @@ All routes are under the panel's secret path. Changes need a session and the CSR
 Useful commands on the hub:
 
 ```bash
-hashem cluster status
-hashem cluster events
-iptables -t nat -S | grep -E 'HASHEM|HLB'
-ip -4 addr show dev hashem-lb
+quantum cluster status
+quantum cluster events
+iptables -t nat -S | grep -E 'QUANTUM|HLB'
+ip -4 addr show dev quantum-lb
 ss -ltn | grep 169.254.77
 conntrack -L -d 169.254.77.0/24 | head
 ```

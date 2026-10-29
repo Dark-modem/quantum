@@ -12,7 +12,7 @@
 #  3. The same route switching for GRE + FRP with the real frps / frpc (skipped
 #     when FRP_DIR has no binaries).
 #
-# Uses hashem.sh's own config writers, dial_pick and dial_watch_tick. Needs: ip,
+# Uses quantum.sh's own config writers, dial_pick and dial_watch_tick. Needs: ip,
 # iptables, ping, python3, openssl, the Backhaul v0.7.2 binary, CAP_NET_ADMIN.
 # Skips cleanly otherwise. Everything lives in two namespaces + a mktemp dir.
 set -u
@@ -102,20 +102,20 @@ except Exception as e:
 PY
 $S python3 "$TMP/echo.py" & pids+=($!)
 
-# hashem.sh's own functions, saved once so both namespaces can source them
-ext() { awk -v n="$1" '$0 ~ "^"n"\\(\\) \\{" {p=1} p {print} p && /^}/ {exit}' "$ROOT/hashem.sh"; }
+# quantum.sh's own functions, saved once so both namespaces can source them
+ext() { awk -v n="$1" '$0 ~ "^"n"\\(\\) \\{" {p=1} p {print} p && /^}/ {exit}' "$ROOT/quantum.sh"; }
 {
     echo "INSTALL_DIR='$(dirname "$BIN")' BACKHAUL_CONFIG_DIR='$TMP/bh' CONFIG_DIR='$TMP/frp'"
     echo "RED='' GREEN='' YELLOW='' CYAN='' NC='' TMP='$TMP' BIN='$BIN' FRPC='$FRP_DIR/frpc'"
-    grep -E '^(BACKHAUL_TRANSPORTS|DIAL_BACK_TICKS|DIAL_BACK_WAIT|DIAL_HOLD_SECS)=' "$ROOT/hashem.sh"
-    grep -E '^(backhaul_transport_ok|backhaul_udp_wanted)\(\)' "$ROOT/hashem.sh"
+    grep -E '^(BACKHAUL_TRANSPORTS|DIAL_BACK_TICKS|DIAL_BACK_WAIT|DIAL_HOLD_SECS)=' "$ROOT/quantum.sh"
+    grep -E '^(backhaul_transport_ok|backhaul_udp_wanted)\(\)' "$ROOT/quantum.sh"
     for f in hostport hostonly backhaul_is_v2 backhaul_ensure_tls backhaul_write_server_conf_v1 backhaul_write_client_conf_v1 \
              backhaul_write_server_conf backhaul_write_client_conf backhaul_wait_link \
              dial_env_file dial_env_write dial_env_get dial_conf_file dial_service dial_current_addr \
              dial_current_port dial_gre_usable dial_pick dial_apply_addr dial_env_ensure dial_reselect \
              dial_connected dial_transport_udp dial_gre_back_ok dial_streak_file dial_hold_file \
              dial_hold_active dial_watch_tick; do
-        b="$(ext $f)"; [[ -n "$b" ]] || { echo "echo 'FAIL: $f missing from hashem.sh'; exit 1"; continue; }
+        b="$(ext $f)"; [[ -n "$b" ]] || { echo "echo 'FAIL: $f missing from quantum.sh'; exit 1"; continue; }
         echo "$b"
     done
     cat <<'EOS'

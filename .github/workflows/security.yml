@@ -46,4 +46,4 @@ jobs:
 
       - name: Validate Shell Script Syntax
         run: |
-          bash -n hashem.sh
+          bash -n quantum.sh

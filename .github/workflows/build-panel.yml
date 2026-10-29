@@ -7,7 +7,7 @@ on:
       - 'v*.*.*'
     paths:
       - "panel/**"
-      - "hashem.sh"
+      - "quantum.sh"
       - ".github/workflows/build-panel.yml"
 
 permissions:
@@ -32,7 +32,7 @@ jobs:
           cd panel
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             VER="${{ github.ref_name }}"
-            BIN="hashem-${VER}"
+            BIN="quantum-${VER}"
           elif [[ "${{ github.ref }}" == refs/heads/dev ]]; then
             VER="dev-r${{ github.run_number }}"
             BIN="gre-panel"
@@ -51,10 +51,10 @@ jobs:
           echo "BIN_NAME=$BIN" >> $GITHUB_ENV
           echo "VER=$VER" >> $GITHUB_ENV
 
-      - name: Sync hashem.sh + grepanel into release
+      - name: Sync quantum.sh + grepanel into release
         run: |
           mkdir -p panel/dist
-          cp hashem.sh panel/dist/hashem.sh
+          cp quantum.sh panel/dist/quantum.sh
           cp panel/grepanel panel/dist/grepanel
           ls -la panel/dist/
 
@@ -62,7 +62,7 @@ jobs:
         run: |
           cd panel
           sha256sum "${BIN_NAME}-linux-amd64" "${BIN_NAME}-linux-arm64" gre-panel-linux-amd64 gre-panel-linux-arm64 \
-            dist/hashem.sh dist/grepanel \
+            dist/quantum.sh dist/grepanel \
             | sed 's#  dist/#  #' | sort -u -k2 > checksums.txt
           cat checksums.txt
 
@@ -81,7 +81,7 @@ jobs:
           files: |
             panel/${{ env.BIN_NAME }}-linux-amd64
             panel/${{ env.BIN_NAME }}-linux-arm64
-            panel/dist/hashem.sh
+            panel/dist/quantum.sh
             panel/dist/grepanel
             panel/checksums.txt
 
@@ -99,7 +99,7 @@ jobs:
           files: |
             panel/${{ env.BIN_NAME }}-linux-amd64
             panel/${{ env.BIN_NAME }}-linux-arm64
-            panel/dist/hashem.sh
+            panel/dist/quantum.sh
             panel/dist/grepanel
             panel/checksums.txt
 
@@ -111,7 +111,7 @@ jobs:
           awk -v v="## ${VER} " 'index($0, v) == 1 {on = 1; next} on && /^## / {exit} on' CHANGELOG.md > release-notes.md
           if [ ! -s release-notes.md ]; then
             echo "::warning::CHANGELOG.md has no section for ${VER}"
-            echo "Hashem panel ${VER}." > release-notes.md
+            echo "Quantum panel ${VER}." > release-notes.md
           fi
           printf '\n---\nEvery version: [CHANGELOG.md](https://github.com/%s/blob/%s/CHANGELOG.md)\n' "$GITHUB_REPOSITORY" "$VER" >> release-notes.md
           head -n 15 release-notes.md
@@ -120,7 +120,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: "Hashem panel ${{ env.VER }}"
+          name: "Quantum panel ${{ env.VER }}"
           prerelease: false
           make_latest: "true"
           body_path: release-notes.md
@@ -129,6 +129,6 @@ jobs:
             panel/${{ env.BIN_NAME }}-linux-arm64
             panel/gre-panel-linux-amd64
             panel/gre-panel-linux-arm64
-            panel/dist/hashem.sh
+            panel/dist/quantum.sh
             panel/dist/grepanel
             panel/checksums.txt

@@ -10,8 +10,8 @@ source "$T/functions.sh"
 GOOD=$'#!/bin/bash\necho manager\n'
 printf '%s' "$GOOD" > "$T/manager.sh"
 TOKEN_FILE="$T/saved-token"
-API_SOURCE='https://api.github.com/repos/Dark-modem/quantum/contents/hashem.sh?ref=main'
-PRIMARY='https://raw.githubusercontent.com/Dark-modem/quantum/main/hashem.sh'
+API_SOURCE='https://api.github.com/repos/Dark-modem/quantum/contents/quantum.sh?ref=main'
+PRIMARY='https://raw.githubusercontent.com/Dark-modem/quantum/main/quantum.sh'
 export TEST_DIR="$T"
 cat > "$T/bin/curl" <<'CURL'
 #!/usr/bin/env bash
@@ -37,7 +37,7 @@ PATH="$T/bin:$PATH"
 
 _install_token='testtoken_12345678901234567890'
 installer_download "$PRIMARY" "$T/result"; cmp "$T/result" "$T/manager.sh"
-installer_download 'https://mirror.ghproxy.com/https://raw.githubusercontent.com/Dark-modem/quantum/main/hashem.sh' "$T/result"
+installer_download 'https://mirror.ghproxy.com/https://raw.githubusercontent.com/Dark-modem/quantum/main/quantum.sh' "$T/result"
 installer_download 'https://example.org/script.sh' "$T/result"
 [[ $(grep -c 'Authorization: Bearer' "$T/requests") == 1 ]]
 [[ $(grep 'https://example.org' "$T/requests") != *Authorization* ]]
@@ -94,8 +94,8 @@ sed "s#/usr/local/bin#$T/install-root/bin#g" "$T/install-check.sh" > "$T/install
 printf '#!/bin/bash\nset -eu\ntest -n "${GRE_GITHUB_TOKEN:-}"\nprintf manager-ran > "$TEST_DIR/manager-ran"\n' > "$T/manager.sh"
 GRE_PANEL_DIR="$T/token-dir" bash "$T/install-full.sh" > "$T/full-log" 2>&1
 [[ -f "$T/manager-ran" ]]
-[[ -L "$T/install-root/bin/hashem" && -L "$T/install-root/bin/gre.sh" ]]
-cmp "$T/manager.sh" "$T/install-root/bin/hashem.sh"
+[[ -L "$T/install-root/bin/quantum" && -L "$T/install-root/bin/gre.sh" ]]
+cmp "$T/manager.sh" "$T/install-root/bin/quantum.sh"
 [[ $(stat -c %a "$T/token-dir/github-token") == 600 ]]
 [[ $(cat "$T/token-dir/github-token") == "$_install_token" ]]
 echo 'PASS: complete installer persists token 600, creates launchers and runs the manager'

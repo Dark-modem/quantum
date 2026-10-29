@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# IPv6 address helpers in hashem.sh: is_valid_ip6, hostport, hostonly and the
+# IPv6 address helpers in quantum.sh: is_valid_ip6, hostport, hostonly and the
 # dial helpers that read and rewrite a Backhaul remote_addr. No root.
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -9,7 +9,7 @@ for fn in is_valid_ip is_valid_ip6 is_valid_ip_any is_valid_port hostport hoston
     awk -v f="$fn" '
         $0 ~ "^"f"\\(\\) \\{" { p = 1; print; if ($0 ~ /; \}[[:space:]]*$/) p = 0; next }
         p { print }
-        p && /^}/ { p = 0 }' "$ROOT/hashem.sh"
+        p && /^}/ { p = 0 }' "$ROOT/quantum.sh"
 done > "$T/fn.sh"
 # shellcheck disable=SC1091
 source "$T/fn.sh"

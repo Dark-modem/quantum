@@ -1,9 +1,9 @@
-# Hashem Panel audit (Go + UI scope)
+# Quantum Panel audit (Go + UI scope)
 
-Scope: `panel/*.go`, `panel/index.html`, `panel/*.css`. I did not edit `hashem.sh`, `tests/`, `install.sh`, docs or README, and did not touch Backhaul. Nothing is committed.
+Scope: `panel/*.go`, `panel/index.html`, `panel/*.css`. I did not edit `quantum.sh`, `tests/`, `install.sh`, docs or README, and did not touch Backhaul. Nothing is committed.
 
 ## FIXED
-- `panel/errors.go` (new `E-FRP-10`, plus a case at the top of `matchLogCode`): `connect to server error: EOF` in a log line is now classified. The hint reads "tcpMux mismatch: hub is likely tcpMux=true, run `hashem perf tcpmux on|off`". It shows up in the log findings header. Hint only, nothing is changed automatically. Test: `TestFrpcLoginEOFHint` in `perf_tcpmux_test.go`.
+- `panel/errors.go` (new `E-FRP-10`, plus a case at the top of `matchLogCode`): `connect to server error: EOF` in a log line is now classified. The hint reads "tcpMux mismatch: hub is likely tcpMux=true, run `quantum perf tcpmux on|off`". It shows up in the log findings header. Hint only, nothing is changed automatically. Test: `TestFrpcLoginEOFHint` in `perf_tcpmux_test.go`.
 - `panel/doctor.go` (`frpcLoginEOF`, called as step 1b in `runFullDiagnostics`): on a spoke (`FrpSvc == "frpc"`) the doctor reads the last 50 frpc journal lines (read-only, 5 s `context.WithTimeout`). If it sees the EOF pattern it adds the issue and the same hint. It deliberately does not subtract from the score.
 - `panel/wss_carrier.go:106` and `:293`: `localStatus().Role` is `"foreign (client)"` or `"iran (server)"`, never `"foreign"` or `"iran"`. The `==` checks could never match. The default WSS role was always "server", and `auto` always resolved to "client", even on the Iran hub. Both now use `strings.HasPrefix`.
 - `panel/index.html:~83` (**issue #5**, Tunnel tab layout): `.tunnel-card{display:flex}` overrides the `hidden` attribute. `#dialCard` ("Route to the Iran hub") has `hidden` but no `[hidden]` rule, so it always rendered as an empty card with a "—" badge, even on hubs where `dialRender()` sets `card.hidden = true`. I added `.tunnel-card[hidden], .qs[hidden] { display:none; }`. I could not read the issue text (no network or remote access here), so I don't know whether this is the whole of what was reported. It is the one concrete layout defect I found in the tab's markup and CSS.
@@ -26,18 +26,18 @@ Scope: `panel/*.go`, `panel/index.html`, `panel/*.css`. I did not edit `hashem.s
 | `rescue.go:210` rescue frps | `tcpMuxTomlLines()`. OK, but see the rescue mismatch above |
 | `rescue.go:214,225` rescue frpc (origin and entry) | `tcpMuxTomlLines()`. Same note |
 | `setup.go:1695-1706` toml port rewrite | Rewrites proxy lines only and leaves transport lines untouched. OK |
-| setup-iran, setup-foreign, add-peer, update_all, restore, perf_apply, dial fallback, watchdog | All shell out to `hashem.sh`, so they are out of my scope and unaudited here |
+| setup-iran, setup-foreign, add-peer, update_all, restore, perf_apply, dial fallback, watchdog | All shell out to `quantum.sh`, so they are out of my scope and unaudited here |
 | `perf.go` defaults | `defaultPerfConfig().TCPMux == nil`. `tcpMuxEnabled()` is false when nil. `reset` pins `false`. Verified by `TestTCPMuxDefaultIsOff` |
 | Other Go code that writes a `transport.tcpMux` line | None |
 | UI Performance tab | Now says default OFF and must match on both ends (en and fa) |
 | Status/doctor surface | New `E-FRP-10` and doctor hint, hint only |
 
-README and docs are for the other agent. `hashem status` (shell) is not covered.
+README and docs are for the other agent. `quantum status` (shell) is not covered.
 
 ## TESTS RUN
 - `cd panel && go vet ./...` → OK, no output.
 - `cd panel && go build -o /tmp/hp-test-bin` → OK.
-- `cd panel && GRE_PANEL_DIR=/tmp/hp-test-dir go test ./...` → `ok github.com/pdnczone/hashem-panel/panel 75.715s`.
-- `bash -n` on `hashem.sh`, `hashem-backhaul.sh`, `hashem-chaff.sh`, `install.sh` → **NOT RUN**: the sandbox required approval for `bash` and I didn't get it. I did not edit these files.
+- `cd panel && GRE_PANEL_DIR=/tmp/hp-test-dir go test ./...` → `ok github.com/pdnczone/quantum-panel/panel 75.715s`.
+- `bash -n` on `quantum.sh`, `quantum-backhaul.sh`, `quantum-chaff.sh`, `install.sh` → **NOT RUN**: the sandbox required approval for `bash` and I didn't get it. I did not edit these files.
 - `for t in tests/test_*.sh` → **NOT RUN**, same reason.
 - No panel process was started.

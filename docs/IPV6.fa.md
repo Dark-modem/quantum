@@ -1,10 +1,10 @@
 <div dir="rtl">
 
-# IPv6 در هاشم
+# IPv6 در کوانتوم
 
 [English](IPV6.md)
 
-هاشم از IPv6 در سه جا استفاده می‌کند:
+کوانتوم از IPv6 در سه جا استفاده می‌کند:
 
 1. **کاربران ← سرور ایران.** کاربران می‌توانند هم با IPv4 و هم با IPv6 به پورت‌های فوروارد شده وصل شوند.
 2. **سرور ایران ↔ سرور خارج.** بعضی موتورها می‌توانند دو سرور را از راه IPv6 به هم وصل کنند.
@@ -47,10 +47,10 @@
 <div dir="ltr">
 
 ```bash
-hashem carrier set 6to4
-hashem carrier set 4in6 --local6 2001:db8::1 --remote6 2001:db8::2
-hashem carrier set direct
-hashem edit-peer --id 2 --carrier 4in6 --remote6 2001:db8::9
+quantum carrier set 6to4
+quantum carrier set 4in6 --local6 2001:db8::1 --remote6 2001:db8::2
+quantum carrier set direct
+quantum edit-peer --id 2 --carrier 4in6 --remote6 2001:db8::9
 ```
 
 </div>

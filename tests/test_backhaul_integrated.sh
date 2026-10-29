@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Backhaul inside Hashem: port entries the core accepts, multi-port configs,
+# Backhaul inside Quantum: port entries the core accepts, multi-port configs,
 # UDP forwarding, transport check, and moving tunnels made by the old separate
-# Modified Backhaul script (backhaul-iranN / backhaul-kharejN) into Hashem.
+# Modified Backhaul script (backhaul-iranN / backhaul-kharejN) into Quantum.
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 mkdir -p "$T/bin" "$T/systemd" "$T/legacy"
-BACKHAUL_CONFIG_DIR="$T/etc"; INSTALL_DIR="$T/bin"; HASHEM_SYSTEMD_DIR="$T/systemd"
+BACKHAUL_CONFIG_DIR="$T/etc"; INSTALL_DIR="$T/bin"; QUANTUM_SYSTEMD_DIR="$T/systemd"
 BACKHAUL_LEGACY_DIR="$T/legacy"; RED=""; GREEN=""; YELLOW=""; CYAN=""; NC=""
 fail=0
-ext() { awk -v n="$1" '$0 ~ "^"n"\\(\\) \\{" {p=1} p {print} p && /^}/ {exit}' "$ROOT/hashem.sh"; }
-eval "$(grep -E '^(BACKHAUL_TRANSPORTS|backhaul_transport_ok|backhaul_udp_wanted)' "$ROOT/hashem.sh")"
+ext() { awk -v n="$1" '$0 ~ "^"n"\\(\\) \\{" {p=1} p {print} p && /^}/ {exit}' "$ROOT/quantum.sh"; }
+eval "$(grep -E '^(BACKHAUL_TRANSPORTS|backhaul_transport_ok|backhaul_udp_wanted)' "$ROOT/quantum.sh")"
 for f in hostonly is_valid_port backhaul_is_v2 backhaul_ports_normalize backhaul_setup_guard backhaul_write_server_conf_v1 \
          backhaul_write_client_conf_v1 backhaul_write_server_conf_v2 backhaul_write_server_conf backhaul_write_client_conf \
          backhaul_legacy_units bh_legacy_get bh_legacy_ports cli_backhaul_migrate; do

@@ -7,7 +7,7 @@ PORT = 7793
 d = tempfile.mkdtemp(prefix="panel-access-e2e-")
 env = dict(os.environ, GRE_PANEL_DIR=d, GRE_PANEL_PORT=str(PORT),
            GRE_PANEL_PASSWORD="E2e-Access-Pass-12345!", GRE_SKIP_PANEL="1",
-           HASHEM_NO_SDNOTIFY="1")
+           QUANTUM_NO_SDNOTIFY="1")
 env.pop("NOTIFY_SOCKET", None)
 
 fails = []
@@ -84,7 +84,7 @@ try:
     c, o = api("/api/tls/ip", {"ip": "127.0.0.2"})
     check("ip cert issue 200", c == 200 and o.get("tls_status") == "valid", (c, o))
     check("ip cert files on disk", os.path.exists(os.path.join(d, "tls", "server.crt"))
-          and os.path.exists(os.path.join(d, "tls", "hashem-ca.crt")))
+          and os.path.exists(os.path.join(d, "tls", "quantum-ca.crt")))
 
     # CA download (authed GET through cookie jar)
     try:

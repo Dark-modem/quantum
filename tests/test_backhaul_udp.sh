@@ -13,7 +13,7 @@ for fn in is_valid_ip is_valid_ip6 is_valid_ip_any is_valid_port backhaul_udp_wa
     awk -v f="$fn" '
         $0 ~ "^"f"\\(\\) \\{" { p = 1; print; if ($0 ~ /; \}[[:space:]]*$/) p = 0; next }
         p { print }
-        p && /^}/ { p = 0 }' "$ROOT/hashem.sh"
+        p && /^}/ { p = 0 }' "$ROOT/quantum.sh"
 done > "$T/fn.sh"
 printf '#!/bin/sh\necho "$@" >> "%s/systemctl.log"\n' "$T" > "$T/bin/systemctl"
 printf '#!/bin/sh\nexit 1\n' > "$T/bin/ufw"
@@ -21,7 +21,7 @@ printf '#!/bin/sh\nexit 1\n' > "$T/bin/ufw"
 printf '#!/bin/sh\ncase "$*" in *":3081"*) echo "LISTEN 0 128 0.0.0.0:3081";; esac\nexit 0\n' > "$T/bin/ss"
 chmod +x "$T/bin/"*
 export PATH="$T/bin:$PATH"
-BACKHAUL_CONFIG_DIR="$T/bh" HASHEM_SYSTEMD_DIR="$T/units" HASHEM_BIN=/usr/local/bin/hashem INSTALL_DIR=/usr/local/bin
+BACKHAUL_CONFIG_DIR="$T/bh" QUANTUM_SYSTEMD_DIR="$T/units" QUANTUM_BIN=/usr/local/bin/quantum INSTALL_DIR=/usr/local/bin
 BUNDLE_PREFIX="hsh1_" BUNDLE_PREFIX_BACKHAUL="bh1_" BUNDLE_PREFIX_GRE_BACKHAUL="gh1_"
 CYAN="" NC="" YELLOW="" RED="" GREEN=""
 # shellcheck disable=SC1091
@@ -82,7 +82,7 @@ u="$T/units/backhaul-udp-server.service"
 [[ -f "$u" ]] || { echo "FAIL companion unit not written"; fail=1; }
 chk "PartOf"        "$(grep -c '^PartOf=backhaul-server.service' "$u")" "1"
 chk "WantedBy"      "$(grep -c '^WantedBy=backhaul-server.service' "$u")" "1"
-chk "ExecCondition" "$(grep -c "^ExecCondition=/usr/local/bin/hashem backhaul-udp-conf $T/bh/config.toml $T/bh/udp/backhaul-server.toml 3082\$" "$u")" "1"
+chk "ExecCondition" "$(grep -c "^ExecCondition=/usr/local/bin/quantum backhaul-udp-conf $T/bh/config.toml $T/bh/udp/backhaul-server.toml 3082\$" "$u")" "1"
 chk "ExecStart"     "$(grep -c "^ExecStart=/usr/local/bin/backhaul -c $T/bh/udp/backhaul-server.toml" "$u")" "1"
 chk "enabled"       "$(grep -c 'enable backhaul-udp-server.service' "$T/systemctl.log")" "1"
 chk "unit port"     "$(backhaul_udp_port backhaul-server)" "3082"

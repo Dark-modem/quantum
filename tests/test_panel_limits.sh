@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tests/test_panel_limits.sh — RAM-scaled panel unit limits (C2.6).
-# Sources only the pure functions from hashem.sh; touches no live state.
+# Sources only the pure functions from quantum.sh; touches no live state.
 set -u
 cd "$(dirname "$0")/.." || exit 1
 SRC=$(mktemp -d); trap 'rm -rf "$SRC"' EXIT
@@ -8,11 +8,11 @@ SRC=$(mktemp -d); trap 'rm -rf "$SRC"' EXIT
 # Extract just the functions we test (no top-level side effects).
 {
   echo 'RED= GREEN= CYAN= YELLOW='
-  awk '/^panel_limits_for_ram\(\)/,/^}/' hashem.sh
-  awk '/^unit_set_directive\(\)/,/^}/' hashem.sh
-  awk '/^panel_supports_watchdog\(\)/,/^}/' hashem.sh
-  awk '/^apply_panel_unit_limits\(\)/,/^}/' hashem.sh
-  awk '/^apply_frp_unit_weight\(\)/,/^}/' hashem.sh
+  awk '/^panel_limits_for_ram\(\)/,/^}/' quantum.sh
+  awk '/^unit_set_directive\(\)/,/^}/' quantum.sh
+  awk '/^panel_supports_watchdog\(\)/,/^}/' quantum.sh
+  awk '/^apply_panel_unit_limits\(\)/,/^}/' quantum.sh
+  awk '/^apply_frp_unit_weight\(\)/,/^}/' quantum.sh
 } > "$SRC/funcs.sh"
 # shellcheck disable=SC1091
 source "$SRC/funcs.sh"
@@ -36,7 +36,7 @@ auto=$(panel_limits_for_ram)
 U="$SRC/gre-panel.service"
 cat > "$U" <<'EOF'
 [Unit]
-Description=Hashem Web Panel
+Description=Quantum Web Panel
 
 [Service]
 Type=simple

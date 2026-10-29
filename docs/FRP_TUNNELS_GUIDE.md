@@ -1,5 +1,5 @@
 # 🚀 FRP Transport Protocols & Advanced Features Guide
-## راهنمای جامع پروتکل‌های ترنسپورت و ویژگی‌های پیشرفته FRP در پنل هاشم
+## راهنمای جامع پروتکل‌های ترنسپورت و ویژگی‌های پیشرفته FRP در پنل کوانتوم
 
 ---
 
@@ -22,7 +22,7 @@
 
 ## ۱. معماری استک FRP بر بستر GRE
 
-در پنل هاشم، ارتباط بین سرور ایران و سرور خارج از یک معماری دو لایه هیبریدی بهره می‌برد:
+در پنل کوانتوم، ارتباط بین سرور ایران و سرور خارج از یک معماری دو لایه هیبریدی بهره می‌برد:
 ```text
 ┌─────────────────┐                                  ┌─────────────────┐
 │   سرور ایران    │                                  │   سرور خارج     │
@@ -49,7 +49,7 @@
 
 ### ۱. TCP (Standard Multiplexed)
 * **مکانیزم فنی:** اتصالات کلاینت FRP به سرور ایران از طریق یک جریان استاندارد TCP باز می‌شوند و با استفاده از Yamux/Smux چندین اتصال کاربر درون استخر کانکشن‌های TCP مالتی‌پلکس می‌شوند.
-* **نکته (tcpMux):** مقدار پیش‌فرض `transport.tcpMux` در هاشم **خاموش (false)** است تا حداکثر سرعت حاصل شود (روی GRE تقریباً سرعت را نصف می‌کند). فقط با `hashem perf tcpmux on` فعال کنید و مقدار آن باید روی سرور ایران و تمام سرورهای خارج **یکسان** باشد؛ در غیر این صورت frpc با خطای `connect to server error: EOF` وارد نمی‌شود.
+* **نکته (tcpMux):** مقدار پیش‌فرض `transport.tcpMux` در کوانتوم **خاموش (false)** است تا حداکثر سرعت حاصل شود (روی GRE تقریباً سرعت را نصف می‌کند). فقط با `quantum perf tcpmux on` فعال کنید و مقدار آن باید روی سرور ایران و تمام سرورهای خارج **یکسان** باشد؛ در غیر این صورت frpc با خطای `connect to server error: EOF` وارد نمی‌شود.
 * **مزایا:**
   * حداقل مصرف منابع پردازنده (CPU) و رم.
   * پایداری کامل در شبکه‌هایی که پروتکل UDP به شدت محدود یا Throttle شده است.
@@ -124,7 +124,7 @@
 ### ⚙️ استخر هوشمند اتصال‌های کاری (Auto Pool)
 تحت بار زیاد، استخر اتصال‌های کاری (work connection pool) پر می‌شود و frpc این خطا را در لاگ می‌نویسد: `StartWorkConn contains error: work connection pool is full, discarding`؛ نتیجه کندی تانل است. **Auto Pool** (به‌صورت پیش‌فرض روشن، `auto_pool: true` در `perf.json`) مقدار `transport.poolCount` (frpc) و `transport.maxPoolCount` (frps) را خودکار تنظیم می‌کند.
 
-*English summary:* the 1-minute watchdog timer runs `autopool_tick` (in `hashem.sh`) and combines three signals: pool-full lines in the `frpc` journal since the last tick, established connections to the hub port (active user connections), and CPU load / free RAM.
+*English summary:* the 1-minute watchdog timer runs `autopool_tick` (in `quantum.sh`) and combines three signals: pool-full lines in the `frpc` journal since the last tick, established connections to the hub port (active user connections), and CPU load / free RAM.
 
 | | رفتار / Behavior |
 |---|---|
@@ -140,9 +140,9 @@
 **حالت دستی:** در تب Performance کلید Auto Pool را خاموش کنید؛ فیلدهای `poolCount` / `maxPool` همان‌طور که وارد شده اعمال می‌شوند (فقط `maxPool ≥ 1.5 × poolCount` اجبار می‌شود). CLI:
 
 ```bash
-hashem perf autopool status   # مقادیر مؤثر، آخرین تصمیم
-hashem perf autopool off      # حالت دستی (سپس: hashem perf apply)
-hashem perf autopool on
+quantum perf autopool status   # مقادیر مؤثر، آخرین تصمیم
+quantum perf autopool off      # حالت دستی (سپس: quantum perf apply)
+quantum perf autopool on
 ```
 
 ---
@@ -176,7 +176,7 @@ hashem perf autopool on
 
 #### ۱. راه‌اندازی سرور خارج با KCP و PROXY Protocol v2:
 ```bash
-hashem setup-foreign \
+quantum setup-foreign \
   --bundle "hsh1_..." \
   --ports "443, 2083" \
   --frp-transport kcp \
@@ -185,7 +185,7 @@ hashem setup-foreign \
 
 #### ۲. راه‌اندازی سرور خارج با WSS، رمزنگاری و فشرده‌سازی:
 ```bash
-hashem setup-foreign \
+quantum setup-foreign \
   --bundle "hsh1_..." \
   --ports "443, 8443" \
   --frp-transport wss \
@@ -197,8 +197,8 @@ hashem setup-foreign \
 #### ۳. ویرایش تانل فعال در سرور خارج یا تغییر تنظیمات پیر در سرور ایران:
 ```bash
 # تغییر ترنسپورت به QUIC و فعال‌سازی PROXY Protocol v2
-hashem edit-peer --id 1 --frp-transport quic --proxy-protocol v2
+quantum edit-peer --id 1 --frp-transport quic --proxy-protocol v2
 
 # فعال‌سازی رمزنگاری و فشرده‌سازی
-hashem edit-peer --id 1 --encrypt --compress
+quantum edit-peer --id 1 --encrypt --compress
 ```

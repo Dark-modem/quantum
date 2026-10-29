@@ -12,7 +12,7 @@ BIN = sys.argv[1]
 PORT = 7791
 d = tempfile.mkdtemp(prefix="panel-e2e-")
 env = dict(os.environ, GRE_PANEL_DIR=d, GRE_PANEL_PORT=str(PORT), GRE_PANEL_PASSWORD="E2e-Test-Pass-12345!",
-           GRE_SKIP_PANEL="1", HASHEM_NO_SDNOTIFY="1")
+           GRE_SKIP_PANEL="1", QUANTUM_NO_SDNOTIFY="1")
 env.pop("NOTIFY_SOCKET", None)
 
 def start():

@@ -166,7 +166,7 @@ def probe(port):
     t = time.time()
     try:
         c = socket.create_connection(("127.0.0.1", port), timeout=3); c.settimeout(6)
-        c.sendall(b"GET / HTTP/1.1\r\nHost: probe.hashem\r\n\r\n")
+        c.sendall(b"GET / HTTP/1.1\r\nHost: probe.quantum\r\n\r\n")
         line = c.recv(64)
     except Exception:
         sys.exit(1)

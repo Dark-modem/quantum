@@ -1,8 +1,8 @@
-# IPv6 in Hashem
+# IPv6 in Quantum
 
 [فارسی](IPV6.fa.md)
 
-Hashem uses IPv6 in three places:
+Quantum uses IPv6 in three places:
 
 1. **Users → Iran server.** Users can connect to the forwarded ports over IPv6 as well as IPv4.
 2. **Iran server ↔ foreign server.** Some engines can connect the two servers over IPv6.
@@ -43,10 +43,10 @@ If a 6to4 or 4in6 interface cannot be built (no IPv6 in the kernel, or the other
 ### From the command line
 
 ```bash
-hashem carrier set 6to4
-hashem carrier set 4in6 --local6 2001:db8::1 --remote6 2001:db8::2
-hashem carrier set direct
-hashem edit-peer --id 2 --carrier 4in6 --remote6 2001:db8::9
+quantum carrier set 6to4
+quantum carrier set 4in6 --local6 2001:db8::1 --remote6 2001:db8::2
+quantum carrier set direct
+quantum edit-peer --id 2 --carrier 4in6 --remote6 2001:db8::9
 ```
 
 `--if gre-tN` applies the wrap to one tunnel only. The ends of each tunnel are kept in `/etc/gre-panel/gre6/<interface>.env`.

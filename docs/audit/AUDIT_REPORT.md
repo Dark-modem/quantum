@@ -1,9 +1,9 @@
-# Hashem Panel — Audit Report (in progress)
+# Quantum Panel — Audit Report (in progress)
 
-Baseline: `main` @ 52b41ad (+ uncommitted: `hashem.sh` tune_scale_values change by the owner, untracked `panel/peer_leak_test.go`). Remote: `pdnczone/hashem-panel`. These are treated as the owner's work and are NOT overwritten.
+Baseline: `main` @ 52b41ad (+ uncommitted: `quantum.sh` tune_scale_values change by the owner, untracked `panel/peer_leak_test.go`). Remote: `pdnczone/quantum-panel`. These are treated as the owner's work and are NOT overwritten.
 
 ## Phase 1 — Inventory (verified)
-- Go panel (`panel/`, 45 files, ~17k LOC, deps: gorilla/websocket, creack/pty), bash CLI `hashem.sh` (8004 lines), `hashem-backhaul.sh`, `hashem-chaff.sh`, `install.sh`. CI: `build-panel.yml`, `security.yml`.
+- Go panel (`panel/`, 45 files, ~17k LOC, deps: gorilla/websocket, creack/pty), bash CLI `quantum.sh` (8004 lines), `quantum-backhaul.sh`, `quantum-chaff.sh`, `install.sh`. CI: `build-panel.yml`, `security.yml`.
 - Local host = Iran-hub-style dev box: `gre-panel.service` active on :7777 (health 200). No GRE tunnel/frps/frpc active here (`gre-tunnel`, `frpc`, `frps` inactive; only `gre0/gretap0` kernel stubs). → live tunnel tests on this host are **Blocked**; fleet nodes need explicit approval.
 
 ## Phase 4 baseline results (real output)
@@ -20,9 +20,9 @@ Baseline: `main` @ 52b41ad (+ uncommitted: `hashem.sh` tune_scale_values change 
 ## Findings
 
 ### H-01 — Two orphaned systemd units crash-loop forever (High, VERIFIED)
-- Units: `/etc/systemd/system/hashem-monitor.service` (`ExecStart=/usr/local/bin/hashem --monitor`), `hashem-webui.service` (`--webui`). Dated 2026-09-22.
-- Evidence: `hashem --monitor` → `[!] Unknown command: --monitor` + usage, exit 1. `NRestarts=29005` (monitor), `46770` (webui). ~45k journal lines/hour from webui alone; `journalctl --disk-usage` = 4.0 GB; `Nice=-5` + `Restart=always` spawns bash every 3–5s.
-- Root cause: units were created by an older release; current `hashem.sh` has no `--monitor/--webui` handlers and nothing in the repo (`grep -r`) references or removes these unit names; uninstall (hashem.sh ~L4853–4871) and update paths don't clean them either.
+- Units: `/etc/systemd/system/quantum-monitor.service` (`ExecStart=/usr/local/bin/quantum --monitor`), `quantum-webui.service` (`--webui`). Dated 2026-09-22.
+- Evidence: `quantum --monitor` → `[!] Unknown command: --monitor` + usage, exit 1. `NRestarts=29005` (monitor), `46770` (webui). ~45k journal lines/hour from webui alone; `journalctl --disk-usage` = 4.0 GB; `Nice=-5` + `Restart=always` spawns bash every 3–5s.
+- Root cause: units were created by an older release; current `quantum.sh` has no `--monitor/--webui` handlers and nothing in the repo (`grep -r`) references or removes these unit names; uninstall (quantum.sh ~L4853–4871) and update paths don't clean them either.
 - Impact: CPU/fork churn, journald bloat (4 GB, can evict useful logs), noise hides real errors. Does not currently break the panel.
 - Fix: (a) update/install migration removes legacy units (stop+disable+rm+daemon-reload) and adds them to uninstall list; (b) test with a fake systemd root dir. Live cleanup of the two units on this host + journal vacuum needs your approval.
 - Test: shell test that migration function removes legacy unit files and is idempotent.
@@ -42,12 +42,12 @@ Baseline: `main` @ 52b41ad (+ uncommitted: `hashem.sh` tune_scale_values change 
 - Impact: offline brute force of `panel.json` is cheap if the file leaks; stolen legacy cookie is valid until restart/password change.
 - Fix: migrate to argon2id/bcrypt with transparent upgrade on login (keep verifying old hashes); drop legacy cookie path or bound it by expiry. Backward compat required.
 
-### L-01 — Journald 4 GB, no size cap on host (Low) — see H-01; `hashem free-ram` already caps journald but was not applied here.
+### L-01 — Journald 4 GB, no size cap on host (Low) — see H-01; `quantum free-ram` already caps journald but was not applied here.
 ### L-02 — Test coverage 43% (Low/tech debt): no tests for `terminal.go`, `tls.go`, `update.go` happy path, shell scripts.
-### L-03 — Installed `/usr/local/bin/hashem` differs from repo working tree (Info): expected given owner's uncommitted `hashem.sh` edits.
+### L-03 — Installed `/usr/local/bin/quantum` differs from repo working tree (Info): expected given owner's uncommitted `quantum.sh` edits.
 
 ## Not yet audited (next)
-Rescue/peer/carrier logic for races & leaks (peer leak already regression-tested), `setup.go` input validation for ports/IPs, `tls.go`/ACME flow, `tunnel.go` iptables argument handling, watchdog, backup/restore round-trip in sandbox, clean-install and uninstall in an isolated container, `hashem-backhaul.sh`, frontend `index.html` (444 KB) console/API contract.
+Rescue/peer/carrier logic for races & leaks (peer leak already regression-tested), `setup.go` input validation for ports/IPs, `tls.go`/ACME flow, `tunnel.go` iptables argument handling, watchdog, backup/restore round-trip in sandbox, clean-install and uninstall in an isolated container, `quantum-backhaul.sh`, frontend `index.html` (444 KB) console/API contract.
 
 ## Blocked
 - Live tunnel/GRE/FRP/MTU/failover tests (no tunnel active on this host; fleet nodes need explicit permission).

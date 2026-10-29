@@ -54,7 +54,7 @@ $S sh -c 'ip addr add 192.0.2.2/24 dev pt-s; ip -6 addr add 2001:db8:77::2/64 de
 # the cores, where the panel looks for them
 mkdir -p "$TMP/cores"
 ln -s "$FRP_DIR/frps" "$TMP/cores/frps"; ln -s "$FRP_DIR/frpc" "$TMP/cores/frpc"; ln -s "$BIN" "$TMP/cores/backhaul"
-export HASHEM_CORE_DIR="$TMP/cores" HASHEM_PT_GRACE=25s TMPDIR="$TMP"
+export QUANTUM_CORE_DIR="$TMP/cores" QUANTUM_PT_GRACE=25s TMPDIR="$TMP"
 
 # an SSH server stand-in on the foreign side (Bagher dials it from Iran)
 $S python3 -c '
@@ -203,7 +203,7 @@ for d in hpt6 hpt4; do
     check "no $d left (foreign)" "" "$($S ip -o link show $d 2>/dev/null)"
 done
 check "no core process left" "" "$(pgrep -f "$TMP/cores/" || true)"
-check "no temp dir left" "" "$(ls -d "$TMP"/hashem-pathtest-* 2>/dev/null)"
+check "no temp dir left" "" "$(ls -d "$TMP"/quantum-pathtest-* 2>/dev/null)"
 
 if [[ -n ${GITHUB_ACTIONS:-} ]]; then
     for r in "${fails[@]:0:9}"; do echo "::error title=Path test lab::$r"; done

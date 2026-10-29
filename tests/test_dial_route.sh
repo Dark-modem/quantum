@@ -8,12 +8,12 @@ mkdir -p "$T/bin"
 export PATH="$T/bin:$PATH" GREEN= YELLOW= RED= NC=
 CONFIG_DIR="$T/etc"; BACKHAUL_CONFIG_DIR="$T/bh"; mkdir -p "$CONFIG_DIR" "$BACKHAUL_CONFIG_DIR"
 fail=0
-ext() { awk -v n="$1" '$0 ~ "^"n"\\(\\) \\{" {p=1} p {print} p && /^}/ {exit}' "$ROOT/hashem.sh"; }
+ext() { awk -v n="$1" '$0 ~ "^"n"\\(\\) \\{" {p=1} p {print} p && /^}/ {exit}' "$ROOT/quantum.sh"; }
 for f in hostport hostonly dial_env_file dial_env_write dial_env_get dial_conf_file dial_service dial_current_addr dial_current_port \
          dial_pick dial_apply_addr dial_reselect dial_env_ensure dial_gre_usable dial_hold_file dial_hold_active; do
   body="$(ext $f)"; [[ -n "$body" ]] || { echo "FAIL: $f missing"; exit 1; }; eval "$body"
 done
-eval "$(grep -E '^DIAL_(BACK_TICKS|BACK_WAIT|HOLD_SECS)=' "$ROOT/hashem.sh")"
+eval "$(grep -E '^DIAL_(BACK_TICKS|BACK_WAIT|HOLD_SECS)=' "$ROOT/quantum.sh")"
 # ping + /dev/tcp both fail => GRE dead
 printf '#!/bin/sh\nexit 1\n' > "$T/bin/ping"; chmod +x "$T/bin/ping"
 
@@ -54,7 +54,7 @@ printf '#!/bin/sh\nexit 0\n' > "$T/bin/ping"
 for f in dial_connected dial_transport_udp dial_gre_back_ok dial_streak_file dial_watch_tick; do
   body="$(ext $f)"; [[ -n "$body" ]] || { echo "FAIL: $f missing"; exit 1; }; eval "$body"
 done
-eval "$(grep -E '^DIAL_(BACK_TICKS|BACK_WAIT|HOLD_SECS)=' "$ROOT/hashem.sh")"
+eval "$(grep -E '^DIAL_(BACK_TICKS|BACK_WAIT|HOLD_SECS)=' "$ROOT/quantum.sh")"
 DIAL_BACK_WAIT=1
 # stubs: GRE TCP answers when $T/tcp_ok exists; the client is connected to the address in $T/conn
 printf '#!/bin/sh\n[ -f "%s/tcp_ok" ]\n' "$T" > "$T/bin/timeout"; chmod +x "$T/bin/timeout"

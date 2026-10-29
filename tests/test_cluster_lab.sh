@@ -67,7 +67,7 @@ run() { # name env...  (PATTERN: the tests)
         grep -E '^\s+cluster_lab_test.go' "$out" > "$out.notes" && annotate notice "cluster lab: $name" "$out.notes"
     fi
 }
-PATTERN='^(TestLBLab|TestLBLabForward)$' run kernel-rules HASHEM_LB_LAB=1
-PATTERN='^TestLBLabE2E$' run end-to-end HASHEM_LB_E2E=1 FRP_DIR="$FRP_DIR" BACKHAUL_BIN="$BACKHAUL_BIN"
+PATTERN='^(TestLBLab|TestLBLabForward)$' run kernel-rules QUANTUM_LB_LAB=1
+PATTERN='^TestLBLabE2E$' run end-to-end QUANTUM_LB_E2E=1 FRP_DIR="$FRP_DIR" BACKHAUL_BIN="$BACKHAUL_BIN"
 (( rc )) && exit 1
 echo "PASS test_cluster_lab"

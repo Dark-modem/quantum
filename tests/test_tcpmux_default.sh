@@ -7,7 +7,7 @@ mkdir -p "$T/bin" "$T/frp"
 export PERF_FILE="$T/perf.json" CONFIG_DIR="$T/frp"
 unset PERF_TCPMUX
 for fn in perf_get_tcpmux perf_tcpmux_new perf_tcpmux_lines tcpmux_eof_hint; do
-    awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{" {p=1} p {print} p && /^}/ {p=0}' "$ROOT/hashem.sh"
+    awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{" {p=1} p {print} p && /^}/ {p=0}' "$ROOT/quantum.sh"
 done > "$T/fn.sh"
 # shellcheck disable=SC1091
 source "$T/fn.sh"

@@ -42,14 +42,14 @@ No commits, no pushes, no SSH, no real systemctl. Go tests were run only through
 - **Result:** no `docs/en` or `docs/fa` references remain in `README.md`.
 
 ## Fix D — legacy-hub tcpMux warning
-- **File:** `hashem.sh`, in `update_all` as new step 7 before `perf_apply`.
+- **File:** `quantum.sh`, in `update_all` as new step 7 before `perf_apply`.
 - **What:** if `perf_get_tcpmux` is empty (`tcp_mux` unset), the step checks each `$CONFIG_DIR/frps*.toml` (`CONFIG_DIR=/etc/frp`). A file with no `transport.tcpMux` line gets this one-line warning:
-  `frps<N>.toml has no transport.tcpMux line (FRP default = ON); set explicitly with: hashem perf tcpmux on|off on hub AND spokes`
+  `frps<N>.toml has no transport.tcpMux line (FRP default = ON); set explicitly with: quantum perf tcpmux on|off on hub AND spokes`
 - **Nothing is written.** It is read-only, so it is idempotent and cannot flip a live pair.
 - **Tests added:** none. I did not run the warning path because `update_all` downloads and replaces the installed script. `bash -n` passes.
 
 ## Verification (verbatim)
-- `bash -n hashem.sh`: `SYNTAX_OK`.
+- `bash -n quantum.sh`: `SYNTAX_OK`.
 - Bash tests, each run alone (a `for` loop was blocked by the sandbox):
   - `PASS test_backhaul_schema`
   - `dial route: all OK`
@@ -57,5 +57,5 @@ No commits, no pushes, no SSH, no real systemctl. Go tests were run only through
   - `PASS test_tcpmux_default`
   - `PASS test_wss_front`
 - `go vet ./... && go build -o /tmp/hp-fix-bin`: `VET_BUILD_OK`, no output from vet.
-- `safe_gotest.sh ./...`: `ok  	github.com/pdnczone/hashem-panel/panel	20.484s`
+- `safe_gotest.sh ./...`: `ok  	github.com/pdnczone/quantum-panel/panel	20.484s`
 - `grep '"/etc/frp' panel/*.go | grep -v _test`: only `main.go:34:	frpDir      = "/etc/frp"`. No rescue default remains, because it is built from `frpDir`.

@@ -1,6 +1,6 @@
 <div dir="rtl">
 
-# کلاستر هاشم: نحوه‌ی کار و آموزش عملی
+# کلاستر کوانتوم: نحوه‌ی کار و آموزش عملی
 
 [English](CLUSTER_TUTORIAL.md) · **فارسی**
 
@@ -16,7 +16,7 @@
 
 ### مشکل
 
-راه‌اندازی معمول هاشم یک سرور ایران و یک سرور خارج است. کاربرها به IP سرور ایران وصل می‌شوند و تونل آن‌ها را به سرور خارج می‌برد، جایی که xray (یا هر سرویس دیگری) اجرا می‌شود. اگر سرور خارج، تونلش یا xray از کار بیفتد، همه‌ی کاربرها قطع می‌شوند تا کسی دستی درستش کند.
+راه‌اندازی معمول کوانتوم یک سرور ایران و یک سرور خارج است. کاربرها به IP سرور ایران وصل می‌شوند و تونل آن‌ها را به سرور خارج می‌برد، جایی که xray (یا هر سرویس دیگری) اجرا می‌شود. اگر سرور خارج، تونلش یا xray از کار بیفتد، همه‌ی کاربرها قطع می‌شوند تا کسی دستی درستش کند.
 
 <div dir="ltr">
 
@@ -107,7 +107,7 @@ vpn.example.com           ╠══► foreign A, B, C
 
 چه لازم دارید:
 
-- **هاشم 2.5.0 یا جدیدتر** روی همه‌ی سرورها.
+- **کوانتوم 2.5.0 یا جدیدتر** روی همه‌ی سرورها.
 - برای شروع **یک سرور ایران و دو سرور خارج**. برای درس‌های بعدی یک سرور خارجِ سوم و یک سرور ایرانِ دوم.
 - یک سرویس روی هر سرور خارج روی یک پورت یکسان. در مثال‌ها xray / 3x-ui روی **443** است.
 
@@ -121,7 +121,7 @@ vpn.example.com           ╠══► foreign A, B, C
 <div dir="ltr">
 
 ```bash
-hashem peer-list      # on the Iran server: the tunnels, with their ids (0 = main, N = peer N)
+quantum peer-list      # on the Iran server: the tunnels, with their ids (0 = main, N = peer N)
 ```
 
 </div>
@@ -137,10 +137,10 @@ hashem peer-list      # on the Iran server: the tunnels, with their ids (0 = mai
 <div dir="ltr">
 
 ```bash
-hashem cluster pool add 443 --mode failover       # after A exists
-# add B in Setup (or hashem add-peer ... --ports "443"), then:
-hashem cluster member set 443 2 --priority 1
-hashem cluster status
+quantum cluster pool add 443 --mode failover       # after A exists
+# add B in Setup (or quantum add-peer ... --ports "443"), then:
+quantum cluster member set 443 2 --priority 1
+quantum cluster status
 ```
 
 </div>
@@ -203,7 +203,7 @@ systemctl stop x-ui        # or: systemctl stop xray
 <div dir="ltr">
 
 ```bash
-hashem cluster pool set 443 --check tcp --check-every 3
+quantum cluster pool set 443 --check tcp --check-every 3
 ```
 
 </div>
@@ -217,9 +217,9 @@ hashem cluster pool set 443 --check tcp --check-every 3
 <div dir="ltr">
 
 ```bash
-hashem cluster member set 443 3 --backup yes
-hashem cluster member set 443 0 --max-conn 500
-hashem cluster member drain 443 2      # later: member resume 443 2
+quantum cluster member set 443 3 --backup yes
+quantum cluster member set 443 0 --max-conn 500
+quantum cluster member drain 443 2      # later: member resume 443 2
 ```
 
 </div>
@@ -234,8 +234,8 @@ hashem cluster member drain 443 2      # later: member resume 443 2
 <div dir="ltr">
 
 ```bash
-hashem join-hub --bundle hsh1_... --name iran-2     # on each foreign server
-hashem hubs
+quantum join-hub --bundle hsh1_... --name iran-2     # on each foreign server
+quantum hubs
 ```
 
 </div>
@@ -244,7 +244,7 @@ hashem hubs
 
 ۱. روی ایران ۱: روی **این هاب ایران** در نقشه کلیک کنید، **کد اتصال** را بزنید و کپی کنید.
 ۲. روی ایران ۲: روی **+ اتصال هاب** کلیک کنید و کد را بچسبانید. حالا هر دو نقشه هاب دیگر را سمت چپ با یک خط‌چین آبی نشان می‌دهند.
-۳. آزمایش: روی هر سرور خارج فقط کلاینتِ مربوط به ایران ۱ را متوقف کنید (`systemctl stop frpc` اگر ایران ۱ هاب اولش بوده، وگرنه `frpc-hN`؛ `hashem hubs` آن‌ها را نشان می‌دهد). استخر 443 روی ایران ۱ وضعیت **فرستاده‌شده به هاب دیگر** را نشان می‌دهد: کاربرانی که هنوز به ایران ۱ می‌رسند از ایران ۲ رد می‌شوند.
+۳. آزمایش: روی هر سرور خارج فقط کلاینتِ مربوط به ایران ۱ را متوقف کنید (`systemctl stop frpc` اگر ایران ۱ هاب اولش بوده، وگرنه `frpc-hN`؛ `quantum hubs` آن‌ها را نشان می‌دهد). استخر 443 روی ایران ۱ وضعیت **فرستاده‌شده به هاب دیگر** را نشان می‌دهد: کاربرانی که هنوز به ایران ۱ می‌رسند از ایران ۲ رد می‌شوند.
 
 ### درس ۹: یک نام برای همه (جابه‌جایی DNS)
 
@@ -271,9 +271,9 @@ hashem hubs
 <div dir="ltr">
 
 ```bash
-hashem cluster status
-hashem cluster events
-hashem cluster rules
+quantum cluster status
+quantum cluster events
+quantum cluster rules
 ```
 
 </div>
@@ -282,7 +282,7 @@ hashem cluster rules
 
 ## چک‌لیست پیش از استفاده‌ی واقعی
 
-- [ ] همه‌ی سرورها نسخه‌ی یکسانی از هاشم دارند و ساعتشان همگام است (`timedatectl set-ntp true`).
+- [ ] همه‌ی سرورها نسخه‌ی یکسانی از کوانتوم دارند و ساعتشان همگام است (`timedatectl set-ntp true`).
 - [ ] هر استخر دست‌کم دو عضوِ واقعاً مستقل دارد (دیتاسنتر یا سرویس‌دهنده‌ی متفاوت).
 - [ ] بررسی سرویس برای استخرهای TCP روشن است.
 - [ ] هشدارها به تلگرام یا وب‌هوک می‌روند.

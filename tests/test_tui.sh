@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# The terminal app (hashem with no arguments): arrow keys, Enter, number jump
+# The terminal app (quantum with no arguments): arrow keys, Enter, number jump
 # and Esc in a real pseudo-terminal, and the plain numbered fallback without one.
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
-export HASHEM_NO_ROOT_CHECK=1 GRE_PANEL_DIR="$T/panel"
+export QUANTUM_NO_ROOT_CHECK=1 GRE_PANEL_DIR="$T/panel"
 fail=0
 has() { grep -qF -- "$2" <<< "$1" || { echo "FAIL $3: no \"$2\""; fail=1; }; }
 
 # 1. no terminal: numbered prompts, EOF leaves cleanly
-out=$(printf '3\n0\n0\n' | bash "$ROOT/hashem.sh" menu 2>&1); rc=$?
+out=$(printf '3\n0\n0\n' | bash "$ROOT/quantum.sh" menu 2>&1); rc=$?
 [[ $rc -eq 0 ]] || { echo "FAIL plain: exit $rc"; fail=1; }
 has "$out" "12) Settings" "plain main menu"
 has "$out" "0) Exit" "plain main menu exit"
 has "$out" "Status and GRE ping" "plain tunnel menu"
-out=$(bash "$ROOT/hashem.sh" menu < /dev/null 2>&1); rc=$?
+out=$(bash "$ROOT/quantum.sh" menu < /dev/null 2>&1); rc=$?
 [[ $rc -eq 0 ]] || { echo "FAIL plain EOF: exit $rc"; fail=1; }
 
 # 2. a terminal: drive keys and read the last screen after each one
@@ -62,7 +62,7 @@ if _ == 0:
     os.waitpid(pid, 0)
 os.close(fd)
 PY
-out=$(python3 "$T/drive.py" "$ROOT/hashem.sh" down enter esc 12 esc 6 esc q 2>&1)
+out=$(python3 "$T/drive.py" "$ROOT/quantum.sh" down enter esc 12 esc 6 esc q 2>&1)
 [[ -n "${TUI_DEBUG:-}" ]] && echo "$out"
 step() { awk -v k="@@ $1" '$0 == k {p=1; next} /^@@ / {p=0} p' <<< "$out"; }
 has "$(step down)" "›  2  Setup" "arrow down moves the selection"

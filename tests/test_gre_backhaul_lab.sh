@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tests/test_gre_backhaul_lab.sh — GRE + Backhaul with the real v0.7.2 core.
 # Two namespaces joined by a veth (the public path) and a GRE tunnel (inner
-# 10.10.10.1 <-> 10.10.10.2, MTU 1380). Uses hashem.sh's own dial_pick, config
+# 10.10.10.1 <-> 10.10.10.2, MTU 1380). Uses quantum.sh's own dial_pick, config
 # writers and backhaul_wait_link, and proves: the foreign side dials the GRE
 # address, 1 MiB crosses byte-exact, a wrong token and a tcp/tcpmux mismatch are
 # reported, a silent Iran side is "no answer", and with GRE blocked the dial
@@ -72,13 +72,13 @@ except Exception as e:
 PY
 $S python3 "$TMP/echo.py" & pids+=($!)
 
-# hashem.sh's own functions
+# quantum.sh's own functions
 INSTALL_DIR=$(dirname "$BIN"); BACKHAUL_CONFIG_DIR=$TMP; RED=""; GREEN=""; YELLOW=""; CYAN=""; NC=""
-ext() { awk -v n="$1" '$0 ~ "^"n"\\(\\) \\{" {p=1} p {print} p && /^}/ {exit}' "$ROOT/hashem.sh"; }
-eval "$(grep -E '^(BACKHAUL_TRANSPORTS|backhaul_transport_ok|backhaul_udp_wanted)' "$ROOT/hashem.sh")"
+ext() { awk -v n="$1" '$0 ~ "^"n"\\(\\) \\{" {p=1} p {print} p && /^}/ {exit}' "$ROOT/quantum.sh"; }
+eval "$(grep -E '^(BACKHAUL_TRANSPORTS|backhaul_transport_ok|backhaul_udp_wanted)' "$ROOT/quantum.sh")"
 for f in hostonly backhaul_is_v2 backhaul_write_server_conf_v1 backhaul_write_client_conf_v1 backhaul_write_server_conf \
          backhaul_write_client_conf dial_gre_usable dial_pick backhaul_wait_link; do
-    b="$(ext $f)"; [[ -n "$b" ]] || { echo "FAIL: $f missing from hashem.sh"; exit 1; }; eval "$b"
+    b="$(ext $f)"; [[ -n "$b" ]] || { echo "FAIL: $f missing from quantum.sh"; exit 1; }; eval "$b"
 done
 backhaul_ensure_tls() { :; }
 journalctl() { cat "$TMP/client.log"; }   # backhaul_wait_link reads the client's log

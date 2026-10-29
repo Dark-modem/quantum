@@ -1,13 +1,13 @@
 # Operations reference
 
-How Hashem behaves day to day: the panel tabs, the health model, what runs by itself, updates, the `hashem` command, uninstalling and the security details. For a first install see the [README](../README.md); for problems see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+How Quantum behaves day to day: the panel tabs, the health model, what runs by itself, updates, the `quantum` command, uninstalling and the security details. For a first install see the [README](../README.md); for problems see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 - [Installing safely](#installing-safely)
 - [Panel tour](#panel-tour)
 - [Health model](#health-model)
 - [Automation](#automation)
 - [Updates, downgrade and channels](#updates-downgrade-and-channels)
-- [`hashem` CLI](#hashem-cli)
+- [`quantum` CLI](#quantum-cli)
 - [Uninstall and your data](#uninstall-and-your-data)
 - [Security notes](#security-notes)
 
@@ -16,14 +16,14 @@ How Hashem behaves day to day: the panel tabs, the health model, what runs by it
 To read the installer before running it:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pdnczone/hashem-panel/main/install.sh -o install.sh
+curl -fsSL https://raw.githubusercontent.com/pdnczone/quantum-panel/main/install.sh -o install.sh
 less install.sh && bash install.sh
 ```
 
-`install.sh` accepts `hashem.sh` only from GitHub itself, from two agreeing mirrors, or when it matches a hash you pin. Every release publishes a `checksums.txt`; pin the script like this:
+`install.sh` accepts `quantum.sh` only from GitHub itself, from two agreeing mirrors, or when it matches a hash you pin. Every release publishes a `checksums.txt`; pin the script like this:
 
 ```bash
-HASHEM_SHA256=<sha256 of hashem.sh from the release checksums.txt>   bash <(curl -fsSL https://raw.githubusercontent.com/pdnczone/hashem-panel/main/install.sh)
+QUANTUM_SHA256=<sha256 of quantum.sh from the release checksums.txt>   bash <(curl -fsSL https://raw.githubusercontent.com/pdnczone/quantum-panel/main/install.sh)
 ```
 
 The panel binary comes from the active [update channel](#updates-downgrade-and-channels). To run an exact panel version, install first, then pick the tag in the **Update** tab (or `POST /api/update {"tag":"v2.7.0"}`).
@@ -35,7 +35,7 @@ The panel is one page with these tabs:
 - **Dashboard** — a banner with one big word (Healthy / Degraded / Down) and one line per tunnel; KPIs; the Fleet Health card with hub latency, the topology graph and per-server cards.
 - **Tunnel** — every tunnel on this server: the main tunnel, the foreign-server peer cards and the Bagher card (start, stop, copy bundle, quick edit, remove); per-tunnel PASS/FAIL checks, the dial-route card, and the GRE carrier (Direct GRE or WSS, its port and SNI).
 - **Performance** — the settings of the engine this server runs: for FRP, Auto Pool, encryption, compression, TCP multiplexing, PROXY protocol (real client IP for Xray), a bandwidth limit per port and a health check; for Backhaul, the connection pool. Plus the kernel network stack (Optimize Network / Restore).
-- **Diagnostics** — latency, jitter, MTU and speed tests; the same engine as `hashem doctor`.
+- **Diagnostics** — latency, jitter, MTU and speed tests; the same engine as `quantum doctor`.
 - **Setup** — create any tunnel: GRE + FRP, Backhaul (with or without GRE) or Bagher; bundles and peers.
 - **Watchdog** — monitoring, backups and alerts.
 - **Cluster** — opens on a live map of the cluster; click anything to change it. Pools (one Iran port served by several foreign servers: failover, balance, sticky per user, lowest latency or least connections; one-second health check, service check, standby servers, connection limits, drain, manual failback), linked Iran hubs that take over each other's ports, DNS failover (Cloudflare or webhook), and on a foreign server, serving several Iran hubs. See [Cluster](CLUSTER.md).
@@ -43,7 +43,7 @@ The panel is one page with these tabs:
 - **Update** — channels, install any tag, rollback state.
 - **Logs, Settings, Terminal** — redacted logs with error codes; password, 2FA, idle timeout, alerts, TLS, metrics token; the audited shell (off by default).
 
-**FRP TCP Multiplexing (`transport.tcpMux`) is OFF by default** (speed-first: tcpMux roughly halves throughput over GRE). New `frps`/`frpc` configs are written with `transport.tcpMux = false`. Turn it on only deliberately with `hashem perf tcpmux on` (or the Performance tab). The setting **must be identical on the Iran hub and every foreign spoke**; a mismatch makes `frpc` fail to log in with `connect to server error: EOF`, and `hashem status` / `hashem doctor` print a hint when they see it. Backhaul is unaffected.
+**FRP TCP Multiplexing (`transport.tcpMux`) is OFF by default** (speed-first: tcpMux roughly halves throughput over GRE). New `frps`/`frpc` configs are written with `transport.tcpMux = false`. Turn it on only deliberately with `quantum perf tcpmux on` (or the Performance tab). The setting **must be identical on the Iran hub and every foreign spoke**; a mismatch makes `frpc` fail to log in with `connect to server error: EOF`, and `quantum status` / `quantum doctor` print a hint when they see it. Backhaul is unaffected.
 
 ## Health model
 
@@ -62,82 +62,82 @@ The dashboard's overall status uses the same function. The main tunnel counts as
 
 ## Automation
 
-- **Watchdog** — a systemd timer (`hashem-watchdog.timer`) runs `hashem watchdog tick` every minute. Control it with `hashem watchdog on|off|status|test|tick`. Telegram alerts are configured in the watchdog settings; `hashem tgsend "msg"` sends a manual message. `auto_restart` defaults to **off** (alert only).
-- **Dial route** — on foreign servers, `hashem dial [status|auto|gre|public]` chooses whether `frpc` / `backhaul-client` dials the hub over the GRE inner IP or the hub public IP. `auto` uses GRE if it answers (ping or TCP to the control port), otherwise public. The watchdog switches to public automatically when GRE is dead and the client is not connected, and back to GRE once GRE has carried the control port for 5 checks in a row (5 minutes). If the client cannot connect over GRE after that move, it goes back to the public IP and waits 30 minutes before trying again. The foreign side of Setup asks for the route when the bundle uses GRE. Foreign servers show a "Route to the Iran hub" card.
-- **Carrier failover** — `hashem carrier` manages and cycles carriers. Switching is manual; the advisor only suggests.
-- **Backups** — `hashem backup now|restore|schedule|status` (encrypted archives in `/var/backups/hashem`).
+- **Watchdog** — a systemd timer (`quantum-watchdog.timer`) runs `quantum watchdog tick` every minute. Control it with `quantum watchdog on|off|status|test|tick`. Telegram alerts are configured in the watchdog settings; `quantum tgsend "msg"` sends a manual message. `auto_restart` defaults to **off** (alert only).
+- **Dial route** — on foreign servers, `quantum dial [status|auto|gre|public]` chooses whether `frpc` / `backhaul-client` dials the hub over the GRE inner IP or the hub public IP. `auto` uses GRE if it answers (ping or TCP to the control port), otherwise public. The watchdog switches to public automatically when GRE is dead and the client is not connected, and back to GRE once GRE has carried the control port for 5 checks in a row (5 minutes). If the client cannot connect over GRE after that move, it goes back to the public IP and waits 30 minutes before trying again. The foreign side of Setup asks for the route when the bundle uses GRE. Foreign servers show a "Route to the Iran hub" card.
+- **Carrier failover** — `quantum carrier` manages and cycles carriers. Switching is manual; the advisor only suggests.
+- **Backups** — `quantum backup now|restore|schedule|status` (encrypted archives in `/var/backups/quantum`).
 - **Adaptive capacity** — multiplexing capacity adjusts to load and available RAM.
 
 ## Updates, downgrade and channels
 
-The **Update** tab (and `hashem update` for the script + panel) uses two channels:
+The **Update** tab (and `quantum update` for the script + panel) uses two channels:
 
 - **`stable`** — GitHub releases that are *not* prerelease (tags `panel-rN` and `vX.Y.Z`).
 - **`dev`** — prereleases tagged `dev-rN`, built from the `dev` branch.
 
 The channel is stored in `<configDir>/update.json` (`GET/POST /api/update/channel`). `GET /api/releases?channel=stable|dev` lists the last 20 releases of a channel. You can install **any listed tag**, newer or older — that is how you downgrade (`POST /api/update {"tag":"panel-r140"}`; without a tag, the newest of the selected channel).
 
-Install steps: validate tag → download the panel binary and `hashem.sh` of that tag → verify SHA-256 from that tag's `checksums.txt` (fail-closed) → verify ELF / `bash -n` → back up the config dir to `<configDir>/backups/pre-<from>-<timestamp>.tar.gz` (last 5 kept; `exe.bak` and `hashem.sh.bak` kept) → swap → write `<configDir>/pending_update.json` → restart.
+Install steps: validate tag → download the panel binary and `quantum.sh` of that tag → verify SHA-256 from that tag's `checksums.txt` (fail-closed) → verify ELF / `bash -n` → back up the config dir to `<configDir>/backups/pre-<from>-<timestamp>.tar.gz` (last 5 kept; `exe.bak` and `quantum.sh.bak` kept) → swap → write `<configDir>/pending_update.json` → restart.
 
-**Auto-rollback:** the new process counts its starts in `pending_update.json`. If it crashes 3 times before it is confirmed healthy (self health check 45 s after start), the old binary and `hashem.sh` are restored and the panel restarts.
+**Auto-rollback:** the new process counts its starts in `pending_update.json`. If it crashes 3 times before it is confirmed healthy (self health check 45 s after start), the old binary and `quantum.sh` are restored and the panel restarts.
 
-**Branches:** `main` is stable (a push that changes `panel/**` or `hashem*.sh` builds release `panel-r<run>`); `dev` is for testing (each push builds prerelease `dev-r<run>`, never offered on stable). Promote by a manual Pull Request `dev → main`. Hotfix: branch from `main`, PR to `main`, then merge `main` back into `dev`. Release history: [CHANGELOG.md](../CHANGELOG.md).
+**Branches:** `main` is stable (a push that changes `panel/**` or `quantum*.sh` builds release `panel-r<run>`); `dev` is for testing (each push builds prerelease `dev-r<run>`, never offered on stable). Promote by a manual Pull Request `dev → main`. Hotfix: branch from `main`, PR to `main`, then merge `main` back into `dev`. Release history: [CHANGELOG.md](../CHANGELOG.md).
 
-## `hashem` CLI
+## `quantum` CLI
 
-Everything works from SSH too (commands as in `hashem help`):
+Everything works from SSH too (commands as in `quantum help`):
 
 ```bash
-hashem                # first run: auto-install; afterwards the terminal app (arrows, Enter, Esc)
-hashem menu           # the terminal app
-hashem status         # tunnel health, peers, service status
-hashem show-panel-url # print the panel URL again
-hashem reset-password # reset / auto-generate the admin password
-hashem password <p>   # set the panel password non-interactively
-hashem tls issue <domain> [email]   # HTTPS for the panel (Let's Encrypt; also: status, renew, remove, ip, custom)
-hashem settings show  # panel settings; also: 2fa off, terminal on|off, idle N
-hashem cluster status | events | rules              # the cluster
-hashem cluster pool add 443,8443 --mode least --check tcp
-hashem cluster pool set 443 --no-failback yes | pool failback 443
-hashem cluster member set 443 2 --weight 2 --max-conn 500 --backup no | member drain 443 2
-hashem cluster join-code | add-hub <code>          # link two Iran hubs
-hashem join-hub --bundle <bundle>   # foreign side: also serve another Iran hub (hubs, leave-hub --id N)
-hashem logs           # relay logs
-hashem optimize       # BBR / MTU / sysctl tuning
-hashem doctor         # latency, jitter, MTU and speed diagnostics
-hashem doctor fix     # Quick Repair (same as the Diagnostics tab), then diagnose again
-hashem spoof install  # Spoof tunnel core + WireGuard tools (also: status, up, down)
-hashem xray install   # Xray tunnel core (also: status, start, stop, restart, logs, uninstall)
-hashem carrier        # carrier management / failover
-hashem dial status    # foreign side: route to the Iran hub
-hashem watchdog status
-hashem backup now     # encrypted backup (/var/backups/hashem)
-hashem perf autopool status  # Auto Pool: on|off|status|tick
-hashem perf tcpmux on|off    # must match on hub and spokes
-hashem perf proxy-protocol off|v1|v2 | bandwidth MB | health-check on|off | backhaul-pool N
-hashem free-ram       # free RAM
-hashem update         # update script and panel to the latest release
-hashem update-channel [stable|dev]
-hashem uninstall      # full wipe (see "Uninstall and your data")
+quantum                # first run: auto-install; afterwards the terminal app (arrows, Enter, Esc)
+quantum menu           # the terminal app
+quantum status         # tunnel health, peers, service status
+quantum show-panel-url # print the panel URL again
+quantum reset-password # reset / auto-generate the admin password
+quantum password <p>   # set the panel password non-interactively
+quantum tls issue <domain> [email]   # HTTPS for the panel (Let's Encrypt; also: status, renew, remove, ip, custom)
+quantum settings show  # panel settings; also: 2fa off, terminal on|off, idle N
+quantum cluster status | events | rules              # the cluster
+quantum cluster pool add 443,8443 --mode least --check tcp
+quantum cluster pool set 443 --no-failback yes | pool failback 443
+quantum cluster member set 443 2 --weight 2 --max-conn 500 --backup no | member drain 443 2
+quantum cluster join-code | add-hub <code>          # link two Iran hubs
+quantum join-hub --bundle <bundle>   # foreign side: also serve another Iran hub (hubs, leave-hub --id N)
+quantum logs           # relay logs
+quantum optimize       # BBR / MTU / sysctl tuning
+quantum doctor         # latency, jitter, MTU and speed diagnostics
+quantum doctor fix     # Quick Repair (same as the Diagnostics tab), then diagnose again
+quantum spoof install  # Spoof tunnel core + WireGuard tools (also: status, up, down)
+quantum xray install   # Xray tunnel core (also: status, start, stop, restart, logs, uninstall)
+quantum carrier        # carrier management / failover
+quantum dial status    # foreign side: route to the Iran hub
+quantum watchdog status
+quantum backup now     # encrypted backup (/var/backups/quantum)
+quantum perf autopool status  # Auto Pool: on|off|status|tick
+quantum perf tcpmux on|off    # must match on hub and spokes
+quantum perf proxy-protocol off|v1|v2 | bandwidth MB | health-check on|off | backhaul-pool N
+quantum free-ram       # free RAM
+quantum update         # update script and panel to the latest release
+quantum update-channel [stable|dev]
+quantum uninstall      # full wipe (see "Uninstall and your data")
 ```
 
-`hashem help` prints the full list, including the non-interactive `setup-*` and `*-peer` commands.
+`quantum help` prints the full list, including the non-interactive `setup-*` and `*-peer` commands.
 
 ## Uninstall and your data
 
 ```bash
-hashem backup now      # optional: encrypted archive in /var/backups/hashem
-hashem uninstall       # asks to confirm; "--force" skips the question
+quantum backup now      # optional: encrypted archive in /var/backups/quantum
+quantum uninstall       # asks to confirm; "--force" skips the question
 ```
 
 Uninstall is a **full wipe**. It removes:
 
 - all tunnel, relay, panel and watchdog systemd units, and the GRE interfaces;
-- the binaries `frps`, `frpc`, `backhaul`, `gre-panel`, `grepanel`, and the `hashem` command itself;
+- the binaries `frps`, `frpc`, `backhaul`, `gre-panel`, `grepanel`, and the `quantum` command itself;
 - `/etc/frp`, `/etc/backhaul`, `/etc/gre-panel` (panel config, history and the **backup key**) and `/usr/local/gre-panel`;
-- Hashem logs, locks, cron entries, its iptables rules and its sysctl tuning.
+- Quantum logs, locks, cron entries, its iptables rules and its sysctl tuning.
 
-It does **not** remove `/var/backups/hashem`. But those archives are encrypted with `/etc/gre-panel/backup.key`, which the wipe deletes. **Copy `backup.key` somewhere safe before uninstalling** if you want to restore later.
+It does **not** remove `/var/backups/quantum`. But those archives are encrypted with `/etc/gre-panel/backup.key`, which the wipe deletes. **Copy `backup.key` somewhere safe before uninstalling** if you want to restore later.
 
 ## Security notes
 
@@ -152,6 +152,6 @@ It does **not** remove `/var/backups/hashem`. But those archives are encrypted w
 - Optional **TOTP two-factor login** (Settings → Two-factor authentication) with 8 single-use recovery codes; off by default. Recovery if you lose the device: set `GRE_PANEL_PASSWORD` and remove `totp_enabled` from `panel.json`.
 - Optional **idle session timeout** (Settings), driven by real clicks/keys, not background refresh.
 - The terminal asks for your password (and 2FA code) every time it opens, uses a single-use 60 s ticket bound to your session and IP, and can be limited to an **IP allowlist**.
-- `install.sh` only accepts `hashem.sh` from GitHub itself, from two agreeing mirrors, or matching a pinned `HASHEM_SHA256`; otherwise it stops.
+- `install.sh` only accepts `quantum.sh` from GitHub itself, from two agreeing mirrors, or matching a pinned `QUANTUM_SHA256`; otherwise it stops.
 - Logs shown in the panel mask tokens and passwords (Backhaul prints rejected tokens verbatim).
 - Backups include every panel config and Backhaul unit; restore refuses archives that reach outside the config directories and first saves a safety copy of the current state.

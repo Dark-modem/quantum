@@ -10,7 +10,7 @@ Small commits, one concern each. No production servers are touched.
 - [x] 1.3 Real TOML parsing for backhaul config instead of line scanner (gap 2)
 - [x] 1.4 Per-peer backhaul units recognised in role detection (gap 4)
 - [x] 1.5 Doctor knows Backhaul: token mismatch / control-channel EOF / transport mismatch hints (gap 9)
-- [x] 1.6 Watchdog judges Backhaul by control-channel session (hashem.sh backhaul_session_ok + tests/test_watchdog_backhaul.sh); Go snapshot already uses ss sessions + probes
+- [x] 1.6 Watchdog judges Backhaul by control-channel session (quantum.sh backhaul_session_ok + tests/test_watchdog_backhaul.sh); Go snapshot already uses ss sessions + probes
 
 ## Phase 2 - CI and quality
 - [x] 2.1 ci.yml: vet, build, test -race, gofmt on changed files, bash -n, hermetic tests/*.sh (race in wss test fixed)
@@ -22,7 +22,7 @@ Small commits, one concern each. No production servers are touched.
 - [x] 3.3 Optional TOTP 2FA (RFC 6238 vectors tested, replay guard, 8 single-use recovery codes, two-step enrol, disable needs password+code, login + Settings UI)
 - [x] 3.4 Idle session timeout (off by default; user-activity header so polling never keeps a session alive; Settings card)
 - [x] 3.5 Terminal hardening: IP allowlist (IP/CIDR, refuses self-lockout), password(+2FA) re-auth gives a single-use 60s ticket bound to session+IP, required by the WS
-- [x] 3.6 install.sh: canonical copy or 2-host mirror quorum or HASHEM_SHA256 pin, else fail closed (panel updater already verified checksums.txt fail-closed); tests/test_install_verify.sh
+- [x] 3.6 install.sh: canonical copy or 2-host mirror quorum or QUANTUM_SHA256 pin, else fail closed (panel updater already verified checksums.txt fail-closed); tests/test_install_verify.sh
 
 ## Phase 4 - Operations
 - [x] 4.1 Alerts: webhook + Telegram on health STATE CHANGE only (baseline tick, per-link min gap, degraded opt-in, secrets masked in GET/errors), Settings card, test button
@@ -51,4 +51,4 @@ Order is fixed; if a step turns out risky it is skipped and recorded under "Defe
 - [x] multi-hub dashboard: the Cluster tab's map and linked hubs (v2.5.0)
 - [x] Peer Link push+rollback: carrier and engine switches apply locally, push to the peer and undo the local change when the peer fails (`benchmark.go`, `tunnel.go` engineSwitchTx)
 - [x] version drift view: the Update tab compares the Peer Link peer; the Cluster tab flags a linked hub on another version (`version_differs`)
-- [x] `hashem doctor fix`: runs the Diagnostics tab's Quick Repair through `gre-panel doctor fix`
+- [x] `quantum doctor fix`: runs the Diagnostics tab's Quick Repair through `gre-panel doctor fix`

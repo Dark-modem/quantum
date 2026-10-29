@@ -95,7 +95,7 @@ wait_for() { local n=$1; shift; local i; for ((i = 0; i < n; i++)); do "$@" >/de
 in_ns() { local ns=$1; shift; ip netns exec "$ns" "$@"; }
 
 # ---- the panel's own configs and its carrier -------------------------------
-ssh-keygen -q -t ed25519 -N '' -f "$TMP/id" -C hashem-bagher-carrier
+ssh-keygen -q -t ed25519 -N '' -f "$TMP/id" -C quantum-bagher-carrier
 ssh-keygen -q -t ed25519 -N '' -f "$TMP/wrong" -C stranger
 BIN=${BAGHER_LAB_TEST_BIN:-}
 if [[ -z $BIN ]]; then

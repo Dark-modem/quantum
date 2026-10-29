@@ -1,7 +1,7 @@
 # PLAN — Reverse-path ping, honest fleet health, and hub scalability
 
 Status: **PROPOSED — awaiting approval. No code changed.**
-Scope: `panel/` (Go), `hashem.sh`, `tests/`, `docs/`.
+Scope: `panel/` (Go), `quantum.sh`, `tests/`, `docs/`.
 Constraints from owner: no access to a real affected pair → everything below is
 derived from the code plus synthetic tests; Problem 3 is **measure first, fix
 what the data shows**.
@@ -101,10 +101,10 @@ Input: probe matrix + local config snapshot. Output: one verdict + evidence:
 
 | Verdict code | Meaning | Auto-fix |
 |---|---|---|
-| `RP_FILTER` | rp_filter=1 on iface/all, rx counter increments, no reply | set `rp_filter=2` (sysctl + `/etc/sysctl.d/99-hashem-revpath.conf`) |
+| `RP_FILTER` | rp_filter=1 on iface/all, rx counter increments, no reply | set `rp_filter=2` (sysctl + `/etc/sysctl.d/99-quantum-revpath.conf`) |
 | `SRC_SELECT` | reply leaves with public src | add `src <inner>` to GRE route; set `ping`/probe source |
 | `NO_RETURN_ROUTE` | no route to peer inner back via GRE | `ip route replace` + persist in gre unit |
-| `FW_INPUT` | iptables/nft INPUT/FORWARD drops proto 47 or ICMP on gre iface | insert accept rules (`-p 47`, `-i gre-tunnel`, `icmp`) **only our own chain** `HASHEM-REVPATH` |
+| `FW_INPUT` | iptables/nft INPUT/FORWARD drops proto 47 or ICMP on gre iface | insert accept rules (`-p 47`, `-i gre-tunnel`, `icmp`) **only our own chain** `QUANTUM-REVPATH` |
 | `MTU_BLACKHOLE` | 64B ok, 1300B DF fails in one direction | lower GRE MTU stepwise (1380→1360→1340→1300) + MSS clamp re-check |
 | `CONNTRACK_INVALID` | asymmetric GRE flagged INVALID | `NOTRACK` raw rule for proto 47 / gre iface |
 | `ISP_ICMP_ONE_WAY` | ICMP over GRE and over public path fails one way, TCP ok | **no local fix**; mark ICMP as "unreliable on this link", rely on TCP signal (Plan B), show clear explanation |
@@ -116,7 +116,7 @@ Input: probe matrix + local config snapshot. Output: one verdict + evidence:
 - Every fix: **dry-run → snapshot → apply → re-probe → rollback if worse**.
   Snapshot = `sysctl -a` subset + `iptables-save` of our chain + route dump,
   stored in `configDir/revpath/<ts>.json`.
-- Our rules live in a dedicated chain/table (`HASHEM-REVPATH`); never edit
+- Our rules live in a dedicated chain/table (`QUANTUM-REVPATH`); never edit
   user rules. Idempotent (`-C` before `-A`).
 - Rate limit: max 1 auto-fix per peer per 10 min, max 3 per hour, then alert
   only. Fixes never restart `gre-tunnel`/`frps`/`frpc` (that was the
@@ -130,7 +130,7 @@ Input: probe matrix + local config snapshot. Output: one verdict + evidence:
 - UI (Doctor tab): per-peer card — two arrows (hub→spoke, spoke→hub) × three
   layers with ✓/✗, verdict, evidence lines, "Apply fix" / "Auto" toggle,
   history of applied fixes + rollback.
-- CLI: `hashem.sh revpath [--peer N] [--apply]` for spokes without the panel.
+- CLI: `quantum.sh revpath [--peer N] [--apply]` for spokes without the panel.
 - Background: run on link-state change (ICMP flips) and every 30 min per peer,
   debounced; results cached (no per-request probing).
 
@@ -354,7 +354,7 @@ commit, and `git push origin main` in the same turn.
   health rollup), `panel/doctor.go` (`applyDoctorFixes` step 5, audit
   additions: rp_filter, proto-47 rules, GRE counters), `panel/main.go`
   (server timeouts, limiter, snapshot start), `panel/index.html` (health
-  chips, Doctor revpath cards, polling backoff), `hashem.sh` (`revpath`
+  chips, Doctor revpath cards, polling backoff), `quantum.sh` (`revpath`
   subcommand, panel unit limits, persistent sysctl for rp_filter).
 
 ---
@@ -391,10 +391,10 @@ read, and every new endpoint sits behind the normal session auth.
   `/{base}/...`; paths outside the base collapse to `other`.
   `metricsMiddleware` wraps both the HTTP and HTTPS handler chains.
 - Optional pprof at `/{base}/debug/pprof/*`, mounted only when
-  `HASHEM_PPROF=1` or `debug_enabled` is true in `panel.json` (default off),
+  `QUANTUM_PPROF=1` or `debug_enabled` is true in `panel.json` (default off),
   behind `requireAuth`.
 - `panel/loadlab_test.go`: in-process load lab (see
-  `docs/audit/LOAD_REPORT.md`). Skipped unless `HASHEM_LOADLAB=1`.
+  `docs/audit/LOAD_REPORT.md`). Skipped unless `QUANTUM_LOADLAB=1`.
 - `panel/revpath.go`: probe matrix types, the pure `classifyRevPath`
   (verdict codes from A2, ambiguous input gives `UNKNOWN` with no fix),
   read-only collectors (rp_filter, ip_forward, GRE MTU, `ip route get`,
@@ -472,7 +472,7 @@ now returns early on `document.hidden`. Log-follow keeps its own interval
 (`TestIndexPollingPolicy`) pins the policy in place.
 
 C2.6 shipped:
-- `panel_limits_for_ram` (hashem.sh): RAM tiers -> MemoryHigh/MemoryMax:
+- `panel_limits_for_ram` (quantum.sh): RAM tiers -> MemoryHigh/MemoryMax:
 
   | host RAM | MemoryHigh | MemoryMax |
   |---|---|---|
@@ -490,12 +490,12 @@ C2.6 shipped:
   `install_panel`; FRP templates (frps/frpc/peer frps/backhaul x2/WSS front)
   gained CPUWeight=100, and the Go `ensureFRPServiceUnits` patcher adds it to
   existing units without touching ExecStart.
-- `hashem panel-limits [--apply] [--mem MB]`: print (default) or apply.
+- `quantum panel-limits [--apply] [--mem MB]`: print (default) or apply.
   `--apply` always uses the live host value; `--mem` is print-path only so a
   synthetic tier can never be written to a real unit.
 - sd_notify watchdog (`panel/sdnotify.go`): READY=1 once + WATCHDOG=1 every
   10 s (WatchdogSec=30), silent no-op without NOTIFY_SOCKET or with
-  HASHEM_NO_SDNOTIFY=1; tested against a temp unixgram socket.
+  QUANTUM_NO_SDNOTIFY=1; tested against a temp unixgram socket.
 - `tests/test_panel_limits.sh`: tiers, idempotency, extras preserved,
   re-tier replaces, FRP weight.
 
@@ -505,7 +505,7 @@ cgroup tuning from a loaded hub via /api/selfstats.
 ## Phase 4 status (auto-fix engine + spoke probes) — 2026-10-10
 
 Report-only by default; auto behind `revpath_auto` (panel.json) or
-HASHEM_REVPATH_AUTO=1. Spoke half rides the existing Peer Link channel
+QUANTUM_REVPATH_AUTO=1. Spoke half rides the existing Peer Link channel
 (same secret, no new port).
 
 Shipped:
@@ -518,15 +518,15 @@ Shipped:
 - Auto-fix (`panel/revfix.go`): dry-run plan via `POST /api/revpath/fix`
   (default); `apply:true` runs snapshot -> apply -> re-probe -> rollback if
   worse. Fixable: RP_FILTER (3 sysctl keys + persist), SRC_SELECT (route
-  src pin), NO_RETURN_ROUTE, FW_INPUT (own HASHEM-REVPATH chain only),
+  src pin), NO_RETURN_ROUTE, FW_INPUT (own QUANTUM-REVPATH chain only),
   MTU_BLACKHOLE (stepwise down), CONNTRACK_INVALID (raw NOTRACK). Never
   restarts services. Rate limits: 1/peer/10min, 3/hour; explicit clicks
   bypass the auto flag but not the limits. History at
   `GET /api/revpath/fixes`.
 - UI: Reverse Path card in the Doctor tab (verdict, confidence, evidence,
   suggested fix, Show plan / Apply fix per peer, step log).
-- CLI: `hashem revpath [--peer ID] [--apply] [--auto]` (login via
-  HASHEM_PANEL_PASS or prompt; read-only unless --apply).
+- CLI: `quantum revpath [--peer ID] [--apply] [--auto]` (login via
+  QUANTUM_PANEL_PASS or prompt; read-only unless --apply).
 - `tests/test_revpath_lab.sh`: netns GRE pair proving the one-way pattern
   (rp_filter strict, INPUT DROP proto 47) detect -> fix -> symmetric;
   self-cleaning, skips without privileges.

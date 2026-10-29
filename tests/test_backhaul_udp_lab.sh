@@ -3,7 +3,7 @@
 # the real v0.7.2 core in two namespaces.
 #
 # The tunnel runs tcpmux (TCP only: the core ignores accept_udp there). The UDP
-# companion hashem.sh adds (backhaul_udp_conf: same config, udp transport, its
+# companion quantum.sh adds (backhaul_udp_conf: same config, udp transport, its
 # own control port) must carry the UDP of the same ports, while TCP keeps working.
 # Proves: TCP through tcpmux; no UDP without the companion; UDP with it, both
 # small and near-MTU datagrams; recovery after kill -9 of the companion client.
@@ -61,9 +61,9 @@ annotate() {
     echo "::$1 title=$2::$msg"
 }
 
-# hashem.sh's own companion builder
+# quantum.sh's own companion builder
 for fn in backhaul_conf_transport backhaul_udp_conf; do
-    awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{" {p=1} p {print} p && /^}/ {p=0}' "$ROOT/hashem.sh"
+    awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{" {p=1} p {print} p && /^}/ {p=0}' "$ROOT/quantum.sh"
 done > "$TMP/fn.sh"
 # shellcheck disable=SC1091
 source "$TMP/fn.sh"
