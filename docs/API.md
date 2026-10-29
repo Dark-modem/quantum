@@ -149,6 +149,7 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `POST` | `/api/topologies` | session + CSRF | `handleTopologiesPost` |
 | `DELETE` | `/api/topologies/{id}` | session + CSRF | `handleTopologyDelete` |
 | `PATCH` | `/api/topologies/{id}` | session + CSRF | `handleTopologyPatch` |
+| `POST` | `/api/topologies/{id}/active` | session + CSRF | `handleTopologyPowerPost` |
 | `GET` | `/api/traffic/usage` | session | `handleUsageGet` |
 | `GET` | `/api/tunnel-health` | session | `handleTunnelHealthGet` |
 | `POST` | `/api/tunnel-health/run` | session + CSRF | `handleTunnelHealthRun` |
@@ -172,4 +173,4 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `GET` | `/topology.js` | none | `` |
 | `GET` | `/tunnel_overview.js` | none | `` |
 
-Total: 148 routes.
+Total: 149 routes.

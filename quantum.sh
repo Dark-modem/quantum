@@ -7796,6 +7796,11 @@ watchdog_test() {
 
 restart_all_lite() {
     local u
+    # A topology powered off from the panel leaves this marker behind; the
+    # scheduled watchdog restart must not silently bring those tunnels back.
+    if [[ -f /etc/gre-panel/tunnels-disabled ]]; then
+        return 0
+    fi
     # On Iran Hub (frps services exist and frpc does not):
     # NEVER blindly restart listening frps server daemons! Listening frps instances
     # do not recover broken client routes by restarting; restarting frps severs all

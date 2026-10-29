@@ -3,6 +3,11 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.24.0 — 2026-10-29
+
+- Topology rows gain a Status column and a three-dot actions menu. The pill shows the pair's health in three states — Active (green: at least one tunnel up), Down (red: every tunnel in the pair is cut) and Unknown (yellow: nothing verified yet) — and the menu holds View, Activate/Deactivate and Delete in one place instead of two always-visible buttons.
+- New `POST /api/topologies/{id}/active` connects or disconnects every tunnel assigned to the topology, best-effort per tunnel with per-tunnel results (GRE+FRP/Backhaul main and peers, Matrix instances, Bagher links, Xray links), and persists the disabled flag; the watchdog's scheduled restart honors a `tunnels-disabled` marker so a powered-off pair stays off.
+
 ## v1.23.0 — 2026-10-29
 
 - The topology links are redrawn as health beacon beams, taking the classic server view's connection strip: every tunnel is a straight horizontal beam between the two cards — a thin base wire with evenly spaced beacon dots in the tunnel's health color, a soft pulse marching along live beams, and the tunnel's name floating above on a halo. Stopped tunnels show a broken dashed wire with no dots, and the legend keeps meaning the colors.
