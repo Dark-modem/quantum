@@ -3,6 +3,11 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.17.1 — 2026-10-29
+
+- Fix a leftover bug on the Dashboard usage table: the "Unassigned tunnels" row no longer appears when it has no tunnels and no traffic. It now shows only when unassigned tunnels or nonzero unattributed usage genuinely exist, and is suppressed when grouping metadata is unavailable.
+- Keep server totals, the 7-day usage ledger and per-topology attribution across renames unchanged; extend backend and UI regression tests for the visibility rule.
+
 ## v1.17.0 — 2026-10-29
 
 - Redesign the topology overview into a clean, modern list: colored status dots beside names, uppercase column headers, subtle row hover, circular tunnel-count badges and pill-style View/Delete actions.
