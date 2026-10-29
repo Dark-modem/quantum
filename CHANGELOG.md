@@ -3,6 +3,10 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.22.7 — 2026-10-29
+
+- The add-topology step counter is fixed: tokens.css strokes every svg at 1.9px and the "1/6" text inherited that stroke, rendering fat, outlined and oversized past the ring. The ring svg and the topology map now reset the global stroke the way the cluster map always did, the counter text carries its size and stroke inline (12px, plain fill) so no inherited value can bloat it, and the ring grew to 44px to balance the header.
+
 ## v1.22.6 — 2026-10-29
 
 - The Tunnels table moved back where it belongs: inside the open topology's page, not the topology list. It lists the topology's assigned tunnels plus the unassigned ones still waiting to be attached, and stays hidden on the list view; a tunnel assigned to another topology never appears here.
