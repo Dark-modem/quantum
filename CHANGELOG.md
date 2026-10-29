@@ -3,6 +3,12 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.22.0 — 2026-10-29
+
+- Add-topology is now a 6-step wizard — role (Iran / Foreign), this server's IP, the other server's IP, the foreign country, the name, then a review — with a circular step counter ("1/6") whose arc fills as you advance, plus progress dots. Nothing is created until the final step, so entering the flow or leaving it mid-way can no longer leave an empty topology behind.
+- The wizard draft persists in localStorage: closing the modal keeps every typed value and the current step, and only a successful create clears it. Each step validates inline (valid IPv4/IPv6, distinct endpoints, a name), the review summarizes the pair, and a failed create keeps the modal open with the API error.
+- After creating, the topology detail opens with the Add-tunnel button focused — a topology becomes active once at least one tunnel is attached to it. Persian strings included for every new phrase.
+
 ## v1.21.2 — 2026-10-29
 
 - Topology list actions column tightened: the Tunnels/Actions tracks shrink (176px → 152px) and the actions header and buttons tuck 8px further into the row's end edge (left in Persian, right in English), closing the dead gap between the tunnel count and the buttons.
