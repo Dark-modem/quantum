@@ -3,6 +3,11 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.22.5 — 2026-10-29
+
+- The topology map no longer balloons: the svg used to stretch to the full content width, scaling the cards and type past 1.5x on wide screens. It now caps at 900px and centers in its well, with larger node cards and a monospaced server IP.
+- A topology without tunnels no longer shows dead grey status dots in an empty void: the empty state draws a quiet dashed placeholder cable between the pair with its "No tunnel attached yet" label, and the health dot only appears once there is a health to show.
+
 ## v1.22.4 — 2026-10-29
 
 - The topology page lists the established tunnels again: with no topology opened the Tunnels table shows every established tunnel (main, peers, Matrix, Bagher) with its live state, instead of being force-hidden until a topology was opened; opening a topology still narrows the table to that topology's assigned tunnels.
