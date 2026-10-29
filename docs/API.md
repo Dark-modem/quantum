@@ -169,5 +169,6 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `GET` | `/matrix_edit.js` | none | `` |
 | `GET` | `/metrics` | none | `handleMetrics` |
 | `GET` | `/topology.js` | none | `` |
+| `GET` | `/tunnel_overview.js` | none | `` |
 
-Total: 146 routes.
+Total: 147 routes.
