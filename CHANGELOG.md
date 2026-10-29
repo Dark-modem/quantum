@@ -3,6 +3,12 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.16.2 — 2026-10-29
+
+- Remove the Unassigned tunnels card from the topology overview and its unused UI rendering references.
+- Keep existing-tunnel attachment available inside each topology; no engine, usage ledger or grouping data is deleted.
+- Add a regression check for absent overview-card markup and retained attachment controls.
+
 ## v1.16.1 — 2026-10-29
 
 - Refuse topology deletion while any assigned tunnel is still configured, including stopped tunnels; return HTTP 409 with the remaining tunnel IDs.
