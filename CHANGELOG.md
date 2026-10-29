@@ -3,6 +3,11 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.22.10 — 2026-10-29
+
+- The topology map mirrors for Persian: the Iran (home) card sits on the reading start — the right — with the foreign server opposite, matching the RTL flow; LTR layouts keep Iran on the left. The cables are symmetric, so only the cards trade places.
+- The topology back control takes the cloud-panel pill shape: a quiet ghost pill with a short "Back to the list" label («بازگشت به لیست») and a direction-aware arrow that flips under RTL, replacing the long filled button.
+
 ## v1.22.9 — 2026-10-29
 
 - Fix the "TCP port 443 is occupied" failure when creating a Matrix tunnel: the wizard's Port field was the tinc MESH port (which must be free), not the traffic port — it is now labelled «پورت مش» with a hint, starts blank and sends 0 to auto-allocate.
