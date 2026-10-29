@@ -3,6 +3,10 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.18.1 — 2026-10-29
+
+- Fix: refreshing the page while on the Topology tab no longer kicks you back to the Dashboard. The active tab — and the selected topology, including its detail view — is now written to the URL hash and restored on load; any other tab persists the same way.
+
 ## v1.18.0 — 2026-10-29
 
 - Multi-Matrix: a server can now host several independent Matrix tunnels. Each instance gets its own tinc network, interface, key directory, mesh port and systemd unit (`matrix`, `matrix2`, … up to 16 extra); the legacy instance keeps working untouched and new instances are created only on explicit request (`instance: "next"` on the Matrix setup API). New `GET /api/matrix/instances` endpoint.
