@@ -3,6 +3,10 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.25.1 — 2026-10-30
+
+- The topology map's server cards mirror for Persian: the status dot and flag now lead from the card's right edge, the role caption, server name and IP anchor their right edge with `direction: rtl`, and the little rack moves to the opposite corner — the card reads right-to-left the way the rest of the Persian UI does.
+
 ## v1.25.0 — 2026-10-30
 
 - Add the missing bundle section to the Matrix tunnel-creation wizard, role-aware on both sides: on the Iran/hub side the wizard now ends with a bundle screen — the `hmx1_` bundle in a readonly box with a copy button and a Persian hint to paste it on the foreign server — instead of closing silently; on the foreign/node side the Matrix step becomes a paste field for the hub bundle with inline validation (must start with `hmx1_`) that pairs via `/api/matrix/foreign-setup`.
