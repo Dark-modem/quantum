@@ -3,6 +3,10 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.22.2 — 2026-10-29
+
+- Toasts now show a green life line along their bottom edge that drains over their lifetime (anchored to the reading side, so it drains right-to-left in Persian and left-to-right in English) and a × button that dismisses the toast immediately instead of waiting out the timeout.
+
 ## v1.22.1 — 2026-10-29
 
 - Deleting a tunnel now purges its usage records immediately (main, peer, Matrix instance, Xray, Bagher links and the installer paths), and deleting a topology purges its stored tunnels' usage records — nothing of a deleted entity renders again, per the rule that deletion removes all of its information.
