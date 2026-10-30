@@ -266,6 +266,23 @@ servers. Required scenarios:
 | Matrix unaffected | `quantum-matrix*` unit states identical before/after every operation |
 | Non-agent binary offered as a release | Refused by the `agent`-subcommand gate before anything is installed |
 
+### Version availability note (until v1.28.0 is published)
+
+The default `--version latest` resolves the newest **published** GitHub
+release. Because the agent runtime ships with v1.28.0, `install-agent.sh`
+against today's `latest` (v1.27.2) will refuse at the `gre-panel agent`
+subcommand gate — fail-closed by design, nothing installed. Until the
+v1.28.0 release is published, install the integrated binary explicitly:
+
+```bash
+# build or download the v1.28.0 asset, then:
+sudo bash install-agent.sh --server https://controller.example:7443/panel      --token-file /root/agent-token --binary ./gre-panel-linux-amd64
+```
+
+(or serve the new asset from a mirror via `QUANTUM_AGENT_RELEASE_BASE`).
+The verification steps are identical — the checksum manifest next to the
+local binary is still enforced when present.
+
 Latest run (disposable Ubuntu 24.04 VM with real systemd + mock controller,
 and privileged Ubuntu 26.04 container): 75/76 checks passed on 24.04 (the one
 failure was the test fixture's own startup race, not the installer), 12/12 on
