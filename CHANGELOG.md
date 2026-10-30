@@ -3,6 +3,13 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.27.2 — 2026-10-30
+
+- Prove and harden the topology Activate/Deactivate flow end to end: backend regression tests drive `POST /api/topologies/{id}/active` through the fake systemctl seam — deactivate stops the tunnel's units, persists `disabled`, and writes the tunnels-disabled watchdog marker; activate restarts them, clears the flag and removes the marker; malformed bodies 400 and unknown topologies 404.
+- Frontend tests cover the header power button and row-menu wiring: the POST body, success/partial-failure/API-failure toasts, the state reload, the icon+label pairing in the markup, and the healthy→Deactivate / down→Activate label flip.
+- The engine seam `topologyLocalStatus` (default `localStatus`) makes the main-tunnel branch testable without host binaries.
+
+
 ## v1.27.1 — 2026-10-30
 
 - Redesign the topology detail header actions: Activate, Edit and Delete now form one joined pill group with a shared sunken background and border — each button carries a matching icon plus label (the icon-only Delete gained a visible «حذف» label), accent-colored power toggle, red danger hover, and proper focus rings.
