@@ -3,6 +3,12 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.27.1 — 2026-10-30
+
+- Redesign the topology detail header actions: Activate, Edit and Delete now form one joined pill group with a shared sunken background and border — each button carries a matching icon plus label (the icon-only Delete gained a visible «حذف» label), accent-colored power toggle, red danger hover, and proper focus rings.
+- Fix the Edit button silently staying English in the Persian UI (it pointed at a missing translation key); it now uses the existing Edit/Delete translations, and the dynamic Activate/Deactivate label updates without wiping the button icon.
+
+
 ## v1.27.0 — 2026-10-30
 
 - Foreign-side tunnel creation is now bundle-only: on a foreign server the new-tunnel wizard drops the type/settings steps entirely — paste the bundle (hmx1_, hsh1_, bh1_, gh1_ or BAGHER:), the panel auto-detects the engine and shows it as a chip, a review summarizes what the bundle carried (Iran server, ports, transport, GRE IPs), and Create sends the exact request the Setup tab's join flow builds (one shared joinRequestBody helper so the two flows cannot drift; Matrix pairs via /api/matrix/foreign-setup).
