@@ -113,12 +113,13 @@ qmx RX / NIC TX and are excluded by construction). The controller derives
 byte rates from consecutive heartbeats and exposes `billable_amplification`
 (physical RX ÷ tunnel TX) on the tunnel view.
 
-**This ratio is a server-basis estimate, not a validated per-tunnel
+**This ratio is a server-wide estimate, not a Matrix-specific
 measurement.** The physical NIC counter also carries SSH, panel and probe
-traffic, so the value is an upper bound; the API labels it with
-`"basis": "server"` and reports `null` (UNKNOWN) whenever a component
-cannot be measured — the UI must present it as an estimate («برآورد در
-سطح سرور»), never as an exact Matrix number. The precise follow-up is to
+traffic, so the value says something about the whole server, not the
+tunnel; the API labels it with `"basis": "server"` and reports `null`
+(UNKNOWN) whenever the counters are unavailable or unreliable — the UI
+must present it as an estimate («برآورد در سطح سرور»), never as an exact
+Matrix number and never as a bound. The precise follow-up is to
 read the Matrix-owned `QMX_FWD` iptables byte counters (read-only,
 per-instance chains) inside the agent; until then no stronger claim is
 made. Traffic attribution never touches or flushes iptables: interface
