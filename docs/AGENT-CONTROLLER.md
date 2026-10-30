@@ -108,12 +108,32 @@ sudo journalctl -u gre-agent -f
 ### Traffic accounting
 
 On the Iran hub, **physical NIC RX is the billable direction**; the `qmx`
-interface carries the payload. The controller derives byte rates from
-consecutive heartbeats and exposes `billable_amplification`
-(physical RX ÷ tunnel TX) on the tunnel view — shown as UNKNOWN whenever a
-component cannot be measured. Traffic attribution never touches iptables:
-counters come from the kernel via `/proc/net/dev`, and Matrix's own
-firewall footprint stays inside its dedicated `QMX*` chains.
+interface carries the payload (downloads: NIC RX → qmx TX; uploads ride
+qmx RX / NIC TX and are excluded by construction). The controller derives
+byte rates from consecutive heartbeats and exposes `billable_amplification`
+(physical RX ÷ tunnel TX) on the tunnel view.
+
+**This ratio is a server-basis estimate, not a validated per-tunnel
+measurement.** The physical NIC counter also carries SSH, panel and probe
+traffic, so the value is an upper bound; the API labels it with
+`"basis": "server"` and reports `null` (UNKNOWN) whenever a component
+cannot be measured — the UI must present it as an estimate («برآورد در
+سطح سرور»), never as an exact Matrix number. The precise follow-up is to
+read the Matrix-owned `QMX_FWD` iptables byte counters (read-only,
+per-instance chains) inside the agent; until then no stronger claim is
+made. Traffic attribution never touches or flushes iptables: interface
+counters come from the kernel via `/proc/net/dev`, and Matrix's firewall
+footprint stays inside its dedicated `QMX*` chains.
+
+### Port 80 ownership behind nginx
+
+With the controller behind nginx (see CONTROLLER-INSTALL.md), nginx owns
+ports 80/443 and certificates are issued via **certbot webroot**. The
+panel's own `tls issue` path uses `certbot --standalone`, which binds :80
+transiently — it will refuse while nginx runs, by design. Either keep the
+panel's TLS listener unused on loopback (agents connect through nginx) or
+issue with webroot and copy the pair into `/etc/gre-panel/tls/`. Never run
+both issuers against port 80 at once.
 
 ## Security model
 
