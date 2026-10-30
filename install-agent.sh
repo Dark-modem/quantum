@@ -484,8 +484,11 @@ fetch_and_verify_binary() {
     [[ -n "$BIN_VERSION" ]] || die "downloaded binary does not run on this machine (wrong architecture or corrupted)."
     # The agent subcommand must exist: a binary without it falls through to
     # the full panel startup and would hang the service. `timeout` guards
-    # against exactly that — a panel boot never exits on its own.
-    if ! timeout 10 env -u GRE_PANEL_DIR "$TMP/$ASSET" agent help >/dev/null 2>&1; then
+    # against exactly that — a panel boot never exits on its own. The probe
+    # runs against a sandboxed config dir: a non-agent binary would otherwise
+    # boot the panel against the real /etc/gre-panel for up to 10s and
+    # initialize its panel.json as a side effect.
+    if ! timeout 10 env GRE_PANEL_DIR="$TMP/gate-sandbox" "$TMP/$ASSET" agent help >/dev/null 2>&1; then
         die "downloaded binary does not support 'gre-panel agent' (is this release built with the agent runtime?)."
     fi
     if [[ "$TAG" != "latest" && "$BIN_VERSION" != "$TAG" ]]; then
