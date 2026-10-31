@@ -204,6 +204,7 @@ SSH administrative bootstrap (runs after the agent service is verified):
   --ssh-port PORT     ADD this SSH port (the current port stays enabled until
                       the owner finalizes access via tools/QuantumSshKey.ps1)
   --no-ssh            Never touch SSH
+  --no-netopt         Skip the runtime's network optimization engine
   The private key never touches this server: generate it on the owner's
   workstation (tools/QuantumSshKey.ps1) and pass only the .pub file here.
 
@@ -277,6 +278,7 @@ parse_args() {
             --ssh-pubkey-file) SSH_PUBKEY_FILE="${2:-}"; shift 2 ;;
             --ssh-port)      SSH_PORT="${2:-}"; shift 2 ;;
             --no-ssh)        SSH_SKIP=1; shift ;;
+            --no-netopt)     export GRE_NO_NETOPT=1; shift ;;
             --help|-h)       usage ;;
             *) err "unknown option: $1"; usage ;;
         esac
@@ -846,7 +848,6 @@ main() {
     phase "server preparation"
     q_check_resources 512 2048
     q_ensure_timesync
-    netopt_prepare_server agent
 
     TMP="$(mktemp -d /tmp/quantum-agent.XXXXXX)"
     chmod 700 "$TMP"
@@ -889,6 +890,10 @@ main() {
     fi
 
     maybe_ssh_bootstrap
+
+    # Network optimization via the runtime's netopt engine (Session 2) —
+    # only now does the verified binary exist to measure and tune with.
+    netopt_prepare_server agent "$BIN"
 
     write_marker
     show_status
