@@ -223,29 +223,43 @@ fw_allow_port() {
 # binary under test is the one doing the tuning.
 # GRE_NO_NETOPT=1 (or the installers' --no-netopt) skips the engine entirely.
 netopt_prepare_server() { # netopt_prepare_server <role: controller|agent> [binary]
-    local role="$1" bin="${2:-/usr/local/bin/gre-panel}"
+    local role="$1" bin="${2:-/usr/local/bin/gre-panel}" out rc=0
     if [[ "${GRE_NO_NETOPT:-0}" == "1" ]]; then
         q_info "Network optimization skipped (--no-netopt)." "بهینه‌سازی شبکه رد شد."
         return 0
     fi
-    if [[ ! -x "$bin" ]] || ! env -u GRE_PANEL_DIR "$bin" netopt detect >/dev/null 2>&1; then
+    # Presence check: the subcommand's usage output. Captured (not piped into
+    # grep) so pipefail cannot turn the engine's own exit code into a false
+    # "engine missing".
+    local probe
+    probe="$(env -u GRE_PANEL_DIR "$bin" netopt 2>&1 || true)"
+    if [[ ! -x "$bin" ]] || [[ "$probe" != *"Usage: gre-panel netopt"* ]]; then
         q_warn "netopt engine not available in this runtime build; no tuning was applied." \
                "موتور بهینه‌سازی در این بیلد موجود نیست؛ هیچ تنظیمی اعمال نشد."
         return 0
     fi
     q_info "Network optimization engine detected — measuring this host." "موتور بهینه‌سازی شناسایی شد — اندازه‌گیری میزبان."
-    if env -u GRE_PANEL_DIR "$bin" netopt plan --role "$role" --justify "quantum-installer:server-preparation"; then
-        if env -u GRE_PANEL_DIR "$bin" netopt apply --role "$role" --justify "quantum-installer:server-preparation"; then
-            env -u GRE_PANEL_DIR "$bin" netopt status || true
-            q_ok "Network optimization applied and owned by the netopt engine (rollback: gre-panel netopt rollback)." \
-                 "بهینه‌سازی اعمال شد؛ بازگردانی: gre-panel netopt rollback"
-            return 0
-        fi
-        q_warn "netopt apply failed; tuning left untouched (no sysctl was changed by the installer)." \
-               "اعمال بهینه‌سازی ناموفق بود؛ هیچ تغییری اعمال نشد."
+    out="$(env -u GRE_PANEL_DIR "$bin" netopt plan --role "$role" --justify "quantum-installer:server-preparation" 2>&1)" || rc=$?
+    printf '%s\n' "$out"
+    if [[ $rc -ne 0 ]]; then
+        # Measure-first policy: the engine refuses on hosts with unreadable
+        # facts (some virtualizations). That is the engine working, not a
+        # wiring failure — and the installer never tunes by itself.
+        q_warn "netopt declined to plan on this host (rc=$rc); no tuning applied." \
+               "موتور به دلیل نبود اطلاعات سخت‌افزاری از طراحی سر باز زد؛ تنظیمی اعمال نشد."
         return 0
     fi
-    q_warn "netopt plan failed; tuning left untouched." "طرح بهینه‌سازی ناموفق بود؛ تغییری اعمال نشد."
+    rc=0
+    out="$(env -u GRE_PANEL_DIR "$bin" netopt apply --role "$role" --justify "quantum-installer:server-preparation" 2>&1)" || rc=$?
+    printf '%s\n' "$out"
+    if [[ $rc -eq 0 ]]; then
+        env -u GRE_PANEL_DIR "$bin" netopt status || true
+        q_ok "Network optimization applied and owned by the netopt engine (rollback: gre-panel netopt rollback)." \
+             "بهینه‌سازی اعمال شد؛ بازگردانی: gre-panel netopt rollback"
+    else
+        q_warn "netopt apply failed (rc=$rc); no tuning applied by the installer." \
+               "اعمال بهینه‌سازی ناموفق بود؛ نصاب خودش هیچ تنظیمی نمی‌کند."
+    fi
     return 0
 }
 
@@ -363,6 +377,7 @@ ssh_configure_port() {
 # On failure the just-written drop-in is removed so no later restart inherits
 # a broken configuration.
 ssh_validate() {
+    install -d -m 0755 /run/sshd   # privilege separation dir: absent on minimal/container hosts
     if sshd -t 2>/tmp/q-sshd-err; then
         q_ok "sshd configuration validates." "پیکربندی sshd معتبر است."
         return 0
@@ -410,6 +425,7 @@ ssh_apply() {
     if ssh_socket_active; then
         q_info "SSH is socket-activated; migrating to the traditional daemon so the port change takes effect." "SSH در حالت سوکت است؛ برای اعمال تغییر پورت به سرویس سنتی منتقل می‌شود."
         systemctl disable --now ssh.socket >/dev/null 2>&1 || true
+        install -d -m 0755 /run/sshd   # the traditional daemon needs it at start
         systemctl enable ssh.service >/dev/null 2>&1 || true
         systemctl restart ssh.service 2>/dev/null || {
             q_warn "could not start traditional sshd; restoring the socket." "اجرای سنتی ناموفق بود؛ سوکت بازگردانده می‌شود."
