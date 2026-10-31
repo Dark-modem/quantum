@@ -26,6 +26,17 @@
 ###############################################################################
 set -euo pipefail
 
+# Shared installer helpers (bilingual output, additive firewall interface,
+# SSH bootstrap, server preparation). Resolved next to this script.
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$LIB_DIR/installer-lib.sh" ]]; then
+    # shellcheck source=installer-lib.sh
+    source "$LIB_DIR/installer-lib.sh"
+else
+    printf 'Error: installer-lib.sh must sit next to %s.\n' "$0" >&2
+    exit 1
+fi
+
 ###############################################################################
 # Constants
 ###############################################################################
@@ -57,6 +68,14 @@ DRY_RUN=0
 UNINSTALL=0
 VERIFY_TLS=0
 ASSUME_YES=0
+
+# SSH bootstrap options (server preparation; same shared implementation as
+# install-agent.sh; default: skipped unless options are given)
+SSH_USER=""
+SSH_PUBKEY=""
+SSH_PUBKEY_FILE=""
+SSH_PORT=""
+SSH_SKIP=0
 
 # Values parsed from panel.json (Phase 0)
 PANEL_PORT="7777"
@@ -740,19 +759,11 @@ EOF
 open_firewall() {
     phase "Phase 4/4: Firewall (additive only)"
     local port rc
-    if have ufw && ufw status 2>/dev/null | grep -q "Status: active"; then
+    if fw_available; then
         for port in 80 443; do
-            if ! ufw status | grep -qE "^${port}/tcp\s+ALLOW"; then
-                ufw allow "${port}/tcp" comment 'Quantum controller' >/dev/null
-                ok "ufw: allowed ${port}/tcp (existing rules untouched)"
-            else
-                ok "ufw: ${port}/tcp already allowed"
-            fi
+            fw_allow_port controller "web-$port" "$port" tcp
         done
-    else
-        info "ufw not active — skipping ufw rules"
-    fi
-    if have iptables; then
+    elif have iptables; then
         for port in 80 443; do
             rc=0
             if ! iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null; then
@@ -764,7 +775,7 @@ open_firewall() {
             [[ $rc -eq 0 ]] && ok "iptables: INPUT tcp/${port} ACCEPT ensured"
         done
     else
-        warn "iptables not installed — skipped (ufw covers the common case)"
+        warn "neither ufw nor iptables available — skipped (enforcement is owned by the firewall engine)"
     fi
     printf '%sExisting firewall rules were not modified except the allow rules above.%s\n' "$C_BOLD" "$C_OFF"
 }
@@ -911,150 +922,40 @@ parse_args() {
             --force-dns)  FORCE_DNS=1; shift ;;
             --dry-run)    DRY_RUN=1; shift ;;
             --uninstall)  UNINSTALL=1; shift ;;
-            --bootstrap-controller) BOOT=1; shift ;;
-            --binary)     BOOT_BINARY="${2:-}"; shift 2 ;;
-            --http-port)  BOOT_HTTP="${2:-}"; shift 2 ;;
+            --ssh-user)   SSH_USER="${2:-}"; shift 2 ;;
+            --ssh-pubkey) SSH_PUBKEY="${2:-}"; shift 2 ;;
+            --ssh-pubkey-file) SSH_PUBKEY_FILE="${2:-}"; shift 2 ;;
+            --ssh-port)   SSH_PORT="${2:-}"; shift 2 ;;
+            --no-ssh)     SSH_SKIP=1; shift ;;
             -y|--yes)     ASSUME_YES=1; shift ;;
             -h|--help)    usage ;;
             *) die "unknown option: $1 (see --help)" ;;
         esac
     done
     DOMAIN="${DOMAIN:-}" EMAIL="${EMAIL:-}"
-    BOOT_BINARY="${BOOT_BINARY:-}"
-    BOOT_HTTP="${BOOT_HTTP:-17777}"
 }
 
-###############################################################################
-# Minimal standalone controller bootstrap (P0 lab path)
-#
-# Installs a FRESH, ISOLATED Quantum panel instance (own config dir, own
-# ports, own systemd unit) for validating the Controller/Agent architecture
-# on a disposable machine — coexisting with any existing panel installation.
-# Deliberately minimal: no nginx, no certbot, no domain. TLS comes from the
-# panel's own tls-ip mode (local CA + IP-SAN cert) whose CA the operator
-# distributes to the endpoints' system trust store.
-###############################################################################
-BOOT_DIR="/etc/gre-panel-lab"
-BOOT_CRED="/root/.quantum-lab-credentials"
-BOOT_UNIT="quantum-controller-lab.service"
-BOOT_BIN="/usr/local/bin/gre-panel-lab"
-
-bootstrap_controller() {
-    [[ $EUID -eq 0 ]] || die "--bootstrap-controller must run as root"
-    [[ -n "$BOOT_BINARY" ]] || die "--bootstrap-controller needs --binary <gre-panel binary for this host's architecture>"
-    [[ -f "$BOOT_BINARY" ]] || die "binary not found: $BOOT_BINARY"
-    [[ "$BOOT_HTTP" =~ ^[0-9]+$ ]] || die "--http-port must be numeric"
-    have openssl || die "openssl is required for credential generation"
-    have python3 || die "python3 is required for config editing"
-
-    phase "bootstrap 1/5: binary"
-    if [[ -x "$BOOT_BIN" ]]; then
-        local cur new
-        cur="$(sha256sum "$BOOT_BIN" | cut -d' ' -f1)"
-        new="$(sha256sum "$BOOT_BINARY" | cut -d' ' -f1)"
-        if [[ "$cur" == "$new" ]]; then
-            ok "lab binary already current ($cur)"
+# maybe_ssh_bootstrap (controller variant of the shared opt-in flow)
+maybe_ssh_bootstrap() {
+    local role="$1"
+    [[ $SSH_SKIP -eq 1 ]] && return 0
+    Q_ASSUME_YES=$ASSUME_YES
+    if [[ -n "$SSH_PUBKEY_FILE" ]]; then
+        [[ -f "$SSH_PUBKEY_FILE" ]] || die "SSH public key file not found: $SSH_PUBKEY_FILE"
+        SSH_PUBKEY="$(tr -d '\r' < "$SSH_PUBKEY_FILE" | head -n1)"
+    fi
+    if [[ -z "$SSH_PUBKEY" && -z "$SSH_PORT" && -z "$SSH_USER" ]]; then
+        if [[ -t 0 && $ASSUME_YES -eq 0 ]]; then
+            q_confirm "Prepare SSH administrative access now? (existing port and password stay enabled)" \
+                      "آماده‌سازی دسترسی SSH اکنون انجام شود؟" || return 0
         else
-            install -m 0755 "$BOOT_BINARY" "$BOOT_BIN.new" && mv -f "$BOOT_BIN.new" "$BOOT_BIN"
-            ok "lab binary replaced (was $cur)"
+            return 0
         fi
-    else
-        install -m 0755 "$BOOT_BINARY" "$BOOT_BIN"
-        ok "lab binary installed: $BOOT_BIN ($(sha256sum "$BOOT_BIN" | cut -d' ' -f1))"
     fi
-
-    phase "bootstrap 2/5: fresh isolated config"
-    if [[ -f "$BOOT_DIR/panel.json" ]]; then
-        warn "existing lab config kept (idempotent re-run): $BOOT_DIR"
-    else
-        mkdir -p "$BOOT_DIR" && chmod 0700 "$BOOT_DIR"
-        local pw
-        pw="$(openssl rand -hex 12)"
-        if ! GRE_PANEL_DIR="$BOOT_DIR" GRE_PANEL_PASSWORD="$pw" "$BOOT_BIN" password "$pw" >/dev/null 2>&1; then
-            GRE_PANEL_DIR="$BOOT_DIR" GRE_PANEL_PASSWORD="$pw" "$BOOT_BIN" password "$pw" 2>&1 | tail -3
-            die "could not initialize the lab panel config"
-        fi
-        umask 077
-        printf 'username=admin
-password=%s
-http_port=%s
-tls_port=7443
-' "$pw" "$BOOT_HTTP" > "$BOOT_CRED"
-        chmod 0600 "$BOOT_CRED"
-        unset pw
-        ok "fresh config initialized; credentials (root-only) at $BOOT_CRED"
+    if ! ssh_bootstrap "$role" "${SSH_USER:-$Q_SSH_USER_DEFAULT}" "$SSH_PUBKEY" "$SSH_PORT"; then
+        warn "SSH bootstrap failed; the controller installation itself is complete and untouched." \
+             "راه‌اندازی SSH ناموفق بود؛ اما نصب کنترلر کامل و سالم است."
     fi
-    python3 - "$BOOT_DIR/panel.json" "$BOOT_HTTP" <<'PY'
-import json,sys
-p,http=sys.argv[1],int(sys.argv[2])
-d=json.load(open(p))
-d['port']=http; d['tls_port']=7443
-d.setdefault('base_path','lab')
-json.dump(d,open(p,'w'),indent=1)
-PY
-    chmod 0600 "$BOOT_DIR/panel.json"
-    local base
-    base="$(python3 -c "import json;print(json.load(open('$BOOT_DIR/panel.json')).get('base_path','lab'))")"
-    ok "ports: http $BOOT_HTTP, tls 7443, base path /$base"
-
-    phase "bootstrap 3/5: systemd unit (isolated instance)"
-    cat > "/etc/systemd/system/$BOOT_UNIT" <<EOF
-[Unit]
-Description=Quantum Lab Controller (isolated instance)
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-Environment=GRE_PANEL_DIR=$BOOT_DIR
-ExecStart=$BOOT_BIN
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    systemctl daemon-reload
-    systemctl enable --now "$BOOT_UNIT" 2>/dev/null || systemctl restart "$BOOT_UNIT"
-    sleep 2
-    systemctl is-active --quiet "$BOOT_UNIT" || { journalctl -u "$BOOT_UNIT" -n 10 --no-pager | tail -5; die "lab controller failed to start"; }
-    ok "$BOOT_UNIT active (coexists with any existing gre-panel.service)"
-
-    phase "bootstrap 4/5: TLS via the panel's tls-ip mode"
-    local ip
-    ip="$(ip -4 route get 1.1.1.1 2>/dev/null | grep -oP 'src \K[\d.]+' | head -1)"
-    if [[ -z "$ip" ]]; then
-        ip="$(ip -4 addr show scope global 2>/dev/null | grep -oP 'inet \K[\d.]+' | head -1)"
-    fi
-    [[ -n "$ip" ]] || die "cannot detect this server's public IPv4 for the certificate SAN"
-    if GRE_PANEL_DIR="$BOOT_DIR" "$BOOT_BIN" tls ip "$ip" >/dev/null 2>&1; then
-        systemctl restart "$BOOT_UNIT"   # the CLI issues files; the restart serves them
-        sleep 2
-        ok "TLS ready: local CA + IP-SAN certificate for $ip (7443)"
-        echo "$ip" > "$BOOT_DIR/tls-ip"
-    else
-        die "tls-ip issuance failed (see journalctl -u $BOOT_UNIT)"
-    fi
-
-    phase "bootstrap 5/5: verification"
-    local okc=0
-    for i in 1 2 3 4 5 6 7 8; do
-        if curl -sk --max-time 4 "https://127.0.0.1:7443/$base/api/health" | grep -q '"status":"ok"'; then okc=1; break; fi
-        sleep 2
-    done
-    [[ $okc -eq 1 ]] || die "HTTPS health check failed on 7443"
-    ok "HTTPS health OK: https://$ip:7443/$base/"
-    printf '
-%s=== Lab controller ready ===%s
-' "$C_BOLD" "$C_OFF"
-    printf 'Controller URL (agents):  https://%s:7443/%s
-' "$ip" "$base"
-    printf 'Dashboard:                https://%s:7443/%s/  (admin; credentials: %s)
-' "$ip" "$base" "$BOOT_CRED"
-    printf 'CA to trust on endpoints: %s/quantum-ca.crt  (install into /usr/local/share/ca-certificates/ + update-ca-certificates)
-' "$BOOT_DIR/tls"
-    printf 'Logs:                     journalctl -u %s -f
-' "$BOOT_UNIT"
 }
 
 main() {
@@ -1067,17 +968,17 @@ main() {
         exit 0
     fi
 
-    if [[ ${BOOT:-0} -eq 1 ]]; then
-        bootstrap_controller
-        exit 0
-    fi
-
     preflight_root_os
     preflight_panel
     validate_domain
     preflight_dns
     preflight_ports
     preflight_backup
+
+    phase "Server preparation"
+    q_check_resources 1024 2048
+    q_ensure_timesync
+    netopt_prepare_server controller
 
     if [[ $DRY_RUN -eq 1 ]]; then
         print_plan
@@ -1089,6 +990,7 @@ main() {
     write_proxy_site
     phase4_verify_privacy
     open_firewall
+    maybe_ssh_bootstrap controller
 
     mkdir -p "$MARKER_DIR"
     printf 'DOMAIN=%s\nINSTALLED=%s\n' "$DOMAIN" "$TS" > "$MARKER_FILE"
