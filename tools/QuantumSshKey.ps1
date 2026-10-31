@@ -57,6 +57,13 @@ function Get-QsshTool([string]$Name) {
 
 function Get-QsshKeyPath([string]$Label) {
     if (-not $Label) { throw "-Label is required." }
+    # Session 4 review (SSH-1): the label becomes a filename here and a key
+    # comment that is later transported to the server — both are safe only
+    # for a strict character set. No path separators, no quotes, no shell
+    # metacharacters.
+    if ($Label -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$') {
+        throw "-Label must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ (letters, digits, dot, dash, underscore; max 64)."
+    }
     Join-Path $KeyDir ("{0}_ed25519" -f $Label)
 }
 
@@ -105,11 +112,22 @@ function Add-QuantumSshKey {
     if (-not $HostName -or -not $User) { throw "-HostName and -User are required." }
     $ssh = Get-QsshTool 'ssh'
     $pub = (Get-Content (Get-QsshKeyPath $Label + '.pub') -Raw).Trim()
+    # Session 4 review (SSH-1): the public key is transported base64-encoded
+    # and decoded on the server — the key text (including its comment) never
+    # passes through remote shell quoting, so a crafted comment cannot break
+    # out into server-side command execution. The remote script itself is a
+    # fixed string.
+    $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($pub))
     # The owner's EXISTING access is used here; ssh prompts for the password
-    # itself and nothing is stored. The remote append is idempotent.
+    # itself and nothing is stored. The remote append is idempotent. Base64 is
+    # shell-safe ([A-Za-z0-9+/=]), so the key text is decoded once into a
+    # remote variable and always used double-quoted — nothing interpolatable
+    # ever reaches the remote shell.
     $remote = "mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && " +
-              "chmod 600 ~/.ssh/authorized_keys && grep -qxF '$pub' ~/.ssh/authorized_keys || " +
-              "echo '$pub' >> ~/.ssh/authorized_keys"
+              "chmod 600 ~/.ssh/authorized_keys && " +
+              "decoded=`$(printf %s $b64 | base64 -d) && " +
+              "grep -qxF `"`$decoded`" ~/.ssh/authorized_keys 2>/dev/null || " +
+              "printf '%s\n' `"`$decoded`" >> ~/.ssh/authorized_keys"
     & $ssh -o ConnectTimeout=10 -p $Port "$User@$HostName" $remote
     if ($LASTEXITCODE -ne 0) { throw "Provisioning failed (existing access rejected?)." }
     Write-Host "[ok] Public key installed on $HostName for $User." -ForegroundColor Green
