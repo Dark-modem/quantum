@@ -1022,7 +1022,10 @@ EOF
 
     phase "bootstrap 4/5: TLS via the panel's tls-ip mode"
     local ip
-    ip="$(ip -4 -j addr show scope global 2>/dev/null | python3 -c 'import json,sys;print(next((a.split("/")[0] for d in json.load(sys.stdin) for a in d.get("addr_info",[]) if a.get("scope")=="global"),""))' 2>/dev/null || true)"
+    ip="$(ip -4 route get 1.1.1.1 2>/dev/null | grep -oP 'src \K[\d.]+' | head -1)"
+    if [[ -z "$ip" ]]; then
+        ip="$(ip -4 addr show scope global 2>/dev/null | grep -oP 'inet \K[\d.]+' | head -1)"
+    fi
     [[ -n "$ip" ]] || die "cannot detect this server's public IPv4 for the certificate SAN"
     if GRE_PANEL_DIR="$BOOT_DIR" "$BOOT_BIN" tls ip "$ip" >/dev/null 2>&1; then
         ok "TLS ready: local CA + IP-SAN certificate for $ip (7443)"
