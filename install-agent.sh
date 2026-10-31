@@ -47,8 +47,8 @@ if [[ -f "$LIB_DIR/installer-lib.sh" ]]; then
     # shellcheck source=installer-lib.sh
     source "$LIB_DIR/installer-lib.sh"
 else
-    LIB_COMMIT="S6_LIB_PIN_COMMIT"
-    LIB_SHA256="S6_LIB_PIN_SHA256"
+    LIB_COMMIT="31ad02023dfee87db37536c4321743cfc368964f"
+    LIB_SHA256="565b9033f93a59f0c234bf06844319d8288807a74d2e953ca129a3a35379d807"
     LIB_URL="https://raw.githubusercontent.com/Dark-modem/quantum/${LIB_COMMIT}/installer-lib.sh"
     TMP_LIB="$(mktemp)"
     chmod 600 "$TMP_LIB"
