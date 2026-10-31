@@ -591,10 +591,13 @@ ssh_bootstrap() {
         q_ssh_rollback_fw
         return 1
     fi
-    if [[ -n "$new_port" ]] && ! ssh_verify_listening "$new_port"; then
-        q_err "the new SSH port $new_port is NOT listening; existing access is untouched." "پورت جدید باز نشد؛ دسترسی قبلی سالم است."
-        q_ssh_rollback_fw
-        return 1
+    if [[ -n "$new_port" ]]; then
+        # the HUP re-exec rebinds asynchronously — short grace window
+        SSH_LISTEN_TRIES=6 ssh_verify_listening "$new_port" || {
+            q_err "the new SSH port $new_port is NOT listening; existing access is untouched." "پورت جدید باز نشد؛ دسترسی قبلی سالم است."
+            q_ssh_rollback_fw
+            return 1
+        }
     fi
     ssh_stage_finalize "$new_port"
     ssh_print_handoff "$user" "${new_port:-22}" "$role"
