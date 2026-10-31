@@ -215,13 +215,53 @@ fw_allow_port() {
 # ---------------------------------------------------------------------------
 # 5. Network optimization interface — Session 2 integration point (stub)
 # ---------------------------------------------------------------------------
-# Session 2's network optimization engine owns sysctl/tuning. This installer
-# MUST NOT touch sysctl, NIC offloads or kernel parameters. The single hook
-# below is where that engine can be invoked later; today it is a no-op so
-# both installers have a stable call site.
-netopt_prepare_server() { # netopt_prepare_server <role>
-    q_info "Network optimization: delegated to the network engine (no sysctl changes here)." "بهینه‌سازی شبکه به موتور اختصاصی واگذار شده است (بدون تغییر sysctl)."
+# Session 2's network optimization engine lives in the runtime:
+#   gre-panel netopt {detect,plan,apply,status,rollback,revert,apply-nic}
+# The installer NEVER touches sysctl itself — it only invokes the engine for
+# this role. On pre-engine binaries the hook degrades to an explicit warning,
+# never a silent no-op. Called AFTER the role's service is verified, so the
+# binary under test is the one doing the tuning.
+# GRE_NO_NETOPT=1 (or the installers' --no-netopt) skips the engine entirely.
+netopt_prepare_server() { # netopt_prepare_server <role: controller|agent> [binary]
+    local role="$1" bin="${2:-/usr/local/bin/gre-panel}"
+    if [[ "${GRE_NO_NETOPT:-0}" == "1" ]]; then
+        q_info "Network optimization skipped (--no-netopt)." "بهینه‌سازی شبکه رد شد."
+        return 0
+    fi
+    if [[ ! -x "$bin" ]] || ! env -u GRE_PANEL_DIR "$bin" netopt detect >/dev/null 2>&1; then
+        q_warn "netopt engine not available in this runtime build; no tuning was applied." \
+               "موتور بهینه‌سازی در این بیلد موجود نیست؛ هیچ تنظیمی اعمال نشد."
+        return 0
+    fi
+    q_info "Network optimization engine detected — measuring this host." "موتور بهینه‌سازی شناسایی شد — اندازه‌گیری میزبان."
+    if env -u GRE_PANEL_DIR "$bin" netopt plan --role "$role" --justify "quantum-installer:server-preparation"; then
+        if env -u GRE_PANEL_DIR "$bin" netopt apply --role "$role" --justify "quantum-installer:server-preparation"; then
+            env -u GRE_PANEL_DIR "$bin" netopt status || true
+            q_ok "Network optimization applied and owned by the netopt engine (rollback: gre-panel netopt rollback)." \
+                 "بهینه‌سازی اعمال شد؛ بازگردانی: gre-panel netopt rollback"
+            return 0
+        fi
+        q_warn "netopt apply failed; tuning left untouched (no sysctl was changed by the installer)." \
+               "اعمال بهینه‌سازی ناموفق بود؛ هیچ تغییری اعمال نشد."
+        return 0
+    fi
+    q_warn "netopt plan failed; tuning left untouched." "طرح بهینه‌سازی ناموفق بود؛ تغییری اعمال نشد."
     return 0
+}
+
+# ---------------------------------------------------------------------------
+# 5b. Firewall engine readiness (Session 1 integration point)
+# ---------------------------------------------------------------------------
+# Session 1's engine ships as runtime Go code (fwPlanAddOwner/fwApply/
+# fwTeardownOwner + the QUANTUM_FW chain and quantum:<owner> tags). Until the
+# runtime exposes a firewall CLI, the installer keeps its ufw path — which
+# already conforms to the engine's contract (additive-only, ownership
+# comments, no forbidden operations) — and records the engine's registry file
+# when present. fw_engine_available reports honestly what the installer can
+# drive TODAY.
+fw_engine_available() { # 0 only when the runtime exposes a firewall CLI
+    local bin="${1:-/usr/local/bin/gre-panel}"
+    [[ -x "$bin" ]] && env -u GRE_PANEL_DIR "$bin" firewall --help >/dev/null 2>&1
 }
 
 # ---------------------------------------------------------------------------

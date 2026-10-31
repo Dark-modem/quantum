@@ -930,6 +930,7 @@ parse_args() {
             --ssh-pubkey-file) SSH_PUBKEY_FILE="${2:-}"; shift 2 ;;
             --ssh-port)   SSH_PORT="${2:-}"; shift 2 ;;
             --no-ssh)     SSH_SKIP=1; shift ;;
+            --no-netopt)  export GRE_NO_NETOPT=1; shift ;;
             -y|--yes)     ASSUME_YES=1; shift ;;
             -h|--help)    usage ;;
             *) die "unknown option: $1 (see --help)" ;;
@@ -1122,7 +1123,6 @@ main() {
     phase "Server preparation"
     q_check_resources 1024 2048
     q_ensure_timesync
-    netopt_prepare_server controller
 
     if [[ $DRY_RUN -eq 1 ]]; then
         print_plan
@@ -1135,6 +1135,9 @@ main() {
     phase4_verify_privacy
     open_firewall
     maybe_ssh_bootstrap controller
+
+    # Network optimization via the runtime's netopt engine (Session 2).
+    netopt_prepare_server controller "$PANEL_BIN"
 
     mkdir -p "$MARKER_DIR"
     printf 'DOMAIN=%s\nINSTALLED=%s\n' "$DOMAIN" "$TS" > "$MARKER_FILE"
