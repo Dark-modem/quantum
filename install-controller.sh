@@ -1028,6 +1028,8 @@ EOF
     fi
     [[ -n "$ip" ]] || die "cannot detect this server's public IPv4 for the certificate SAN"
     if GRE_PANEL_DIR="$BOOT_DIR" "$BOOT_BIN" tls ip "$ip" >/dev/null 2>&1; then
+        systemctl restart "$BOOT_UNIT"   # the CLI issues files; the restart serves them
+        sleep 2
         ok "TLS ready: local CA + IP-SAN certificate for $ip (7443)"
         echo "$ip" > "$BOOT_DIR/tls-ip"
     else
