@@ -212,6 +212,29 @@ fw_allow_port() {
     return 0
 }
 
+# fw_remove_port <role> <name> <port> <proto> : remove exactly the rule that
+# fw_allow_port added (same ownership tag) — the additive-rollback counterpart.
+# Used when an SSH bootstrap fails after opening its own door, so a failed run
+# never leaves a firewall door behind. The tag is the match key: rules this
+# installer does not own are never touched.
+fw_remove_port() {
+    local role="$1" name="$2" port="$3" proto="${4:-tcp}" tag
+    tag="quantum:$role:$name"
+    fw_available || return 0
+    if q_have ufw && [[ "$(ufw status 2>/dev/null | awk '/^Status:/ {print $2}')" == "active" ]]; then
+        ufw status 2>/dev/null | grep -qF "$tag" || return 0
+        ufw delete allow "$port/$proto" >/dev/null 2>&1 || true
+        q_info "Firewall rule removed (additive rollback): $tag $port/$proto." "قانون فایروال حذف شد (بازگردانی افزودنی)."
+        return 0
+    fi
+    if q_have iptables; then
+        iptables -C INPUT -p "$proto" --dport "$port" -m comment --comment "$tag" -j ACCEPT 2>/dev/null || return 0
+        iptables -D INPUT -p "$proto" --dport "$port" -m comment --comment "$tag" -j ACCEPT >/dev/null 2>&1 || true
+        q_info "Firewall rule removed (additive rollback): $tag $port/$proto." "قانون فایروال حذف شد (بازگردانی افزودنی)."
+    fi
+    return 0
+}
+
 # ---------------------------------------------------------------------------
 # 5. Network optimization interface — Session 2 integration point (stub)
 # ---------------------------------------------------------------------------
@@ -457,7 +480,7 @@ ssh_apply() {
 # pre-existing port(s) from the QUANTUM drop-in only — never the main config,
 # never other drop-ins, never the new port.
 ssh_stage_finalize() {
-    local new_port="$1"
+    local new_port="${1:-}"
     q_write_atomic "$Q_SSH_FINALIZE_BIN" <<EOF
 #!/bin/bash
 # quantum-ssh-finalize — step 10 of the owner's sequence. Run it through the
@@ -466,12 +489,28 @@ ssh_stage_finalize() {
 set -euo pipefail
 [[ \${1:-} == "--yes" ]] || { echo "refusing: pass --yes after you have logged in through the NEW port and key"; exit 2; }
 DROPIN="$Q_SSH_DROPIN"
-NEW_PORT="$new_port"
+NEW_PORT="${new_port:-22}"
+# Port guard applied only when this bootstrap ADDED a dedicated new port;
+# a pubkey-only bootstrap must not demand a session on port 22.
+ENFORCE_PORT_GUARD="${new_port:+1}"
 [[ -f "\$DROPIN" ]] || { echo "no quantum ssh drop-in found; nothing to do"; exit 1; }
+# Technical proven-access guard (Session 4 review SSH-2): when invoked over
+# SSH, the session must have arrived on the NEW port. Console sessions (no
+# SSH_CONNECTION) are allowed — the owner is physically present.
+if [[ "\$ENFORCE_PORT_GUARD" == "1" && -n "\${SSH_CONNECTION:-}" ]]; then
+    SESSION_PORT="\$(printf '%s' "\$SSH_CONNECTION" | awk '{print \$4}')"
+    if [[ "\$SESSION_PORT" != "\$NEW_PORT" ]]; then
+        echo "refusing: this SSH session arrived on port \$SESSION_PORT, not the new port \$NEW_PORT." >&2
+        echo "Log in through the new port and key first, then re-run this command." >&2
+        exit 3
+    fi
+fi
 cp -a "\$DROPIN" "\$DROPIN.pre-finalize"
-# keep the quantum port; drop every other Port line this drop-in added
-awk -v keep="Port \$NEW_PORT" '
-    /^[[:space:]]*Port[[:space:]]/ { if (\$0 !~ keep) next }
+# keep the quantum port; drop every other Port line this drop-in added.
+# Anchored match (Session 4 review SSH-4): "^Port 2222\$" must not also keep
+# "Port 22221".
+awk -v port="\$NEW_PORT" '
+    /^[[:space:]]*Port[[:space:]]/ { if (\$0 !~ ("^Port " port "\$")) next }
     { print }' "\$DROPIN" > "\$DROPIN.tmp"
 printf '# Password authentication disabled by quantum-ssh-finalize (owner-requested).\nPasswordAuthentication no\nKbdInteractiveAuthentication no\n' >> "\$DROPIN.tmp"
 mv -f "\$DROPIN.tmp" "\$DROPIN"
@@ -518,8 +557,16 @@ ssh_print_handoff() {
 # ssh_bootstrap ROLE USER PUBKEY NEWPORT : steps 3-8 (server side). Pubkey
 # may be empty to manage only the port. Returns non-zero only if validation
 # or reload failed (caller decides whether to abort the installation).
+# Firewall rollback (Session 4 review SSH-3): when this call itself added the
+# ssh-alt rule, any failure path removes it again — a failed bootstrap never
+# leaves a firewall door it opened. A rule that already existed is left alone.
 ssh_bootstrap() {
     local role="$1" user="$2" pubkey="$3" new_port="$4"
+    local fw_ours=0
+    q_ssh_rollback_fw() {
+        [[ $fw_ours -eq 1 ]] && fw_remove_port "$role" "ssh-alt" "$new_port" tcp
+        return 0
+    }
     q_phase "SSH administrative bootstrap (steps 3-8)" "راه‌اندازی دسترسی مدیریتی SSH (مراحل ۳ تا ۸)"
     q_require_root
     ssh_prepare_account "$user"
@@ -529,16 +576,27 @@ ssh_bootstrap() {
         q_warn "no public key provided; the account is created but keyless (install a key before finalizing)." "کلید عمومی داده نشد؛ بعداً کلید را نصب کنید."
     fi
     if [[ -n "$new_port" ]]; then
-        ssh_configure_port "$new_port" || return 1
+        fw_has_rule "$role" "ssh-alt" tcp "$new_port" || fw_ours=1
+        if ! ssh_configure_port "$new_port"; then
+            q_ssh_rollback_fw
+            return 1
+        fi
         fw_allow_port "$role" "ssh-alt" "$new_port" tcp limit
     fi
-    ssh_validate || return 1
-    ssh_apply || return 1
-    if [[ -n "$new_port" ]] && ! ssh_verify_listening "$new_port"; then
-        q_err "the new SSH port $new_port is NOT listening; existing access is untouched." "پورت جدید باز نشد؛ دسترسی قبلی سالم است."
+    if ! ssh_validate; then
+        q_ssh_rollback_fw
         return 1
     fi
-    ssh_stage_finalize "${new_port:-22}"
+    if ! ssh_apply; then
+        q_ssh_rollback_fw
+        return 1
+    fi
+    if [[ -n "$new_port" ]] && ! ssh_verify_listening "$new_port"; then
+        q_err "the new SSH port $new_port is NOT listening; existing access is untouched." "پورت جدید باز نشد؛ دسترسی قبلی سالم است."
+        q_ssh_rollback_fw
+        return 1
+    fi
+    ssh_stage_finalize "$new_port"
     ssh_print_handoff "$user" "${new_port:-22}" "$role"
     return 0
 }
