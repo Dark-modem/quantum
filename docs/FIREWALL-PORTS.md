@@ -97,29 +97,102 @@ teardown of a tunnel removes only rules tagged `quantum:<that tunnel>`.
   timestamp, plan id, backend, ops, executed commands, before/after
   raw ruleset, error, rolled-back count.
 
-## Typed Agent operation contract (PROPOSAL — coordinate with Session 3)
+## Typed Agent execution interface (IMPLEMENTED — `panel/firewall_agent.go`)
 
-Not wired into `agentproto.go` yet. Narrowly typed, validated, no shell
-escape hatch. Each op is a `command` (allowlisted) or a `desired`-style
-state push; arguments are structured, never strings-of-shell.
+Narrowly typed, validated, no shell escape hatch. The handlers below are
+the EXACT contract Session 3 can register in the agent dispatcher /
+controller command allowlist; this file deliberately does not touch
+`agentproto.go`, `agent.go` or the route tables. Suggested registration:
 
-| Op | Direction | Arguments (typed) | Returns | Validation |
-|---|---|---|---|---|
-| `fw.detect` | command | — | `{backend, detail}` | — |
-| `fw.snapshot` | command | — | `{backend, raw}` | — |
-| `fw.plan` | command | `ops[]: {kind: add\|remove, rule: {port 1-65535, proto tcp\|udp, family ipv4\|ipv6\|both, owner}}` | `{planned_cmds, conflicts[]}` | same validators as controller |
-| `fw.apply` | command | `{plan_id, ops[]}` | `{applied, skipped, rolled_back}` | dry-run first is REQUIRED by policy |
-| `fw.teardown` | command | `{owner}` | `{applied}` | owner must match a tunnel the controller knows |
-| `port.check` | command | `{port, proto}` | availability report | — |
-| `port.list` | command | — | registry entries + listeners | — |
+```go
+// dispatcher registration (Session 3):
+//   "fw.detect"   → AgentFirewallDetect()
+//   "fw.snapshot" → AgentFirewallSnapshot()
+//   "fw.plan"     → AgentFirewallPlan(p fwAgentPlanParams)
+//   "fw.apply"    → AgentFirewallApply(p fwAgentApplyParams)
+//   "fw.teardown" → AgentFirewallTeardown(p fwAgentTeardownParams)
+//   "port.check"  → AgentPortCheck(p fwAgentPortCheckParams)
+//   "port.list"   → AgentPortList()
+```
 
-Semantics: the CONTROLLER owns the registry (single source of truth);
-agents execute and report. An offline agent does not block reservations —
-the registry records the intent immediately (no double allocation) and
-the plan is delivered when the agent reconnects, exactly like tunnel
-desired-state. `fw.apply` on an offline agent simply fails fast like
-every other command; the reconcile-on-reconnect proposal (Session 3) is
-the natural place to redrive it.
+| Op | Params (JSON) | Result (JSON) | Errors |
+|---|---|---|---|
+| `fw.detect` | — | `{backend, detail}` | never (backend may be `none`) |
+| `fw.snapshot` | — | `{backend, at, raw}` | backend read failure |
+| `fw.plan` | `{owner "kind:id", family?, note?, add[]: {port,proto}, remove[]: {port,proto}}` | `{plan, planned_cmds, refusal?}` — ALWAYS dry-run, executes nothing | invalid owner/proto/port, nothing to plan; backend refusal lands in `refusal` |
+| `fw.apply` | `{ops[], confirmed}` | `fwApplyResult` | `confirmed != true` refused; engine validators; partial failure rolls back |
+| `fw.teardown` | `{owner "kind:id", confirmed}` | `{released_ports, firewall: fwApplyResult}` | `confirmed != true`; firewall removal runs FIRST (registry-driven), release second — a failed removal stays retriable |
+| `port.check` | `{port, proto?}` | availability report, or both-transports report when proto omitted | bad port/proto |
+| `port.list` | — | `{backend, detail, entries[], listeners[], conflicts[]}` | — |
+
+Owner tags are `kind:id` with kind `tunnel|service|external`; ids with
+quotes or shell metacharacters are rejected before anything runs.
+
+## CLI reference (IMPLEMENTED — `panel/firewall_cli.go`)
+
+```
+gre-panel firewall detect                       → {"backend","detail"}
+gre-panel firewall snapshot                     → {"backend","at","raw"}
+gre-panel firewall plan  --owner T --add 443/tcp [--add 53/udp] [--family both] [--note N]
+                                                → dry-run result JSON (planned_cmds) — NEVER mutates
+gre-panel firewall apply --owner T --add 443/tcp --yes
+                            [--plan-file plan.json]
+                                                → fwApplyResult (refuses without --yes)
+gre-panel firewall teardown --owner tunnel:at_x --yes
+                                                → {"released_ports","firewall"}
+gre-panel ports list                            → {"backend","detail","entries","listeners","conflicts"}
+gre-panel ports check 443[/tcp|/udp]            → both-transports report / one transport
+```
+
+Exit codes: 0 ok · 1 runtime error (`{"error":…}`) · 2 usage. `--plan-file`
+applies the exact ops a previously reviewed plan carried (re-validated by
+the engine anyway).
+
+## Controller UI contract (JSON schemas for Session 3)
+
+`fwApplyResult` is the shared shape for dry-run plan, apply result and
+rollback result:
+
+```json
+{
+  "plan": { "id": "fw_ab12cd34", "backend": "iptables", "dry_run": true,
+            "ops": [ { "kind": "add",
+                       "rule": { "port": 443, "proto": "tcp", "family": "both",
+                                  "owner": "tunnel:at_1a2b3c4d", "note": "" } } ] },
+  "before": { "backend": "iptables", "at": 1730000000, "raw": "-P INPUT accept\n…" },
+  "after":  { "backend": "iptables", "at": 1730000005, "raw": "…" },
+  "applied": [ { "op": { "kind": "add", "rule": { … } },
+                 "cmds":  [ ["iptables","-A","QUANTUM_FW","-p","tcp","--dport","443","-m","comment","--comment","quantum:tunnel:at_1a2b3c4d","-j","ACCEPT"] ],
+                 "undo":  [ ["iptables","-D","QUANTUM_FW","…"] ],
+                 "skipped": false } ],
+  "planned_cmds": [ ["…"] ],
+  "rolled_back": 0,
+  "error": ""
+}
+```
+
+- **Firewall overview** (`GET /api/firewall` proposal): `{backend, detail,
+  conflicts: [{port, proto, owner, listener}], audit_tail: [fwAuditEntry…]}`.
+- **Listening ports** (`GET /api/ports`): `{backend, detail, entries:
+  [portEntry], listeners: [{proto, port, address, process, pid}],
+  conflicts: […]}`.
+- **Owner-tagged rules** (`GET /api/ports?owner=tunnel:at_x`):
+  registry entries of that owner + their applied firewall rules from the
+  last audit entry.
+- **Dry-run plan** (`POST /api/firewall/plan` body = `fwAgentPlanParams`):
+  `fwAgentPlanResult` — the UI shows `planned_cmds` and MUST send the same
+  ops to apply.
+- **Apply result** (`POST /api/firewall/apply` body = `fwAgentApplyParams`
+  with `confirmed:true`): `fwApplyResult`.
+- **Rollback result**: the same `fwApplyResult` — a rolled-back apply is
+  identified by `rolled_back > 0` and `error != ""`; the audit entry
+  carries the before/after snapshots proving the restore.
+
+Suggested endpoints (Session 3 wires them; handlers are one-liners over
+the functions above): `GET /api/firewall`, `GET /api/ports`,
+`GET /api/ports/{port}`, `POST /api/firewall/plan`,
+`POST /api/firewall/apply`, `POST /api/firewall/teardown` — all under
+`requireAuth` + `requireCSRF`, errors via new `E-FW-*` codes.
 
 ## API integration proposal (controller side)
 
