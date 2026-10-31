@@ -1,0 +1,28 @@
+{
+  "run_id": "b6c83d54",
+  "started_utc": "2026-10-30T23:27:14Z",
+  "suite": "run",
+  "scenario": "congested8m",
+  "netem_args": "delay 40ms 5ms rate 8mbit loss 0.5%",
+  "engine_mode": "real",
+  "billing_model": "interface-counter",
+  "counter_backend": "auto",
+  "billing_iface_phys": "wan0 tlink",
+  "billing_iface_tunnel": "matrix0",
+  "payload_mib": 100,
+  "latency_window_s": 60,
+  "throughput_subwindows": 5,
+  "blackout_s": 8,
+  "matrix_port": 2097,
+  "payload_port": 8080,
+  "addresses": {
+    "iran_wan": "10.100.0.1",
+    "client_wan": "10.100.0.2",
+    "iran_tlink": "10.200.0.1",
+    "kharej_tlink": "10.200.0.2",
+    "iran_matrix": "172.16.99.1",
+    "kharej_matrix": "172.16.99.2"
+  },
+  "tunnel_specific_isolation": "by-construction: tlink carries only Matrix transport; client traffic enters via wan0",
+  "production_contact": "none"
+}

@@ -1,0 +1,73 @@
+{
+  "tests": [
+    {
+      "id": "T01_startup",
+      "status": "pass",
+      "summary": "Matrix reachable through tunnel in 2.99s",
+      "detail": {
+        "establishment_s": 2.99,
+        "target": "172.16.99.2"
+      }
+    },
+    {
+      "id": "T02_latency",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T03_jitter",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T04_packet_loss",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T05_throughput",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T06_recovery",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T09_iface_counters",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T10_transport_traffic",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T11_payload",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T12_amplification",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "DPI_lab_observation",
+      "status": "pass",
+      "summary": "protocol/pattern/probing/reset measured; TLS n/a; owner-network NOT_RUN",
+      "detail": {}
+    }
+  ]
+}

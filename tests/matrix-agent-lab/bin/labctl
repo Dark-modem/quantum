@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# bin/labctl — single entrypoint for the Quantum Matrix Agent Lab.
+#
+# Usage:
+#   labctl doctor                     safety + capability preflight only
+#   labctl audit                      static self-audit of lab scripts
+#   labctl run <scenario> [--keep]    full 12-test suite on a scenario
+#   labctl dpi <scenario>             DPI observation suite only
+#   labctl clean                      remove leftovers from ANY lab run
+#   labctl report <runid>             re-validate a stored report
+#
+# Safety contract (enforced in lib/safety.sh):
+#   * never touches the root iptables/nftables ruleset (hash-verified)
+#   * all lab objects named qmx<RUNID>_*, cleaned by prefix only
+#   * refuses to run on non-disposable hosts unless LAB_FORCE=1
+set -uo pipefail
+
+LAB_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export LAB_ROOT
+
+# shellcheck source=../lib/common.sh
+. "$LAB_ROOT/lib/common.sh"
+# shellcheck source=../lib/safety.sh
+. "$LAB_ROOT/lib/safety.sh"
+# shellcheck source=../lib/netns.sh
+. "$LAB_ROOT/lib/netns.sh"
+# shellcheck source=../lib/engine.sh
+. "$LAB_ROOT/lib/engine.sh"
+# shellcheck source=../lib/traffic.sh
+. "$LAB_ROOT/lib/traffic.sh"
+# shellcheck source=../lib/report.sh
+. "$LAB_ROOT/lib/report.sh"
+
+usage() {
+    sed -n '2,16p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    exit 2
+}
+
+cmd="${1:-}"; shift || true
+case "$cmd" in
+    doctor)
+        lab_load_conf
+        safety_preflight
+        log_info "doctor: OK (netem=$NETEM_AVAILABLE, engine_mode=$ENGINE_MODE)"
+        ;;
+    audit)
+        safety_audit
+        ;;
+    clean)
+        require_root
+        safety_snapshot_fw
+        lab_clean_all
+        safety_verify_fw || true
+        ;;
+    run|dpi)
+        [ $# -ge 1 ] || usage
+        scenario="$1"; shift
+        keep=0
+        [ "${1:-}" = "--keep" ] && keep=1
+        lab_load_conf
+        lab_new_runid
+        RUN_DIR="$LAB_ROOT/results/run-$RUNID"
+        export RUNID RUN_DIR
+        mkdir -p "$RUN_DIR/fragments" "$RUN_DIR/counters" "$RUN_DIR/pcap"
+
+        # suite script source-runs the scenario profile
+        SCENARIO_FILE="$LAB_ROOT/scenarios/$scenario.conf"
+        [ -f "$SCENARIO_FILE" ] || log_die "scenario not found: $SCENARIO_FILE"
+
+        log_info "=== lab run $RUNID | scenario=$scenario | engine=$ENGINE_MODE ==="
+        safety_snapshot_fw "$RUN_DIR"
+        safety_preflight
+
+        # Guarantee teardown even if the suite dies unexpectedly.
+        trap 'rc=$?; if [ "$keep" = "1" ]; then log_warn "exiting with topology kept (--keep): run labctl clean later"; else netns_teardown_run; fi; exit $rc' EXIT INT TERM
+
+        suite_rc=0
+        # shellcheck source=../suites/run_suite.sh
+        SUITE_CMD="$cmd" . "$LAB_ROOT/suites/run_suite.sh" "$SCENARIO_FILE" || suite_rc=$?
+
+        report_assemble
+        report_validate || log_warn "report validation reported issues"
+
+        safety_verify_fw || { log_error "root firewall changed by lab-named objects — see above"; suite_rc=99; }
+
+        if [ "$keep" = "1" ]; then
+            log_info "keeping topology (--keep); remove later with: labctl clean"
+        else
+            netns_teardown_run
+            trap - EXIT INT TERM
+            safety_check_no_orphans || true
+        fi
+
+        log_info "=== run $RUNID finished (rc=$suite_rc) report=$RUN_DIR/report.json ==="
+        exit "$suite_rc"
+        ;;
+    report)
+        [ $# -ge 1 ] || usage
+        RUN_DIR="$LAB_ROOT/results/run-$1"
+        [ -d "$RUN_DIR" ] || log_die "no such run dir: $RUN_DIR"
+        report_validate
+        ;;
+    *)
+        usage
+        ;;
+esac

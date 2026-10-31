@@ -1,0 +1,156 @@
+{
+  "phases": {
+    "latency": {
+      "window": "latency_before -> latency_after",
+      "iface_deltas": {
+        "client/wan0": {
+          "rx": 390,
+          "tx": 390
+        },
+        "iran/matrix0": {
+          "rx": null,
+          "tx": null
+        },
+        "iran/tlink": {
+          "rx": 9974,
+          "tx": 10134
+        },
+        "iran/wan0": {
+          "rx": 390,
+          "tx": 390
+        },
+        "kharej/matrix0": {
+          "rx": null,
+          "tx": null
+        },
+        "kharej/tlink": {
+          "rx": 10134,
+          "tx": 9974
+        }
+      },
+      "acct_deltas": {
+        "client_payload_rx": 0,
+        "client_payload_tx": 0,
+        "transport_wire_rx": 8316,
+        "transport_wire_tx": 8316,
+        "matrix_iface_rx": 0,
+        "matrix_iface_tx": 0
+      },
+      "billable_iran_rx": 10364
+    },
+    "down": {
+      "window": "down_before -> down_after",
+      "iface_deltas": {
+        "client/wan0": {
+          "rx": 15819837,
+          "tx": 17064
+        },
+        "iran/matrix0": {
+          "rx": null,
+          "tx": null
+        },
+        "iran/tlink": {
+          "rx": 15819837,
+          "tx": 17064
+        },
+        "iran/wan0": {
+          "rx": 17064,
+          "tx": 15819837
+        },
+        "kharej/matrix0": {
+          "rx": null,
+          "tx": null
+        },
+        "kharej/tlink": {
+          "rx": 17064,
+          "tx": 15819837
+        }
+      },
+      "acct_deltas": {
+        "client_payload_rx": 13592,
+        "client_payload_tx": 15814489,
+        "transport_wire_rx": 15814489,
+        "transport_wire_tx": 13592,
+        "matrix_iface_rx": 0,
+        "matrix_iface_tx": 0
+      },
+      "billable_iran_rx": 15836901
+    },
+    "up": {
+      "window": "up_before -> up_after",
+      "iface_deltas": {
+        "client/wan0": {
+          "rx": 20620,
+          "tx": 16110274
+        },
+        "iran/matrix0": {
+          "rx": null,
+          "tx": null
+        },
+        "iran/tlink": {
+          "rx": 20620,
+          "tx": 16110274
+        },
+        "iran/wan0": {
+          "rx": 16110274,
+          "tx": 20620
+        },
+        "kharej/matrix0": {
+          "rx": null,
+          "tx": null
+        },
+        "kharej/tlink": {
+          "rx": 16110274,
+          "tx": 20620
+        }
+      },
+      "acct_deltas": {
+        "client_payload_rx": 16104688,
+        "client_payload_tx": 16490,
+        "transport_wire_rx": 16490,
+        "transport_wire_tx": 16104688,
+        "matrix_iface_rx": 0,
+        "matrix_iface_tx": 0
+      },
+      "billable_iran_rx": 16130894
+    },
+    "recovery": {
+      "window": "recovery_before -> recovery_after",
+      "iface_deltas": {
+        "client/wan0": {
+          "rx": 16798568,
+          "tx": 15379
+        },
+        "iran/matrix0": {
+          "rx": null,
+          "tx": null
+        },
+        "iran/tlink": {
+          "rx": 16798798,
+          "tx": 15609
+        },
+        "iran/wan0": {
+          "rx": 15379,
+          "tx": 16798568
+        },
+        "kharej/matrix0": {
+          "rx": null,
+          "tx": null
+        },
+        "kharej/tlink": {
+          "rx": 15609,
+          "tx": 16798798
+        }
+      },
+      "acct_deltas": {
+        "client_payload_rx": 12145,
+        "client_payload_tx": 16794074,
+        "transport_wire_rx": 16794158,
+        "transport_wire_tx": 12229,
+        "matrix_iface_rx": 0,
+        "matrix_iface_tx": 0
+      },
+      "billable_iran_rx": 16814177
+    }
+  }
+}

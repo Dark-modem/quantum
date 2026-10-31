@@ -1,0 +1,156 @@
+{
+  "phases": {
+    "latency": {
+      "window": "latency_before -> latency_after",
+      "iface_deltas": {
+        "client/wan0": {
+          "rx": 280,
+          "tx": 210
+        },
+        "iran/matrix": {
+          "rx": 25680,
+          "tx": 25848
+        },
+        "iran/tlink": {
+          "rx": 108692,
+          "tx": 113188
+        },
+        "iran/wan0": {
+          "rx": 210,
+          "tx": 280
+        },
+        "kharej/matrix": {
+          "rx": 25764,
+          "tx": 25764
+        },
+        "kharej/tlink": {
+          "rx": 113188,
+          "tx": 108692
+        }
+      },
+      "acct_deltas": {
+        "client_payload_rx": 0,
+        "client_payload_tx": 0,
+        "transport_wire_rx": 103316,
+        "transport_wire_tx": 103656,
+        "matrix_iface_rx": 0,
+        "matrix_iface_tx": 0
+      },
+      "billable_iran_rx": 108902
+    },
+    "down": {
+      "window": "down_before -> down_after",
+      "iface_deltas": {
+        "client/wan0": {
+          "rx": 109856740,
+          "tx": 4119450
+        },
+        "iran/matrix": {
+          "rx": 108796386,
+          "tx": 3337780
+        },
+        "iran/tlink": {
+          "rx": 113803414,
+          "tx": 7597512
+        },
+        "iran/wan0": {
+          "rx": 4119450,
+          "tx": 109856740
+        },
+        "kharej/matrix": {
+          "rx": 3322444,
+          "tx": 109335313
+        },
+        "kharej/tlink": {
+          "rx": 7597512,
+          "tx": 113803414
+        }
+      },
+      "acct_deltas": {
+        "client_payload_rx": 3337732,
+        "client_payload_tx": 0,
+        "transport_wire_rx": 112741696,
+        "transport_wire_tx": 6849302,
+        "matrix_iface_rx": 108796390,
+        "matrix_iface_tx": 3337732
+      },
+      "billable_iran_rx": 117922864
+    },
+    "up": {
+      "window": "up_before -> up_after",
+      "iface_deltas": {
+        "client/wan0": {
+          "rx": 3959552,
+          "tx": 108150208
+        },
+        "iran/matrix": {
+          "rx": 3202116,
+          "tx": 109327238
+        },
+        "iran/tlink": {
+          "rx": 7352772,
+          "tx": 113795006
+        },
+        "iran/wan0": {
+          "rx": 108150208,
+          "tx": 3959552
+        },
+        "kharej/matrix": {
+          "rx": 108796985,
+          "tx": 3219500
+        },
+        "kharej/tlink": {
+          "rx": 113794938,
+          "tx": 7352772
+        }
+      },
+      "acct_deltas": {
+        "client_payload_rx": 107560178,
+        "client_payload_tx": 0,
+        "transport_wire_rx": 6593866,
+        "transport_wire_tx": 113283598,
+        "matrix_iface_rx": 3202068,
+        "matrix_iface_tx": 107560178
+      },
+      "billable_iran_rx": 115502980
+    },
+    "recovery": {
+      "window": "recovery_before -> recovery_after",
+      "iface_deltas": {
+        "client/wan0": {
+          "rx": 17578783,
+          "tx": 678405
+        },
+        "iran/matrix": {
+          "rx": 17410223,
+          "tx": 551901
+        },
+        "iran/tlink": {
+          "rx": 18238325,
+          "tx": 1275386
+        },
+        "iran/wan0": {
+          "rx": 678405,
+          "tx": 17578783
+        },
+        "kharej/matrix": {
+          "rx": 548605,
+          "tx": 17636912
+        },
+        "kharej/tlink": {
+          "rx": 1275386,
+          "tx": 18238325
+        }
+      },
+      "acct_deltas": {
+        "client_payload_rx": 550977,
+        "client_payload_tx": 0,
+        "transport_wire_rx": 18067667,
+        "transport_wire_tx": 1153446,
+        "matrix_iface_rx": 17409019,
+        "matrix_iface_tx": 550977
+      },
+      "billable_iran_rx": 18916730
+    }
+  }
+}

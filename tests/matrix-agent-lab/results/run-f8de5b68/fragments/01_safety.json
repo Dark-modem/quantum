@@ -1,0 +1,6 @@
+{
+  "root_firewall_policy": "read-only hash before and after; no rule modification outside lab namespaces",
+  "naming_prefix": "qmxf8de5b68_",
+  "netem_available": 1,
+  "preflight": "passed"
+}

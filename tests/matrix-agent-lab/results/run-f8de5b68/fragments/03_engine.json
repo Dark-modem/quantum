@@ -1,0 +1,7 @@
+{
+  "mode": "calibration",
+  "tincd": "tinc version 1.0.36",
+  "conf_dirs": "/opt/qmx-lab/results/run-f8de5b68/engine/<node> (per-run; /etc/tinc untouched)",
+  "startup_establishment_s": 0.01,
+  "payload_server_pid": "856"
+}

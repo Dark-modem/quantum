@@ -1,0 +1,287 @@
+{
+  "schema": "matrix-agent-lab/report@1",
+  "meta": {
+    "run_id": "bd8dbf66",
+    "started_utc": "2026-10-30T23:25:16Z",
+    "suite": "dpi",
+    "scenario": "clean",
+    "netem_args": "",
+    "engine_mode": "real",
+    "billing_model": "interface-counter",
+    "counter_backend": "auto",
+    "billing_iface_phys": "wan0 tlink",
+    "billing_iface_tunnel": "matrix0",
+    "payload_mib": 16,
+    "latency_window_s": 20,
+    "throughput_subwindows": 5,
+    "blackout_s": 8,
+    "matrix_port": 2097,
+    "payload_port": 8080,
+    "addresses": {
+      "iran_wan": "10.100.0.1",
+      "client_wan": "10.100.0.2",
+      "iran_tlink": "10.200.0.1",
+      "kharej_tlink": "10.200.0.2",
+      "iran_matrix": "172.16.99.1",
+      "kharej_matrix": "172.16.99.2"
+    },
+    "tunnel_specific_isolation": "by-construction: tlink carries only Matrix transport; client traffic enters via wan0",
+    "production_contact": "none"
+  },
+  "safety": {
+    "root_firewall_policy": "read-only hash before and after; no rule modification outside lab namespaces",
+    "naming_prefix": "qmxbd8dbf66_",
+    "netem_available": 1,
+    "preflight": "passed"
+  },
+  "capabilities": {
+    "netem": true,
+    "tun": true,
+    "tcpdump": true,
+    "tincd": "tinc version 1.0.36",
+    "kernel": "6.6.87.2-microsoft-standard-WSL2"
+  },
+  "engine": {
+    "mode": "real",
+    "tincd": "tinc version 1.0.36",
+    "conf_dirs": "/opt/qmx-lab/results/run-bd8dbf66/engine/<node> (per-run; /etc/tinc untouched)",
+    "startup_establishment_s": 2.99,
+    "payload_server_pid": "32443"
+  },
+  "health": {
+    "status": "not_run"
+  },
+  "dpi": {
+    "status": "measured_lab_only",
+    "sections": {
+      "protocol_identification": {
+        "status": "measured",
+        "method": "first-byte/payload inspection of lab tlink capture",
+        "cleartext_markers_found": {
+          "SPTPS": false,
+          "Mesha": false,
+          "1.": false,
+          "\u0000matrix": false
+        },
+        "first_payloads": [
+          {
+            "n": 1,
+            "proto": "udp",
+            "sport": 2097,
+            "dport": 2097,
+            "len": 86,
+            "hex_head": "61c47730ee2b555c99729700643b038f2151d44940fe2700f1f3c99518e6f03b109c62be86b49903ef964f2e1b313c5c",
+            "ascii": "a.w0.+U\\.r..d;..!Q.I@.'........;..b.......O..1<\\"
+          },
+          {
+            "n": 2,
+            "proto": "udp",
+            "sport": 2097,
+            "dport": 2097,
+            "len": 86,
+            "hex_head": "1eddbec0ab3ec71f21b7d903251bdfa00ca22b6e05b54e7cf76bba4ef7fe7e0dd1bd2c2bf6f3504876de163254e83b18",
+            "ascii": ".....>..!...%.....+n..N|.k.N..~...,+..PHv..2T.;."
+          },
+          {
+            "n": 3,
+            "proto": "udp",
+            "sport": 2097,
+            "dport": 2097,
+            "len": 86,
+            "hex_head": "2cee8902460176d9dc10719934d20ff6f12fceb91e86dc576cbdf6e1edb7c4edff7044186490a51b1c0d7640d47d5aaf",
+            "ascii": ",...F.v...q.4..../.....Wl........pD.d.....v@.}Z."
+          },
+          {
+            "n": 4,
+            "proto": "udp",
+            "sport": 2097,
+            "dport": 2097,
+            "len": 86,
+            "hex_head": "58280c43bfe9db27691a334ec5353d51640411d14f24f0a5b4c9e5210fc557c20d7f9840edac7750e831111239f6f83e",
+            "ascii": "X(.C...'i.3N.5=Qd...O$.....!..W....@..wP.1..9..>"
+          },
+          {
+            "n": 5,
+            "proto": "udp",
+            "sport": 2097,
+            "dport": 2097,
+            "len": 84,
+            "hex_head": "eaedfc8893dea094b538953f6d0bafa5ac338d3ba55e1be486573f8af6347aaae2108c4f6b4a1efd9fd3d4d98780d6fe",
+            "ascii": ".........8.?m....3.;.^...W?..4z....OkJ.........."
+          },
+          {
+            "n": 8,
+            "proto": "udp",
+            "sport": 2097,
+            "dport": 2097,
+            "len": 86,
+            "hex_head": "03dbc8de775742e1c5db5b9932d5cda269c0402c004bf1f3a53b2f09a9f6b2b0074030c3e8ac7cdf7293aeb23b8e6cfa",
+            "ascii": "....wWB...[.2...i.@,.K...;/......@0...|.r...;.l."
+          },
+          {
+            "n": 9,
+            "proto": "udp",
+            "sport": 2097,
+            "dport": 2097,
+            "len": 86,
+            "hex_head": "3f7e7b5559bd99c3d219856d5eb4322162c1d33a3fbce5c7c856e21cca6dfe3a083d284904b27587c9a701a13fa8ce99",
+            "ascii": "?~{UY......m^.2!b..:?....V...m.:.=(I..u.....?..."
+          },
+          {
+            "n": 10,
+            "proto": "udp",
+            "sport": 2097,
+            "dport": 2097,
+            "len": 86,
+            "hex_head": "e6c2de661b34c237219f2a984c3026ebc94a7a2fe72cf7351595bba0a09cb1ed7bd66058b294284b0998059896198b31",
+            "ascii": "...f.4.7!.*.L0&..Jz/.,.5........{.`X..(K.......1"
+          }
+        ]
+      },
+      "traffic_patterns": {
+        "status": "measured",
+        "packets": 36,
+        "size_mean": 107.8,
+        "size_min": 66,
+        "size_max": 128,
+        "interarrival_mean_ms": 357.855,
+        "note": "measured at idle over the lab link; production patterns depend on real usage"
+      },
+      "active_probing": {
+        "status": "measured",
+        "probes": [
+          {
+            "probe": "tcp_connect_close",
+            "transport": "tcp",
+            "connect": "accepted",
+            "elapsed_s": 0.0
+          },
+          {
+            "probe": "tcp_garbage_bytes",
+            "transport": "tcp",
+            "connect": "accepted",
+            "response_bytes": 0,
+            "behavior": "no response (timeout)",
+            "elapsed_s": 5.003
+          },
+          {
+            "probe": "http_get",
+            "transport": "tcp",
+            "connect": "accepted",
+            "response_bytes": 0,
+            "behavior": "no response (timeout)",
+            "elapsed_s": 5.004
+          },
+          {
+            "probe": "tls_client_hello",
+            "transport": "tcp",
+            "connect": "accepted",
+            "response_bytes": 0,
+            "behavior": "no response (timeout)",
+            "elapsed_s": 5.005
+          },
+          {
+            "probe": "tinc_style_id_line",
+            "transport": "tcp",
+            "connect": "accepted",
+            "response_bytes": 0,
+            "behavior": "no response (timeout)",
+            "elapsed_s": 5.005
+          },
+          {
+            "probe": "udp_single_packet",
+            "transport": "udp",
+            "response_bytes": 0,
+            "behavior": "no response (timeout)",
+            "elapsed_s": 5.004
+          }
+        ]
+      },
+      "connection_reset_behavior": {
+        "status": "measured",
+        "per_probe": "{\"tcp_connect_close\": \"accepted\", \"tcp_garbage_bytes\": \"no response (timeout)\", \"http_get\": \"no response (timeout)\", \"tls_client_hello\": \"no response (timeout)\", \"tinc_style_id_line\": \"no response (timeout)\", \"udp_single_packet\": \"no response (timeout)\"}"
+      },
+      "tls_fingerprint": {
+        "status": "not_applicable_as_measured",
+        "finding": "Matrix (tinc) does not speak TLS; no JA3/JA4 fingerprint exists for the tunnel transport itself. TLS fingerprinting is only relevant if the transport is later wrapped in TLS \u2014 measure it there."
+      },
+      "owner_network_availability": {
+        "status": "NOT_RUN",
+        "finding": "requires the owner's approved test network; never automated by this lab by policy"
+      }
+    },
+    "unknown_policy": "no DPI-resistance claim is made from connectivity success; production DPI behavior is UNKNOWN from lab evidence"
+  },
+  "tests": [
+    {
+      "id": "T01_startup",
+      "status": "pass",
+      "summary": "Matrix reachable through tunnel in 2.99s",
+      "detail": {
+        "establishment_s": 2.99,
+        "target": "172.16.99.2"
+      }
+    },
+    {
+      "id": "T02_latency",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T03_jitter",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T04_packet_loss",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T05_throughput",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T06_recovery",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T09_iface_counters",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T10_transport_traffic",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T11_payload",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "T12_amplification",
+      "status": "skipped",
+      "summary": "dpi-only run",
+      "detail": {}
+    },
+    {
+      "id": "DPI_lab_observation",
+      "status": "pass",
+      "summary": "protocol/pattern/probing/reset measured; TLS n/a; owner-network NOT_RUN",
+      "detail": {}
+    }
+  ],
+  "counters": {}
+}

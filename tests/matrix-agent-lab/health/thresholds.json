@@ -1,0 +1,32 @@
+{
+  "_comment": "Proposed thresholds for the Quantum health monitor. The monitor evaluates 60-second rolling windows built from small, cheap probes (ICMP/UDP RTT + loss) — never large speed tests. Hysteresis: a state change requires N consecutive failing (or recovering) windows, so temporary fluctuations never flip the state.",
+  "window_seconds": 60,
+  "hysteresis": {
+    "consecutive_windows_to_degrade": 2,
+    "consecutive_windows_to_recover": 3,
+    "_rationale": "2 failing 60s windows = degrade after ~2min of sustained badness; 3 good windows = recover after ~3min of sustained goodness. Asymmetric on purpose: flap less towards 'down', restore quickly enough to be useful."
+  },
+  "window_fail_when": {
+    "loss_pct_gt": 5.0,
+    "p95_ms_gt": 250,
+    "mean_ms_gt": 150,
+    "jitter_ms_gt": 50
+  },
+  "severities": {
+    "degraded": "any window criterion fails",
+    "down": "zero successful probes in a window"
+  },
+  "probe_profile": {
+    "icmp_interval_s": 0.5,
+    "udp_fallback": "same schedule; ICMP blocked paths use the UDP echo probe",
+    "speedtest_policy": "large transfers are NOT part of the rolling window; they run only in scheduled lab/validation runs"
+  },
+  "profile_expectations": {
+    "_comment": "Scenario-specific expectation overlays used by the lab acceptance checks; the monitor itself uses window_fail_when.",
+    "clean": {"p95_ms_lt": 20, "loss_pct_lt": 0.5},
+    "congested8m": {"p95_ms_lt": 300, "loss_pct_lt": 2.0, "throughput_mbps_min": 6.8},
+    "lossy2": {"loss_pct_lt": 4.0},
+    "jitter30": {"jitter_ms_lt": 40},
+    "satellite": {"p95_ms_lt": 700, "loss_pct_lt": 3.0}
+  }
+}
