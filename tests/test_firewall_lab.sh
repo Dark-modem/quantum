@@ -27,12 +27,12 @@ fails=0
 run "$BIN" -test.run 'TestFirewallLabIptablesLifecycle' -test.v || fails=$((fails+1))
 run "$BIN" -test.run 'TestFirewallLabListenerConflicts' -test.v || fails=$((fails+1))
 
-if ip netns exec "$NS" command -v nft >/dev/null; then
+if ip netns exec "$NS" sh -c "command -v nft >/dev/null"; then
   run "$BIN" -test.run 'TestFirewallLabNftReads' -test.v || fails=$((fails+1))
 else
   echo "SKIP nft section (nft missing in the namespace)"
 fi
-if ip netns exec "$NS" command -v ufw >/dev/null; then
+if ip netns exec "$NS" sh -c "command -v ufw >/dev/null"; then
   run "$BIN" -test.run 'TestFirewallLabUfwDetection' -test.v || fails=$((fails+1))
 else
   echo "SKIP ufw section (ufw missing in the namespace)"
