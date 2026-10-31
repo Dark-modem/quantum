@@ -161,30 +161,53 @@ q_write_atomic() {
 # HARD RULES: never enable/disable/reset/flush the firewall here; never add
 # deny rules; never touch ports not passed in. If the firewall is inactive
 # we still record the rule and warn that enforcement belongs to the engine.
-fw_available() { q_have ufw; }
+# Backend detection mirrors Session 1's firewall engine semantics: UFW when
+# it is the active manager, otherwise an additive iptables INPUT rule owned
+# by an explicit comment tag. A native nftables ruleset is left strictly
+# alone (Session 1's engine refuses it too — no foreign-ruleset writes).
+# A caller (the Session 1 engine) may pre-define these functions to take over.
+fw_available() {
+    q_have ufw && [[ "$(ufw status 2>/dev/null | awk '/^Status:/ {print $2}')" == "active" ]] && return 0
+    q_have iptables && return 0
+    return 1
+}
 
 fw_has_rule() {
     local tag="quantum:$1:$2"
-    fw_available || return 1
-    ufw status 2>/dev/null | grep -qF "$tag"
+    if q_have ufw && [[ "$(ufw status 2>/dev/null | awk '/^Status:/ {print $2}')" == "active" ]]; then
+        ufw status 2>/dev/null | grep -qF "$tag"
+        return
+    fi
+    q_have iptables || return 1
+    iptables -C INPUT -p "$3" --dport "$4" -m comment --comment "$tag" -j ACCEPT 2>/dev/null
 }
 
 fw_allow_port() {
     local role="$1" name="$2" port="$3" proto="${4:-tcp}" limit="${5:-}" verb="allow" tag
     tag="quantum:$role:$name"
     if ! fw_available; then
-        q_warn "ufw not installed; cannot record firewall rule $tag (enforcement is owned by the firewall engine)." "ufw نصب نیست؛ قانون فایروال ثبت نشد (مدیریت فایروال با موتور اختصاصی است)."
+        q_warn "no active firewall manager (ufw/iptables); rule $tag recorded as pending (enforcement is owned by the firewall engine)." "مدیر فایروال فعالی یافت نشد؛ قانون $tag ثبت شد (اعمال با موتور اختصاصی است)."
         return 0
     fi
-    if fw_has_rule "$role" "$name"; then
+    if fw_has_rule "$role" "$name" "$proto" "$port"; then
         q_ok "Firewall rule already present: $tag ($port/$proto)." "قانون فایروال از قبل موجود است."
         return 0
     fi
-    [[ "$limit" == "limit" ]] && verb="limit"
-    if ufw "$verb" "$port/$proto" comment "$tag" >/dev/null 2>&1; then
-        q_ok "Firewall rule added (additive): $tag $port/$proto${limit:+ (rate-limited)}." "قانون فایروال اضافه شد (فقط افزودنی)."
+    if q_have ufw && [[ "$(ufw status 2>/dev/null | awk '/^Status:/ {print $2}')" == "active" ]]; then
+        [[ "$limit" == "limit" ]] && verb="limit"
+        if ufw "$verb" "$port/$proto" comment "$tag" >/dev/null 2>&1; then
+            q_ok "Firewall rule added (additive ufw): $tag $port/$proto${limit:+ (rate-limited)}." "قانون فایروال اضافه شد (ufw افزودنی)."
+        else
+            q_warn "could not add ufw rule $tag ($port/$proto); continuing (enforcement is owned by the firewall engine)." "افزودن قانون ufw ناموفق بود؛ ادامه می‌دهیم."
+        fi
+        return 0
+    fi
+    # iptables fallback: additive ACCEPT into INPUT with an ownership comment,
+    # matching Session 1's engine rules (no flushes, no policy changes).
+    if iptables -I INPUT -p "$proto" --dport "$port" -m comment --comment "$tag" -j ACCEPT >/dev/null 2>&1; then
+        q_ok "Firewall rule added (additive iptables): $tag $port/$proto." "قانون فایروال اضافه شد (iptables افزودنی)."
     else
-        q_warn "could not add ufw rule $tag ($port/$proto); continuing (enforcement is owned by the firewall engine)." "افزودن قانون ufw ناموفق بود؛ ادامه می‌دهیم."
+        q_warn "could not add iptables rule $tag ($port/$proto); continuing (enforcement is owned by the firewall engine)." "افزودن قانون iptables ناموفق بود؛ ادامه می‌دهیم."
     fi
     return 0
 }
