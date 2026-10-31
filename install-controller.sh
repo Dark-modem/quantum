@@ -911,12 +911,145 @@ parse_args() {
             --force-dns)  FORCE_DNS=1; shift ;;
             --dry-run)    DRY_RUN=1; shift ;;
             --uninstall)  UNINSTALL=1; shift ;;
+            --bootstrap-controller) BOOTSTRAP=1; shift ;;
+            --binary)     BOOT_BINARY="${2:-}"; shift 2 ;;
+            --http-port)  BOOT_HTTP="${2:-}"; shift 2 ;;
             -y|--yes)     ASSUME_YES=1; shift ;;
             -h|--help)    usage ;;
             *) die "unknown option: $1 (see --help)" ;;
         esac
     done
     DOMAIN="${DOMAIN:-}" EMAIL="${EMAIL:-}"
+    BOOT_BINARY="${BOOT_BINARY:-}"
+    BOOT_HTTP="${BOOT_HTTP:-17777}"
+}
+
+###############################################################################
+# Minimal standalone controller bootstrap (P0 lab path)
+#
+# Installs a FRESH, ISOLATED Quantum panel instance (own config dir, own
+# ports, own systemd unit) for validating the Controller/Agent architecture
+# on a disposable machine — coexisting with any existing panel installation.
+# Deliberately minimal: no nginx, no certbot, no domain. TLS comes from the
+# panel's own tls-ip mode (local CA + IP-SAN cert) whose CA the operator
+# distributes to the endpoints' system trust store.
+###############################################################################
+BOOT_DIR="/etc/gre-panel-lab"
+BOOT_CRED="/root/.quantum-lab-credentials"
+BOOT_UNIT="quantum-controller-lab.service"
+BOOT_BIN="/usr/local/bin/gre-panel-lab"
+
+bootstrap_controller() {
+    [[ $EUID -eq 0 ]] || die "--bootstrap-controller must run as root"
+    [[ -n "$BOOT_BINARY" ]] || die "--bootstrap-controller needs --binary <gre-panel binary for this host's architecture>"
+    [[ -f "$BOOT_BINARY" ]] || die "binary not found: $BOOT_BINARY"
+    [[ "$BOOT_HTTP" =~ ^[0-9]+$ ]] || die "--http-port must be numeric"
+    have openssl || die "openssl is required for credential generation"
+    have python3 || die "python3 is required for config editing"
+
+    phase "bootstrap 1/5: binary"
+    if [[ -x "$BOOT_BIN" ]]; then
+        local cur new
+        cur="$(sha256sum "$BOOT_BIN" | cut -d' ' -f1)"
+        new="$(sha256sum "$BOOT_BINARY" | cut -d' ' -f1)"
+        if [[ "$cur" == "$new" ]]; then
+            ok "lab binary already current ($cur)"
+        else
+            install -m 0755 "$BOOT_BINARY" "$BOOT_BIN.new" && mv -f "$BOOT_BIN.new" "$BOOT_BIN"
+            ok "lab binary replaced (was $cur)"
+        fi
+    else
+        install -m 0755 "$BOOT_BINARY" "$BOOT_BIN"
+        ok "lab binary installed: $BOOT_BIN ($(sha256sum "$BOOT_BIN" | cut -d' ' -f1))"
+    fi
+
+    phase "bootstrap 2/5: fresh isolated config"
+    if [[ -f "$BOOT_DIR/panel.json" ]]; then
+        warn "existing lab config kept (idempotent re-run): $BOOT_DIR"
+    else
+        mkdir -p "$BOOT_DIR" && chmod 0700 "$BOOT_DIR"
+        local pw
+        pw="$(openssl rand -hex 12)"
+        if ! GRE_PANEL_DIR="$BOOT_DIR" GRE_PANEL_PASSWORD="$pw" "$BOOT_BIN" password "$pw" >/dev/null 2>&1; then
+            GRE_PANEL_DIR="$BOOT_DIR" GRE_PANEL_PASSWORD="$pw" "$BOOT_BIN" password "$pw" 2>&1 | tail -3
+            die "could not initialize the lab panel config"
+        fi
+        umask 077
+        printf 'username=admin
+password=%s
+http_port=%s
+tls_port=7443
+' "$pw" "$BOOT_HTTP" > "$BOOT_CRED"
+        chmod 0600 "$BOOT_CRED"
+        unset pw
+        ok "fresh config initialized; credentials (root-only) at $BOOT_CRED"
+    fi
+    python3 - "$BOOT_DIR/panel.json" "$BOOT_HTTP" <<'PY'
+import json,sys
+p,http=sys.argv[1],int(sys.argv[2])
+d=json.load(open(p))
+d['port']=http; d['tls_port']=7443
+d.setdefault('base_path','lab')
+json.dump(d,open(p,'w'),indent=1)
+PY
+    chmod 0600 "$BOOT_DIR/panel.json"
+    local base
+    base="$(python3 -c "import json;print(json.load(open('$BOOT_DIR/panel.json')).get('base_path','lab'))")"
+    ok "ports: http $BOOT_HTTP, tls 7443, base path /$base"
+
+    phase "bootstrap 3/5: systemd unit (isolated instance)"
+    cat > "/etc/systemd/system/$BOOT_UNIT" <<EOF
+[Unit]
+Description=Quantum Lab Controller (isolated instance)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=GRE_PANEL_DIR=$BOOT_DIR
+ExecStart=$BOOT_BIN
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload
+    systemctl enable --now "$BOOT_UNIT" 2>/dev/null || systemctl restart "$BOOT_UNIT"
+    sleep 2
+    systemctl is-active --quiet "$BOOT_UNIT" || { journalctl -u "$BOOT_UNIT" -n 10 --no-pager | tail -5; die "lab controller failed to start"; }
+    ok "$BOOT_UNIT active (coexists with any existing gre-panel.service)"
+
+    phase "bootstrap 4/5: TLS via the panel's tls-ip mode"
+    local ip
+    ip="$(ip -4 -j addr show scope global 2>/dev/null | python3 -c 'import json,sys;print(next((a.split("/")[0] for d in json.load(sys.stdin) for a in d.get("addr_info",[]) if a.get("scope")=="global"),""))' 2>/dev/null || true)"
+    [[ -n "$ip" ]] || die "cannot detect this server's public IPv4 for the certificate SAN"
+    if GRE_PANEL_DIR="$BOOT_DIR" "$BOOT_BIN" tls ip "$ip" >/dev/null 2>&1; then
+        ok "TLS ready: local CA + IP-SAN certificate for $ip (7443)"
+        echo "$ip" > "$BOOT_DIR/tls-ip"
+    else
+        die "tls-ip issuance failed (see journalctl -u $BOOT_UNIT)"
+    fi
+
+    phase "bootstrap 5/5: verification"
+    local okc=0
+    for i in 1 2 3 4 5 6 7 8; do
+        if curl -sk --max-time 4 "https://127.0.0.1:7443/$base/api/health" | grep -q '"status":"ok"'; then okc=1; break; fi
+        sleep 2
+    done
+    [[ $okc -eq 1 ]] || die "HTTPS health check failed on 7443"
+    ok "HTTPS health OK: https://$ip:7443/$base/"
+    printf '
+%s=== Lab controller ready ===%s
+' "$C_BOLD" "$C_OFF"
+    printf 'Controller URL (agents):  https://%s:7443/%s
+' "$ip" "$base"
+    printf 'Dashboard:                https://%s:7443/%s/  (admin; credentials: %s)
+' "$ip" "$base" "$BOOT_CRED"
+    printf 'CA to trust on endpoints: %s/quantum-ca.crt  (install into /usr/local/share/ca-certificates/ + update-ca-certificates)
+' "$BOOT_DIR/tls"
+    printf 'Logs:                     journalctl -u %s -f
+' "$BOOT_UNIT"
 }
 
 main() {
@@ -926,6 +1059,11 @@ main() {
     if [[ $UNINSTALL -eq 1 ]]; then
         [[ $EUID -eq 0 ]] || die "--uninstall must run as root"
         do_uninstall
+        exit 0
+    fi
+
+    if [[ ${BOOT:-0} -eq 1 ]]; then
+        bootstrap_controller
         exit 0
     fi
 
