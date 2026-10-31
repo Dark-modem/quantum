@@ -26,6 +26,17 @@
 ###############################################################################
 set -euo pipefail
 
+# Shared installer helpers (bilingual output, additive firewall interface,
+# SSH bootstrap, server preparation). Resolved next to this script.
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$LIB_DIR/installer-lib.sh" ]]; then
+    # shellcheck source=installer-lib.sh
+    source "$LIB_DIR/installer-lib.sh"
+else
+    printf 'Error: installer-lib.sh must sit next to %s.\n' "$0" >&2
+    exit 1
+fi
+
 ###############################################################################
 # Constants
 ###############################################################################
@@ -57,6 +68,14 @@ DRY_RUN=0
 UNINSTALL=0
 VERIFY_TLS=0
 ASSUME_YES=0
+
+# SSH bootstrap options (server preparation; same shared implementation as
+# install-agent.sh; default: skipped unless options are given)
+SSH_USER=""
+SSH_PUBKEY=""
+SSH_PUBKEY_FILE=""
+SSH_PORT=""
+SSH_SKIP=0
 
 # Values parsed from panel.json (Phase 0)
 PANEL_PORT="7777"
@@ -740,19 +759,11 @@ EOF
 open_firewall() {
     phase "Phase 4/4: Firewall (additive only)"
     local port rc
-    if have ufw && ufw status 2>/dev/null | grep -q "Status: active"; then
+    if fw_available; then
         for port in 80 443; do
-            if ! ufw status | grep -qE "^${port}/tcp\s+ALLOW"; then
-                ufw allow "${port}/tcp" comment 'Quantum controller' >/dev/null
-                ok "ufw: allowed ${port}/tcp (existing rules untouched)"
-            else
-                ok "ufw: ${port}/tcp already allowed"
-            fi
+            fw_allow_port controller "web-$port" "$port" tcp
         done
-    else
-        info "ufw not active — skipping ufw rules"
-    fi
-    if have iptables; then
+    elif have iptables; then
         for port in 80 443; do
             rc=0
             if ! iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null; then
@@ -764,7 +775,7 @@ open_firewall() {
             [[ $rc -eq 0 ]] && ok "iptables: INPUT tcp/${port} ACCEPT ensured"
         done
     else
-        warn "iptables not installed — skipped (ufw covers the common case)"
+        warn "neither ufw nor iptables available — skipped (enforcement is owned by the firewall engine)"
     fi
     printf '%sExisting firewall rules were not modified except the allow rules above.%s\n' "$C_BOLD" "$C_OFF"
 }
@@ -914,6 +925,11 @@ parse_args() {
             --bootstrap-controller) BOOT=1; shift ;;
             --binary)     BOOT_BINARY="${2:-}"; shift 2 ;;
             --http-port)  BOOT_HTTP="${2:-}"; shift 2 ;;
+            --ssh-user)   SSH_USER="${2:-}"; shift 2 ;;
+            --ssh-pubkey) SSH_PUBKEY="${2:-}"; shift 2 ;;
+            --ssh-pubkey-file) SSH_PUBKEY_FILE="${2:-}"; shift 2 ;;
+            --ssh-port)   SSH_PORT="${2:-}"; shift 2 ;;
+            --no-ssh)     SSH_SKIP=1; shift ;;
             -y|--yes)     ASSUME_YES=1; shift ;;
             -h|--help)    usage ;;
             *) die "unknown option: $1 (see --help)" ;;
@@ -1057,6 +1073,30 @@ EOF
 ' "$BOOT_UNIT"
 }
 
+# maybe_ssh_bootstrap (controller variant of the shared opt-in flow). The
+# minimal --bootstrap-controller lab path intentionally does not run it.
+maybe_ssh_bootstrap() {
+    local role="$1"
+    [[ $SSH_SKIP -eq 1 ]] && return 0
+    Q_ASSUME_YES=$ASSUME_YES
+    if [[ -n "$SSH_PUBKEY_FILE" ]]; then
+        [[ -f "$SSH_PUBKEY_FILE" ]] || die "SSH public key file not found: $SSH_PUBKEY_FILE"
+        SSH_PUBKEY="$(tr -d '\r' < "$SSH_PUBKEY_FILE" | head -n1)"
+    fi
+    if [[ -z "$SSH_PUBKEY" && -z "$SSH_PORT" && -z "$SSH_USER" ]]; then
+        if [[ -t 0 && $ASSUME_YES -eq 0 ]]; then
+            q_confirm "Prepare SSH administrative access now? (existing port and password stay enabled)" \
+                      "آماده‌سازی دسترسی SSH اکنون انجام شود؟" || return 0
+        else
+            return 0
+        fi
+    fi
+    if ! ssh_bootstrap "$role" "${SSH_USER:-$Q_SSH_USER_DEFAULT}" "$SSH_PUBKEY" "$SSH_PORT"; then
+        warn "SSH bootstrap failed; the controller installation itself is complete and untouched." \
+             "راه‌اندازی SSH ناموفق بود؛ اما نصب کنترلر کامل و سالم است."
+    fi
+}
+
 main() {
     parse_args "$@"
     printf '%sQuantum central controller installer (nginx + HTTPS + WebSocket proxy)%s\n' "$C_BOLD" "$C_OFF"
@@ -1079,6 +1119,11 @@ main() {
     preflight_ports
     preflight_backup
 
+    phase "Server preparation"
+    q_check_resources 1024 2048
+    q_ensure_timesync
+    netopt_prepare_server controller
+
     if [[ $DRY_RUN -eq 1 ]]; then
         print_plan
         exit 0
@@ -1089,6 +1134,7 @@ main() {
     write_proxy_site
     phase4_verify_privacy
     open_firewall
+    maybe_ssh_bootstrap controller
 
     mkdir -p "$MARKER_DIR"
     printf 'DOMAIN=%s\nINSTALLED=%s\n' "$DOMAIN" "$TS" > "$MARKER_FILE"

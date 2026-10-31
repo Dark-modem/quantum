@@ -35,6 +35,26 @@
 ###############################################################################
 set -euo pipefail
 
+# Shared installer helpers (bilingual output, firewall interface, SSH
+# bootstrap, server preparation). Resolved next to this script; standalone
+# copies fetch it from the repository.
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$LIB_DIR/installer-lib.sh" ]]; then
+    # shellcheck source=installer-lib.sh
+    source "$LIB_DIR/installer-lib.sh"
+else
+    TMP_LIB="$(mktemp)"
+    LIB_URL="https://raw.githubusercontent.com/Dark-modem/quantum/main/installer-lib.sh"
+    CURL_AUTH=()
+    [[ -n "${GRE_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}" ]] && \
+        CURL_AUTH=(-H "Authorization: Bearer ${GRE_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}")
+    curl -fsSL --retry 2 --connect-timeout 10 --max-time 60 "${CURL_AUTH[@]}" "$LIB_URL" -o "$TMP_LIB" \
+        || { printf 'Error: installer-lib.sh not found next to %s and cannot be downloaded.\n' "$0" >&2; exit 1; }
+    # shellcheck source=/dev/null
+    source "$TMP_LIB"
+    rm -f "$TMP_LIB"
+fi
+
 ###############################################################################
 # Constants
 ###############################################################################
@@ -72,6 +92,15 @@ FORCE_ENROLL=0
 CHECK_ONLY=0
 DO_ROLLBACK=0
 ASSUME_YES=0
+
+# SSH bootstrap + server preparation options (steps 3-8 of the owner's
+# sequence; default: skipped unless options are given or the operator
+# opts in interactively after the agent service is verified)
+SSH_USER=""
+SSH_PUBKEY=""
+SSH_PUBKEY_FILE=""
+SSH_PORT=""
+SSH_SKIP=0
 
 # Quanta observed along the way
 WAS_INSTALLED=0
@@ -152,6 +181,16 @@ Options:
   --rollback          Restore the previous agent binary and restart the agent
   --yes               Never prompt (automation mode)
 
+SSH administrative bootstrap (runs after the agent service is verified):
+  --ssh-user USER     Dedicated admin account (default: qadmin, key-only, sudo)
+  --ssh-pubkey KEY    Install this PUBLIC key (e.g. 'ssh-ed25519 AAAA… comment')
+  --ssh-pubkey-file F Read the public key from F (preferred; one line)
+  --ssh-port PORT     ADD this SSH port (the current port stays enabled until
+                      the owner finalizes access via tools/QuantumSshKey.ps1)
+  --no-ssh            Never touch SSH
+  The private key never touches this server: generate it on the owner's
+  workstation (tools/QuantumSshKey.ps1) and pass only the .pub file here.
+
 Environment:
   GRE_AGENT_ENROLL_TOKEN            enrollment token (alternative to --token)
   GRE_GITHUB_TOKEN / GITHUB_TOKEN   GitHub read token
@@ -217,6 +256,11 @@ parse_args() {
             --check)         CHECK_ONLY=1; shift ;;
             --rollback)      DO_ROLLBACK=1; shift ;;
             --yes|-y)        ASSUME_YES=1; shift ;;
+            --ssh-user)      SSH_USER="${2:-}"; shift 2 ;;
+            --ssh-pubkey)    SSH_PUBKEY="${2:-}"; shift 2 ;;
+            --ssh-pubkey-file) SSH_PUBKEY_FILE="${2:-}"; shift 2 ;;
+            --ssh-port)      SSH_PORT="${2:-}"; shift 2 ;;
+            --no-ssh)        SSH_SKIP=1; shift ;;
             --help|-h)       usage ;;
             *) err "unknown option: $1"; usage ;;
         esac
@@ -274,8 +318,7 @@ require_inputs() {
     if [[ -z "$SERVER" && $CHECK_ONLY -eq 0 ]]; then
         err "missing --server (controller URL)"
         exit 2
-    fi
-    # A token is only needed when this endpoint is not enrolled yet (or is
+    fi    # A token is only needed when this endpoint is not enrolled yet (or is
     # being re-enrolled): an already-enrolled reinstall needs no new token.
     if [[ -z "$ENROLL_TOKEN" && $CHECK_ONLY -eq 0 && ! -f "$IDENTITY" ]]; then
         err "missing enrollment token (use --token, --token-file, GRE_AGENT_ENROLL_TOKEN, or run interactively)"
@@ -285,6 +328,34 @@ require_inputs() {
 
 require_root() {
     [[ $EUID -eq 0 ]] || die "Please run as root (sudo)."
+}
+
+# maybe_ssh_bootstrap : server-side SSH administrative bootstrap (steps 3-8
+# of the owner's sequence) — opt-in via --ssh-* flags, or offered
+# interactively after the agent service is verified. --no-ssh always skips.
+# A bootstrap failure never undoes the agent installation: the service is
+# already verified and the owner's existing SSH access was never modified.
+maybe_ssh_bootstrap() {
+    [[ $SSH_SKIP -eq 1 || $CHECK_ONLY -eq 1 || $DO_ROLLBACK -eq 1 ]] && return 0
+    Q_ASSUME_YES=$ASSUME_YES
+    if [[ -n "$SSH_PUBKEY_FILE" ]]; then
+        [[ -f "$SSH_PUBKEY_FILE" ]] || die "SSH public key file not found: $SSH_PUBKEY_FILE"
+        SSH_PUBKEY="$(tr -d '\r' < "$SSH_PUBKEY_FILE" | head -n1)"
+    fi
+    if [[ -z "$SSH_PUBKEY" && -z "$SSH_PORT" && -z "$SSH_USER" ]]; then
+        if [[ -t 0 && $ASSUME_YES -eq 0 ]]; then
+            q_confirm "Prepare SSH administrative access now? (existing port and password stay enabled)" \
+                      "آماده‌سازی دسترسی SSH اکنون انجام شود؟" || return 0
+        else
+            info "SSH bootstrap skipped (pass --ssh-user/--ssh-pubkey-file/--ssh-port to enable)." \
+                 "راه‌اندازی SSH رد شد (برای فعال‌سازی پارامترهای --ssh-* را بدهید)."
+            return 0
+        fi
+    fi
+    if ! ssh_bootstrap agent "${SSH_USER:-$Q_SSH_USER_DEFAULT}" "$SSH_PUBKEY" "$SSH_PORT"; then
+        warn "SSH bootstrap failed; the agent installation itself is complete and untouched." \
+             "راه‌اندازی SSH ناموفق بود؛ اما نصب ایجنت کامل و سالم است."
+    fi
 }
 
 ###############################################################################
@@ -756,12 +827,21 @@ main() {
         MATRIX_UNITS_BEFORE="$(matrix_units_snapshot)"
     fi
 
+    phase "server preparation"
+    q_check_resources 512 2048
+    q_ensure_timesync
+    netopt_prepare_server agent
+
     TMP="$(mktemp -d /tmp/quantum-agent.XXXXXX)"
     chmod 700 "$TMP"
 
     phase "download and verify"
-    resolve_gh_token
-    resolve_tag
+    if [[ -n "$LOCAL_BINARY" ]]; then
+        TAG="$REQ_VERSION"   # no release resolution for a local file
+    else
+        resolve_gh_token
+        resolve_tag
+    fi
     fetch_and_verify_binary
 
     if [[ $CHECK_ONLY -eq 1 ]]; then
@@ -791,6 +871,8 @@ main() {
         fi
         die "installation verification failed."
     fi
+
+    maybe_ssh_bootstrap
 
     write_marker
     show_status
