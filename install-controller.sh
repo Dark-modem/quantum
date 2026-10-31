@@ -623,7 +623,7 @@ emit_proxy_locations() { # shared location blocks for the :80 (no-redirect) and 
     }
 
     # Agent WebSocket: long-lived (heartbeats ~30s), generous timeouts.
-    location ${PANEL_BASE}/api/agent/ws {
+    location /${PANEL_BASE}/api/agent/ws {
         proxy_pass http://127.0.0.1:${PANEL_PORT};
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
@@ -642,8 +642,8 @@ emit_proxy_locations() { # shared location blocks for the :80 (no-redirect) and 
     }
 
     # Everything under the panel's base path (dashboard + API + terminal WS).
-    location ${PANEL_BASE}/ {
-        proxy_pass http://127.0.0.1:${PANEL_PORT}/${PANEL_BASE}/;
+    location /${PANEL_BASE}/ {
+        proxy_pass http://127.0.0.1:${PANEL_PORT};
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection \$connection_upgrade;
