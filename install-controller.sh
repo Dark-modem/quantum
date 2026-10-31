@@ -911,7 +911,7 @@ parse_args() {
             --force-dns)  FORCE_DNS=1; shift ;;
             --dry-run)    DRY_RUN=1; shift ;;
             --uninstall)  UNINSTALL=1; shift ;;
-            --bootstrap-controller) BOOTSTRAP=1; shift ;;
+            --bootstrap-controller) BOOT=1; shift ;;
             --binary)     BOOT_BINARY="${2:-}"; shift 2 ;;
             --http-port)  BOOT_HTTP="${2:-}"; shift 2 ;;
             -y|--yes)     ASSUME_YES=1; shift ;;
