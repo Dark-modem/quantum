@@ -576,6 +576,10 @@ EOF
     [[ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]] \
         || die "certbot reported success but /etc/letsencrypt/live/${DOMAIN}/fullchain.pem is missing"
     ok "certificate ready: /etc/letsencrypt/live/${DOMAIN}/"
+    # The ACME bootstrap vhost did its job — remove it so its :80 server
+    # cannot shadow the real site's HTTP->HTTPS redirect.
+    rm -f /etc/nginx/sites-enabled/quantum-acme-bootstrap.conf /etc/nginx/sites-available/quantum-acme-bootstrap.conf
+    nginx -t >/dev/null 2>&1 && systemctl reload nginx || true
 
     # Renewal deploy hook: reload nginx after every successful renewal.
     if write_atomic "$RENEW_HOOK" <<'EOF'
