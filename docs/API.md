@@ -35,6 +35,7 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `DELETE` | `/api/agent-tunnels/{id}` | session + CSRF | `handleAgentTunnelDelete` |
 | `POST` | `/api/agent-tunnels/{id}/power` | session + CSRF | `handleAgentTunnelPower` |
 | `POST` | `/api/agent-tunnels/{id}/restart` | session + CSRF | `handleAgentTunnelRestart` |
+| `GET` | `/api/agent/artifact/{name}` | none | `handleAgentArtifactGet` |
 | `POST` | `/api/agent/enroll` | none | `handleAgentEnroll` |
 | `GET` | `/api/agent/ws` | none | `handleAgentWS` |
 | `GET` | `/api/agents` | session | `handleAgentsGet` |
@@ -45,6 +46,7 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `POST` | `/api/agents/{id}/command` | session + CSRF | `handleAgentCommandPost` |
 | `POST` | `/api/agents/{id}/desired` | session + CSRF | `handleAgentDesiredPost` |
 | `POST` | `/api/agents/{id}/revoke` | session + CSRF | `handleAgentRevoke` |
+| `POST` | `/api/agents/{id}/update` | session + CSRF | `handleAgentUpdatePost` |
 | `GET` | `/api/alerts` | session | `handleAlertsGet` |
 | `POST` | `/api/alerts` | session + CSRF | `handleAlertsPost` |
 | `GET` | `/api/audit` | session | `handleAuditGet` |
@@ -188,4 +190,4 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `GET` | `/topology.js` | none | `` |
 | `GET` | `/tunnel_overview.js` | none | `` |
 
-Total: 164 routes.
+Total: 166 routes.
