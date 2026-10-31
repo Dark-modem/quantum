@@ -1,18 +1,30 @@
 #!/usr/bin/env bash
 ###############################################################################
-# install-controller.sh — Quantum central controller installer
+# install-controller.sh — Quantum central controller installer (standalone)
 #
-# Puts the Quantum panel (gre-panel.service) behind nginx with a real
-# Let's Encrypt certificate and a WebSocket-capable reverse proxy.
+# Installs the full Quantum controller stack on a clean Ubuntu machine and
+# puts it behind nginx with a real Let's Encrypt certificate and a
+# WebSocket-capable reverse proxy. Product flow:
 #
 #   sudo bash install-controller.sh --domain panel.example.com \
 #        [--email ops@example.com] [--panel-dir /etc/gre-panel]
+#        [--panel-version latest|vX.Y.Z] [--github-token TOK]
+#        [--update-pubkey-file pub.pem]
 #        [--no-redirect] [--force-dns] [--dry-run] [--verify-tls] [--uninstall]
 #
-# The panel must already be installed (quantum.sh / install.sh). This script
-# never installs or upgrades the panel, never touches quantum.sh, the panel
-# binary or /etc/gre-panel (except the documented panel.json "bind_host"
-# change in Phase 4, which is verified and auto-reverted on failure).
+# Steps: 1 detect Ubuntu/arch · 2 prerequisites · 3 controller binary
+# (release download, sha256 manifest fail-closed, optional Ed25519 .sig
+# against --update-pubkey-file) · 4 isolated config/state + gre-panel.service
+# · 5 loopback binding (bind_host=127.0.0.1 from the start) · 6 nginx reverse
+# proxy · 7 HTTP->HTTPS · 8 WSS forwarding (/api/agent/ws) · 9 Let's Encrypt
+# webroot · 10 renewal + deploy-hook reload · 11 additive firewall ·
+# 12 HTTPS/WebSocket/SAN/renewal verification · 13 SSH bootstrap (shared
+# helper, opt-in).
+#
+# An existing panel installation is detected and kept (upgrade/re-run path);
+# the panel is only downloaded when this machine does not already run one
+# (or --panel-version was given explicitly). This script never touches
+# quantum.sh or any tunnel engine.
 #
 # TLS gate contract: the install is NOT considered successful until
 # `certbot renew --dry-run` has SUCCEEDED over the live webroot WHILE NGINX
@@ -106,6 +118,7 @@ phase() { PHASE="$1"; printf '\n%s==> %s%s\n' "$C_CYAN" "$*" "$C_OFF"; }
 
 on_err() {
     local exit_code="$1" line="$2"
+    [[ -n "$TMPDIR_CTL" && -d "$TMPDIR_CTL" ]] && rm -rf "$TMPDIR_CTL"
     printf '\n%s[error]%s install-controller.sh FAILED (exit %s) near line %s, during phase: %s\n' \
         "$C_RED" "$C_OFF" "$exit_code" "$line" "$PHASE" >&2
     printf 'Rollback hints:\n' >&2
@@ -326,10 +339,17 @@ preflight_root_os() {
 }
 
 preflight_panel() {
-    [[ -x "$PANEL_BIN" ]] || die "panel binary $PANEL_BIN not found. Install the Quantum panel first (quantum.sh / install.sh) — this script does not install the panel."
+    if [[ ! -x "$PANEL_BIN" ]]; then
+        info "no panel binary at $PANEL_BIN — the product path installs it (Phase 0b: download + verify + isolated service)"
+        return 0
+    fi
+    if ! systemctl list-unit-files --no-legend "$PANEL_UNIT" 2>/dev/null | grep -q .; then
+        info "panel binary found but $PANEL_UNIT is not installed — Phase 0b will install the service"
+        return 0
+    fi
+    ok "panel present: $PANEL_BIN ($PANEL_UNIT)"
     systemctl is-active --quiet "$PANEL_UNIT" \
-        || die "service $PANEL_UNIT is not active. Install/start the panel first, then re-run this installer."
-    ok "panel present: $PANEL_BIN ($PANEL_UNIT active)"
+        || warn "service $PANEL_UNIT exists but is not active — Phase 0b will start it"
     have python3 || die "python3 is required to parse ${PANEL_DIR}/panel.json (apt-get install python3)"
     read_panel_json
 }
@@ -348,36 +368,50 @@ validate_domain() {
 }
 
 preflight_dns() {
-    local expected found_v4 found_v6 pub4 pub6
+    local found_v4 found_v6 pub4 pub6 a
     pub4="$(public_ip 4)"
     pub6="$(public_ip 6)"
-    expected="$( { [[ -n "$pub4" ]] && printf '%s\n' "$pub4"; [[ -n "$pub6" ]] && printf '%s\n' "$pub6"; server_global_addrs; } | grep -v '^$' | sort -u)"
     found_v4="$(resolve_domain "$DOMAIN" 4)"
     found_v6="$(resolve_domain "$DOMAIN" 6)"
-    found="$( { printf '%s\n' "$found_v4"; printf '%s\n' "$found_v6"; } | grep -v '^$' | sort -u)"
-    if [[ -z "$found" ]]; then
-        die "DNS: '$DOMAIN' does not resolve. Create an A/AAAA record pointing at this server first (or use --force-dns to skip)."
-    fi
     printf '\n'
-    printf '  %-28s | %s\n' "expected (this server)" "found in DNS ($DOMAIN)"
-    printf '  ----------------------------- | ----------------------------\n'
-    if [[ -n "$expected" ]]; then
-        printf '%s\n' "$expected" | while IFS= read -r a; do printf '  %-28s |\n' "$a"; done
-    else
-        printf '  %-28s |\n' "<could not detect server IPs>"
+    printf '  %-34s | %s\n' "check" "result"
+    printf '  ---------------------------------- | ----------------------------\n'
+    # A record: must resolve to this server's public IPv4 (HTTP-01 requirement).
+    if [[ -z "$found_v4" ]]; then
+        die "DNS: '$DOMAIN' has no A record. Create an A record pointing at this server's public IPv4 first (or use --force-dns to skip)."
     fi
-    printf '%s\n' "$found" | while IFS= read -r a; do printf '  %-28s | %s\n' "" "$a"; done
-    printf '\n'
-    if [[ -n "$expected" ]] && printf '%s\n' "$found" | grep -qxF -f <(printf '%s\n' "$expected"); then
-        ok "DNS matches this server"
+    if [[ -n "$pub4" ]] && printf '%s\n' "$found_v4" | grep -qxF "$pub4"; then
+        ok "A record: $DOMAIN -> $pub4 (this server's public IPv4)"
     else
         if [[ $FORCE_DNS -eq 1 ]]; then
+            printf '  %-34s | %s\n' "A record" "MISMATCH (forced): $(printf '%s' "$found_v4" | tr '\n' ' ')"
             printf '%s*** DNS MISMATCH — proceeding because --force-dns was given. ***%s\n' "$C_YELLOW" "$C_OFF"
-            printf '%sLet'"'"'s Encrypt issuance WILL FAIL until %s points at this server.%s\n' "$C_YELLOW" "$DOMAIN" "$C_OFF"
         else
-            die "DNS mismatch: $DOMAIN does not point at this server. Fix DNS or re-run with --force-dns (issuance will fail until DNS propagates)."
+            die "DNS: A record for '$DOMAIN' resolves to $(printf '%s' "$found_v4" | tr '\n' ' ') but this server's public IPv4 is ${pub4:-<undetectable>}. Point the A record here or re-run with --force-dns."
         fi
     fi
+    # AAAA records: detected and VERIFIED before being accepted — every IPv6
+    # address the domain publishes must be one of this server's own public
+    # IPv6 addresses, otherwise dual-stack clients break (issuance may still
+    # work over IPv4, but the site must not advertise an IPv6 it cannot serve).
+    if [[ -n "$found_v6" ]]; then
+        while IFS= read -r a; do
+            [[ -n "$a" ]] || continue
+            if [[ -n "$pub6" ]] && [[ "$a" == "$pub6" ]] || printf '%s' "$(server_global_addrs)" | grep -qxF "$a"; then
+                ok "AAAA record verified: $a is this server"
+            else
+                if [[ $FORCE_DNS -eq 1 ]]; then
+                    printf '  %-34s | %s\n' "AAAA record" "MISMATCH (forced): $a"
+                    printf '%s*** AAAA MISMATCH — proceeding because --force-dns was given. ***%s\n' "$C_YELLOW" "$C_OFF"
+                else
+                    die "DNS: AAAA record '$a' for '$DOMAIN' is not this server's IPv6 ($(printf '%s' "$(server_global_addrs)" | tr '\n' ' ')). Fix or remove the AAAA record, or re-run with --force-dns."
+                fi
+            fi
+        done <<<"$found_v6"
+    else
+        ok "no AAAA record (IPv4-only serving is fine)"
+    fi
+    printf '\n'
 }
 
 preflight_ports() {
@@ -432,6 +466,10 @@ Panel (upstream):  http://127.0.0.1:${PANEL_PORT}/${PANEL_BASE}/   (panel.json p
 TLS port of panel: ${PANEL_TLS_PORT} (untouched; becomes loopback-only after Phase 4)
 
 Would perform:
+  Phase 0b install the controller binary${PANEL_VERSION:+ (version ${PANEL_VERSION:-latest})} if not present
+           (release download + sha256 manifest + optional Ed25519 signature),
+           isolated ${PANEL_DIR} config (admin password, bind_host=127.0.0.1),
+           gre-panel.service, loopback health check
   Phase 1  apt-get install nginx certbot python3-certbot-nginx; enable (not start) nginx
   Phase 2  ACME webroot ${ACME_WEBROOT}, bootstrap :80 vhost,
            certbot certonly --webroot -d ${DOMAIN}${EMAIL:+ , email ${EMAIL}}${EMAIL:- , --register-unsafely-without-email},
@@ -498,6 +536,27 @@ EOF
 
     nginx_test
     nginx_reload_or_start
+
+    # Port-80 reachability + webroot-path probe (real-domain requirement):
+    # write a known token and fetch it back THROUGH the domain, proving the
+    # path Let's Encrypt will exercise (http://<domain>/.well-known/acme-challenge/)
+    # is served by this nginx from this webroot — before spending an issuance
+    # attempt. Fails hard unless --force-dns was given.
+    local token probe
+    token="quantum-probe-$(head -c 8 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+    printf '%s' "$token" > "${ACME_WEBROOT}/${token}"
+    chown www-data:www-data "${ACME_WEBROOT}/${token}" 2>/dev/null || true
+    probe="$(curl --noproxy '*' -fsS --max-time 10 "http://${DOMAIN}/.well-known/acme-challenge/${token}" 2>/dev/null || true)"
+    rm -f "${ACME_WEBROOT}/${token}"
+    if [[ "$probe" == "$token" ]]; then
+        ok "port 80 probe: http://${DOMAIN}/.well-known/acme-challenge/ serves this webroot"
+    else
+        if [[ $FORCE_DNS -eq 1 ]]; then
+            warn "port-80 challenge probe FAILED (got '${probe:-<no answer>}'); continuing because --force-dns was given — issuance may fail"
+        else
+            die "port-80 challenge probe failed: http://${DOMAIN}/.well-known/acme-challenge/ did not return the probe token. Check that port 80 is reachable from the internet (firewall/router/DNS) or re-run with --force-dns."
+        fi
+    fi
 
     local email_args=()
     if [[ -n "$EMAIL" ]]; then
@@ -824,6 +883,49 @@ phase4_verify_privacy() {
         [[ "$code" == "301" ]] && ok "HTTP -> HTTPS redirect in place" || warn "HTTP redirect check returned ${code:-none} (expected 301)"
     fi
 
+    # Certificate identity: SAN must carry the domain, and the chain must
+    # verify against the system trust store (wait_health_ok already used the
+    # full chain via curl without -k; the SAN read makes it explicit).
+    if [[ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
+        if openssl x509 -in "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" -noout -text 2>/dev/null \
+                | grep -q "DNS:${DOMAIN}"; then
+            ok "certificate SAN carries DNS:${DOMAIN}"
+        else
+            warn "certificate SAN does not list DNS:${DOMAIN} — re-run --verify-tls after reissuance"
+        fi
+        local issuer dates
+        issuer="$(openssl x509 -in "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" -noout -issuer 2>/dev/null | sed 's/^issuer=//')"
+        dates="$(openssl x509 -in "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" -noout -enddate 2>/dev/null | sed 's/^notAfter=//')"
+        ok "certificate: ${issuer:-?} (expires ${dates:-?})"
+    fi
+
+    # Renewal proof: the renewal config must use the webroot authenticator
+    # and the deploy hook must exist and be executable.
+    local renew_conf="/etc/letsencrypt/renewal/${DOMAIN}.conf"
+    if [[ -f "$renew_conf" ]]; then
+        if grep -q "authenticator = webroot" "$renew_conf"; then
+            ok "renewal uses authenticator = webroot"
+        else
+            warn "renewal config is not webroot — renewals may break: $renew_conf"
+        fi
+    fi
+    [[ -x "$RENEW_HOOK" ]] && ok "renewal deploy hook present and executable: $RENEW_HOOK" \
+        || warn "renewal deploy hook missing or not executable: $RENEW_HOOK"
+
+    # WSS route: the agent WebSocket endpoint must be reachable through nginx.
+    # Unauthenticated upgrades are refused by the panel (403/400) — that
+    # PROVES the route proxies; 404/502/503/timeouts mean it does not.
+    local ws_code
+    ws_code="$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' --max-time 8 \
+        -H 'Upgrade: websocket' -H 'Connection: Upgrade' \
+        -H 'Sec-WebSocket-Key: cXVhbnR1bS1oZWFsdGgtcHJvYmU=' -H 'Sec-WebSocket-Version: 13' \
+        "https://${DOMAIN}/${PANEL_BASE}/api/agent/ws" || true)"
+    case "$ws_code" in
+        101) ok "agent WebSocket route upgrades (101) — wss fully operational" ;;
+        403|400|302|401) ok "agent WebSocket route reachable (HTTP $ws_code before auth — upgrade path proxies to the panel)" ;;
+        *) die "agent WebSocket route check failed (HTTP ${ws_code:-none}; want 101/403/400/302/401) — nginx WSS forwarding is broken" ;;
+    esac
+
     if [[ "${PANEL_BIND_OLD}" == "127.0.0.1" ]]; then
         ok "panel already binds to 127.0.0.1 — nothing to change"
     else
@@ -918,9 +1020,13 @@ parse_args() {
             --domain)     DOMAIN="${2:-}"; shift 2 ;;
             --email)      EMAIL="${2:-}"; shift 2 ;;
             --panel-dir)  PANEL_DIR="${2:-}"; shift 2 ;;
+            --panel-version) PANEL_VERSION="${2:-}"; shift 2 ;;
+            --github-token) GRE_GITHUB_TOKEN="${2:-}"; export GRE_GITHUB_TOKEN; shift 2 ;;
+            --update-pubkey-file) UPDATE_PUBKEY_FILE="${2:-}"; shift 2 ;;
             --no-redirect) NO_REDIRECT=1; shift ;;
             --force-dns)  FORCE_DNS=1; shift ;;
             --dry-run)    DRY_RUN=1; shift ;;
+            --verify-tls) VERIFY_TLS=1; shift ;;
             --uninstall)  UNINSTALL=1; shift ;;
             --bootstrap-controller) BOOT=1; shift ;;
             --binary)     BOOT_BINARY="${2:-}"; shift 2 ;;
@@ -939,6 +1045,199 @@ parse_args() {
     DOMAIN="${DOMAIN:-}" EMAIL="${EMAIL:-}"
     BOOT_BINARY="${BOOT_BINARY:-}"
     BOOT_HTTP="${BOOT_HTTP:-17777}"
+    PANEL_VERSION="${PANEL_VERSION:-latest}"
+    UPDATE_PUBKEY_FILE="${UPDATE_PUBKEY_FILE:-}"
+    ARCH=""; REL_TAG=""; TMPDIR_CTL=""
+}
+
+###############################################################################
+# Product path — install the Quantum Controller binary + service (steps 2-5)
+#
+# Makes this installer standalone on a clean Ubuntu machine: download the
+# release binary for this architecture, verify it (sha256 manifest
+# fail-closed; optional Ed25519 .sig against --update-pubkey-file), install
+# it, create the isolated config with loopback-only binding from the start
+# (panel.json bind_host=127.0.0.1), write gre-panel.service and verify the
+# panel is healthy on loopback before any TLS/nginx work begins.
+#
+# Coexistence: if a panel binary + active service are already present and no
+# --panel-version was requested, this phase is skipped entirely (upgrade/
+# re-run keeps the operator's panel untouched).
+###############################################################################
+GH_REPO="Dark-modem/quantum"
+
+gh_curl() { # gh_curl CURL_ARGS... : GitHub API/download curl with optional token
+    local auth=()
+    [[ -n "${GRE_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}" ]] && \
+        auth=(-H "Authorization: Bearer ${GRE_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}")
+    curl -fsSL --retry 2 --retry-delay 1 --connect-timeout 10 "${auth[@]}" "$@"
+}
+
+detect_arch() { # sets ARCH to amd64|arm64
+    local mach
+    mach="$(uname -m)"
+    case "$mach" in
+        x86_64)  ARCH="amd64" ;;
+        aarch64) ARCH="arm64" ;;
+        *) die "unsupported CPU architecture: $mach (supported: x86_64/amd64, aarch64/arm64)" ;;
+    esac
+}
+
+resolve_controller_tag() {
+    if [[ "$PANEL_VERSION" != "latest" ]]; then
+        REL_TAG="$PANEL_VERSION"
+        ok "controller version: $REL_TAG"
+        return 0
+    fi
+    local body
+    body="$(gh_curl --max-time 60 "https://api.github.com/repos/${GH_REPO}/releases/latest")" \
+        || die "cannot resolve the latest release (GitHub API failed; check the token and network)"
+    REL_TAG="$(sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' <<<"$body" | head -n1)"
+    [[ "$REL_TAG" =~ ^v[0-9][0-9A-Za-z._-]*$ ]] || die "could not read tag_name from the GitHub API response"
+    ok "controller version: $REL_TAG (latest release)"
+}
+
+verify_download_sig() { # verify_download_sig ARTIFACT ASSET : Ed25519 .sig when a key was provided
+    local artifact="$1" asset="$2" sig_url="$TMPDIR_CTL/${asset}.sig"
+    [[ -n "$UPDATE_PUBKEY_FILE" ]] || return 0
+    [[ -f "$UPDATE_PUBKEY_FILE" ]] || die "update public key file not found: $UPDATE_PUBKEY_FILE"
+    gh_curl --max-time 30 "${REL_TAG}/../" >/dev/null 2>&1 || true # warm; URL built below
+    if ! gh_curl --max-time 30 "https://github.com/${GH_REPO}/releases/download/${REL_TAG}/${asset}.sig" -o "$sig_url"; then
+        die "signature file ${asset}.sig is missing from the release (fail-closed: --update-pubkey-file was given)"
+    fi
+    base64 -d "$sig_url" > "$sig_url.raw" 2>/dev/null || cp "$sig_url" "$sig_url.raw"
+    if openssl pkeyutl -verify -pubin -inkey "$UPDATE_PUBKEY_FILE" \
+            -sigfile "$sig_url.raw" -in "$artifact" >/dev/null 2>&1; then
+        ok "artifact Ed25519 signature verified against $UPDATE_PUBKEY_FILE"
+    else
+        rm -f "$sig_url" "$sig_url.raw"
+        die "artifact Ed25519 signature verification FAILED against $UPDATE_PUBKEY_FILE"
+    fi
+    rm -f "$sig_url" "$sig_url.raw"
+}
+
+install_controller_binary() {
+    local asset tmp_art tmp_sum expected actual pw
+    detect_arch
+    asset="gre-panel-linux-${ARCH}"
+    phase "Phase 0b: Controller binary + isolated service"
+    if [[ -x "$PANEL_BIN" ]] && systemctl list-unit-files --no-legend "$PANEL_UNIT" 2>/dev/null | grep -q .; then
+        if [[ "$PANEL_VERSION" == "latest" ]]; then
+            ok "panel already installed ($PANEL_BIN, $PANEL_UNIT) — keeping it (re-run/upgrade path)"
+            return 0
+        fi
+        info "panel already installed; --panel-version given — upgrading in place"
+    fi
+    have python3 || die "python3 is required (apt-get install python3)"
+    have openssl || die "openssl is required (apt-get install openssl)"
+    TMPDIR_CTL="$(mktemp -d /tmp/quantum-controller.XXXXXX)"
+    chmod 700 "$TMPDIR_CTL"
+
+    resolve_controller_tag
+    info "downloading $asset ($REL_TAG)..."
+    gh_curl --max-time 300 "https://github.com/${GH_REPO}/releases/download/${REL_TAG}/${asset}" \
+        -o "$TMPDIR_CTL/$asset" || die "release asset download failed"
+    gh_curl --max-time 60 "https://github.com/${GH_REPO}/releases/download/${REL_TAG}/checksums.txt" \
+        -o "$TMPDIR_CTL/checksums.txt" || die "checksum manifest unavailable (fail-closed: refusing an unverified binary)"
+    expected="$(sed -n 's/^\([0-9a-fA-F]\{64\}\)[[:space:]]\+\*\?'"$asset"'[[:space:]]*$/\1/p' "$TMPDIR_CTL/checksums.txt" | head -n1)"
+    [[ -n "$expected" ]] || die "no checksum entry for $asset in the manifest"
+    actual="$(sha256sum "$TMPDIR_CTL/$asset" | cut -d' ' -f1)"
+    [[ "$actual" == "${expected,,}" ]] || die "SHA-256 mismatch: expected ${expected,,}, got $actual"
+    if [[ -n "$UPDATE_PUBKEY_FILE" ]]; then
+        verify_download_sig "$TMPDIR_CTL/$asset" "$asset"
+    else
+        warn "artifact verified against the checksum manifest only (same-origin integrity). Provide --update-pubkey-file to verify the release Ed25519 signature too."
+        info "AUDIT: controller_binary_checksum_only asset=$asset sha256=$actual"
+    fi
+    [[ "$(head -c 4 "$TMPDIR_CTL/$asset")" == $'\x7fELF' ]] || die "downloaded asset is not an ELF binary"
+    chmod 0755 "$TMPDIR_CTL/$asset"
+    local ver
+    ver="$(timeout 10 env -u GRE_PANEL_DIR "$TMPDIR_CTL/$asset" version 2>/dev/null || true)"
+    [[ -n "$ver" ]] || die "downloaded binary does not run on this machine"
+    timeout 10 env -u GRE_PANEL_DIR "$TMPDIR_CTL/$asset" agent help >/dev/null 2>&1 \
+        || die "binary lacks the 'agent' subcommand (pre-M2 release?) — refusing"
+    ok "$asset verified: sha256=$actual (reports $ver)"
+
+    install -m 0755 "$TMPDIR_CTL/$asset" "$PANEL_BIN.new"
+    mv -f "$PANEL_BIN.new" "$PANEL_BIN"
+    rm -rf "$TMPDIR_CTL"
+    ok "controller binary installed: $PANEL_BIN"
+
+    # Isolated config/state directory; loopback-only binding from the start.
+    if [[ ! -f "${PANEL_DIR}/panel.json" ]]; then
+        mkdir -p "$PANEL_DIR" && chmod 0700 "$PANEL_DIR"
+        pw="$(openssl rand -hex 12)"
+        if ! GRE_PANEL_DIR="$PANEL_DIR" GRE_PANEL_PASSWORD="$pw" "$PANEL_BIN" password "$pw" >/dev/null 2>&1; then
+            GRE_PANEL_DIR="$PANEL_DIR" GRE_PANEL_PASSWORD="$pw" "$PANEL_BIN" password "$pw" 2>&1 | tail -3
+            die "could not initialize the panel config"
+        fi
+        umask 077
+        printf 'username=admin\npassword=%s\nbase_path=panel\n' "$pw" > "/root/.quantum-controller-credentials"
+        chmod 0600 "/root/.quantum-controller-credentials"
+        unset pw
+        ok "fresh config initialized at $PANEL_DIR; credentials (root-only) at /root/.quantum-controller-credentials"
+    else
+        info "existing config kept (idempotent re-run): ${PANEL_DIR}/panel.json"
+    fi
+    python3 - "$PANEL_DIR/panel.json" <<'PY'
+import json, os, sys
+p = sys.argv[1]
+cfg = {}
+if os.path.exists(p):
+    with open(p) as f:
+        cfg = json.load(f)
+cfg["port"] = 7777
+cfg.setdefault("base_path", "panel")
+cfg["bind_host"] = "127.0.0.1"   # step 5: loopback application binding; nginx owns the public interface
+d = os.path.dirname(p) or "."
+tmp = os.path.join(d, ".panel.json.tmp-quantum")
+with open(tmp, "w") as f:
+    json.dump(cfg, f, indent=2)
+    f.write("\n")
+os.chmod(tmp, 0o600)
+os.replace(tmp, p)
+PY
+    chmod 0600 "${PANEL_DIR}/panel.json"
+    ok "panel.json: port 7777, loopback binding (bind_host=127.0.0.1)"
+
+    if [[ ! -f "/etc/systemd/system/$PANEL_UNIT" ]]; then
+        cat > "/etc/systemd/system/$PANEL_UNIT" <<EOF
+[Unit]
+Description=Quantum Central Controller
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=GRE_PANEL_DIR=$PANEL_DIR
+ExecStart=$PANEL_BIN
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+        systemctl daemon-reload
+        ok "service written: /etc/systemd/system/$PANEL_UNIT"
+    fi
+    systemctl enable --now "$PANEL_UNIT" >/dev/null 2>&1 || systemctl restart "$PANEL_UNIT"
+    sleep 2
+    systemctl is-active --quiet "$PANEL_UNIT" || {
+        journalctl -u "$PANEL_UNIT" -n 10 --no-pager | tail -5
+        die "$PANEL_UNIT failed to start"
+    }
+    local base
+    base="$(python3 -c "import json;print(json.load(open('${PANEL_DIR}/panel.json')).get('base_path','panel'))")"
+    PANEL_BASE="$base"
+    local i
+    for i in 1 2 3 4 5 6 7 8; do
+        if curl_local "http://127.0.0.1:7777/${base}/api/health" | grep -q '"status"[[:space:]]*:[[:space:]]*"ok"'; then
+            ok "controller healthy on loopback (http://127.0.0.1:7777/$base/api/health)"
+            return 0
+        fi
+        sleep 1.5
+    done
+    die "controller health check failed on loopback after install"
 }
 
 ###############################################################################
@@ -1108,6 +1407,16 @@ main() {
         exit 0
     fi
 
+    if [[ $VERIFY_TLS -eq 1 ]]; then
+        [[ $EUID -eq 0 ]] || die "--verify-tls must run as root"
+        validate_domain
+        [[ -x "$PANEL_BIN" ]] || die "panel binary not found — nothing to verify"
+        have python3 || die "python3 is required"
+        read_panel_json
+        phase4_verify_privacy
+        exit 0
+    fi
+
     if [[ ${BOOT:-0} -eq 1 ]]; then
         bootstrap_controller
         exit 0
@@ -1128,6 +1437,11 @@ main() {
         print_plan
         exit 0
     fi
+
+    # Steps 2-5: binary + isolated config/service + loopback binding. No-op
+    # when a panel is already installed and no --panel-version was requested.
+    install_controller_binary
+    read_panel_json
 
     install_packages
     phase2_tls
