@@ -37,19 +37,35 @@ set -euo pipefail
 
 # Shared installer helpers (bilingual output, firewall interface, SSH
 # bootstrap, server preparation). Resolved next to this script; standalone
-# copies fetch it from the repository.
+# copies fetch it from a PINNED commit (Session 4 review SSH-5): the URL is a
+# fixed commit SHA — never a moving branch — and the downloaded content is
+# verified against the pinned SHA-256 before it is sourced as root. To update
+# the pin deliberately: change LIB_COMMIT and LIB_SHA256 together in a
+# reviewed commit (the hash pins the exact lib bytes the installer trusts).
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "$LIB_DIR/installer-lib.sh" ]]; then
     # shellcheck source=installer-lib.sh
     source "$LIB_DIR/installer-lib.sh"
 else
+    LIB_COMMIT="S6_LIB_PIN_COMMIT"
+    LIB_SHA256="S6_LIB_PIN_SHA256"
+    LIB_URL="https://raw.githubusercontent.com/Dark-modem/quantum/${LIB_COMMIT}/installer-lib.sh"
     TMP_LIB="$(mktemp)"
-    LIB_URL="https://raw.githubusercontent.com/Dark-modem/quantum/main/installer-lib.sh"
+    chmod 600 "$TMP_LIB"
     CURL_AUTH=()
     [[ -n "${GRE_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}" ]] && \
         CURL_AUTH=(-H "Authorization: Bearer ${GRE_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}")
     curl -fsSL --retry 2 --connect-timeout 10 --max-time 60 "${CURL_AUTH[@]}" "$LIB_URL" -o "$TMP_LIB" \
         || { printf 'Error: installer-lib.sh not found next to %s and cannot be downloaded.\n' "$0" >&2; exit 1; }
+    got="$(sha256sum "$TMP_LIB" | cut -d' ' -f1)"
+    if [[ "$got" != "$LIB_SHA256" ]]; then
+        printf 'Error: downloaded installer-lib.sh does not match the pinned SHA-256.\n' >&2
+        printf '  expected: %s\n  got:      %s\n' "$LIB_SHA256" "$got" >&2
+        printf 'Refusing to execute unpinned code as root. Place the matching installer-lib.sh\n' >&2
+        printf 'next to %s, or update LIB_COMMIT/LIB_SHA256 in a reviewed commit.\n' "$0" >&2
+        rm -f "$TMP_LIB"
+        exit 1
+    fi
     # shellcheck source=/dev/null
     source "$TMP_LIB"
     rm -f "$TMP_LIB"
