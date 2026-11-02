@@ -1034,6 +1034,8 @@ parse_args() {
             --dry-run)    DRY_RUN=1; shift ;;
             --verify-tls) VERIFY_TLS=1; shift ;;
             --uninstall)  UNINSTALL=1; shift ;;
+            --setup-menu) SETUP_MENU=1; shift ;;
+            --phase)      SETUP_PHASE="${2:-}"; shift 2 ;;
             --bootstrap-controller) BOOT=1; shift ;;
             --binary)     BOOT_BINARY="${2:-}"; shift 2 ;;
             --http-port)  BOOT_HTTP="${2:-}"; shift 2 ;;
@@ -1466,4 +1468,19 @@ main() {
     print_summary
 }
 
+if [[ ${SETUP_MENU:-0} -eq 1 ]]; then
+    setup_menu controller
+    exit 0
+fi
+if [[ -n "${SETUP_PHASE:-}" ]]; then
+    case "$SETUP_PHASE" in
+        inspect) setup_inspect ;;
+        backup)  setup_backup ;;
+        ssh)     setup_ssh ;;
+        firewall) setup_firewall ;;
+        verify)  SETUP_VERIFY_UNITS=(gre-panel nginx); setup_verify ;;
+        *) die "unknown phase: $SETUP_PHASE (inspect|backup|ssh|firewall|verify)" ;;
+    esac
+    exit 0
+fi
 main "$@"

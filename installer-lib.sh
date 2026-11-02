@@ -616,3 +616,122 @@ ssh_bootstrap() {
     ssh_print_handoff "$user" "${new_port:-22}" "$role"
     return 0
 }
+
+# ---------------------------------------------------------------------------
+# 7. Complete Server Setup — a numbered menu wrapping independently
+#    executable phases. Every phase is idempotent, additive and reversible;
+#    nothing here flushes firewall state, removes accounts, or disables
+#    existing SSH access. Personal-script audit classification (node-setup/
+#    setup.sh, v14.2 — the file is no longer in the workspace; classified
+#    from the Session 3 installer audit record):
+#      SAFE   → full backup before changes; additive ufw/iptables opens;
+#               MSS clamp; per-file sysctl application with read-back.
+#      MODIFY → SSH hardening (dedicated port + key-only) — reimplemented
+#               here WITH verify-before-finalize and a revert tool.
+#               sysctl values — taken only through Session 2's netopt engine
+#               (support-checked, journalled, reversible).
+#      REJECT → `ufw --force reset` + before.rules overwrite; blanket
+#               MASQUERADE; systemd-resolved replacement; password-in-script
+#               sudoers; hardcoded SSH key passphrase.
+# ---------------------------------------------------------------------------
+
+setup_install_role() { # defined per-installer; the lib only declares the hook
+    q_die "setup_install_role must be defined by the role installer."
+}
+
+SETUP_VERIFY_UNITS=()
+
+setup_inspect() { # Phase 0 — read-only system inspection
+    q_phase "Phase 0: System inspection" "فاز ۰: بازرسی سیستم"
+    q_require_root
+    [[ -r /etc/os-release ]] && . /etc/os-release && q_info "OS: ${PRETTY_NAME:-unknown}" "سیستم‌عامل: ${PRETTY_NAME:-unknown}"
+    q_info "Arch: $(uname -m) · Kernel: $(uname -r)" "معماری: $(uname -m) · هسته: $(uname -r)"
+    q_info "CPU: $(nproc) core(s) · RAM: $(awk '/MemTotal/ {printf "%.0f MB", $2/1024}' /proc/meminfo) · Disk: $(df -h / | awk 'NR==2 {print $4" free / "$2}')" "پردازنده: $(nproc) · رم: $(awk '/MemTotal/ {printf "%.0f MB", $2/1024}' /proc/meminfo)"
+    q_info "Public route: $(ip -4 route get 1.1.1.1 2>/dev/null | grep -oP 'src \K[\d.]+' | head -1)" "مسیر عمومی: $(ip -4 route get 1.1.1.1 2>/dev/null | grep -oP 'src \K[\d.]+' | head -1)"
+    local svc
+    for svc in gre-panel gre-agent gre-agent-lab quantum-matrix xray nginx docker; do
+        systemctl is-active --quiet "$svc" 2>/dev/null && q_info "running service: $svc" "سرویس فعال: $svc"
+    done
+    q_info "listeners:" "شنونده‌ها:"
+    ss -tulnp 2>/dev/null | grep -vE "127\.0\.0\.5[34]|::1|127\.0\.0\.1" | head -12
+    q_info "SSH: $(ss -tlnp 2>/dev/null | awk '/sshd/ {n=split($4,a,":"); print a[n]}' | sort -un | tr '\n' ' ')" "SSH: $(ss -tlnp 2>/dev/null | awk '/sshd/ {n=split($4,a,":"); print a[n]}' | sort -un | tr '\n' ' ')"
+    if q_have ufw; then q_info "ufw: $(ufw status | awk '/^Status:/ {print $2}')" "ufw: $(ufw status | awk '/^Status:/ {print $2}')"; fi
+    q_info "iptables rules: $(iptables-save 2>/dev/null | wc -l)" "قوانین iptables: $(iptables-save 2>/dev/null | wc -l)"
+    return 0
+}
+
+setup_backup() { # Phase 0b — backup before changes
+    q_phase "Phase 0b: Backup" "فاز ۰ب: پشتیبان‌گیری"
+    q_require_root
+    local ts dir=/var/backups/quantum-setup
+    ts="$(date +%F-%H%M%S)"; mkdir -p "$dir"
+    tar -C / -czf "$dir/pre-setup-$ts.tgz" \
+        etc/gre-panel etc/gre-panel-lab* etc/ssh/sshd_config \
+        etc/ssh/sshd_config.d etc/nginx etc/systemd/system 2>/dev/null
+    iptables-save > "$dir/iptables-$ts.txt" 2>/dev/null
+    ss -tulnp > "$dir/listeners-$ts.txt" 2>/dev/null
+    q_ok "Backup written: $dir/pre-setup-$ts.tgz (+ iptables/listeners snapshots)" "پشتیبان نوشته شد: $dir/pre-setup-$ts.tgz"
+    SETUP_LAST_BACKUP="pre-setup-$ts"
+    return 0
+}
+
+setup_ssh() { # Phase 1 — SSH security (delegates to ssh_bootstrap)
+    q_phase "Phase 1: SSH security" "فاز ۱: امنیت SSH"
+    local user="${SETUP_SSH_USER:-qadmin}" port="${SETUP_SSH_PORT:-}" pubkey="${SETUP_SSH_PUBKEY:-}"
+    if [[ -z "$pubkey" && -n "${SETUP_SSH_PUBKEY_FILE:-}" && -f "$SETUP_SSH_PUBKEY_FILE" ]]; then
+        pubkey="$(tr -d '\r\n' < "$SETUP_SSH_PUBKEY_FILE")"
+    fi
+    [[ -z "$port" && -n "${SETUP_SSH_PORT_FILE:-}" ]] && port="$(tr -d '\r\n' < "$SETUP_SSH_PORT_FILE" 2>/dev/null)"
+    ssh_bootstrap "${SETUP_ROLE:-agent}" "$user" "$pubkey" "$port"
+}
+
+setup_firewall() { # Phase 2 — read-only inventory then engine-backed opens
+    q_phase "Phase 2: Firewall and ports (read-only inventory first)" "فاز ۲: فایروال و پورت‌ها (اول فقط خواندنی)"
+    q_require_root
+    q_info "iptables rules: $(iptables-save 2>/dev/null | wc -l) · ufw: $(q_have ufw && ufw status | awk '/^Status:/ {print $2}' || echo absent)" "قوانین: $(iptables-save 2>/dev/null | wc -l) · ufw: $(q_have ufw && ufw status | awk '/^Status:/ {print $2}' || echo absent)"
+    q_info "No rules are changed by this inventory. Opens happen through the role installers (engine-backed, ownership-tagged)." "هیچ قانونی تغییر نمی‌کند. باز کردن پورت‌ها توسط نصب‌کنندهٔ نقش انجام می‌شود (با موتور و برچسب مالکیت)."
+    return 0
+}
+
+setup_verify() { # Phase 5 — post-install verification
+    q_phase "Phase 5: Verification" "فاز ۵: راستی‌آزمایی"
+    local fails=0
+    systemctl is-active --quiet sshd || systemctl is-active --quiet ssh || { q_err "sshd not running"; fails=$((fails+1)); }
+    for u in "${SETUP_VERIFY_UNITS[@]}"; do
+        systemctl is-active --quiet "$u" && q_ok "$u active" "$u فعال" || { q_err "$u NOT active" "$u فعال نیست"; fails=$((fails+1)); }
+    done
+    q_info "listeners now:" "شنونده‌ها:"
+    ss -tulnp 2>/dev/null | grep -vE "127\.0\.0\.5[34]|::1" | head -10
+    [[ $fails -eq 0 ]] && q_ok "Verification passed (0 failures)" "راستی‌آزمایی موفق" || q_err "Verification had $fails failure(s)" "$fails خطا"
+    return $fails
+}
+
+setup_menu() { # the numbered menu — a wrapper, never a second installer
+    local role="$1"
+    while true; do
+        q_phase "Quantum Server Setup — role: $role" "نصب سرور Quantum — نقش: $role"
+        cat <<MENU
+  0) System inspection (read-only)         بازرسی سیستم
+  1) Backup before changes                 پشتیبان‌گیری
+  2) SSH security (key + qadmin + port)    امنیت SSH
+  3) Firewall inventory (read-only)        فایروال (فقط خواندنی)
+  4) Install role ($role)                  نصب نقش
+  5) Network optimization (plan/confirm)   بهینه‌سازی شبکه
+  6) Verification                          راستی‌آزمایی
+  q) Quit                                  خروج
+MENU
+        local choice=""
+        read -r -p "Select / انتخاب: " choice
+        case "$choice" in
+            0) setup_inspect ;;
+            1) setup_backup ;;
+            2) setup_ssh ;;
+            3) setup_firewall ;;
+            4) setup_install_role "$role" ;;
+            5) netopt_prepare_server "$role" "${SETUP_BIN:-/usr/local/bin/gre-panel}" ;;
+            6) setup_verify ;;
+            q|Q) return 0 ;;
+            *) q_warn "unknown choice: $choice" "انتخاب نامعتبر" ;;
+        esac
+    done
+}
