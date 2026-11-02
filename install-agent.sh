@@ -901,6 +901,67 @@ main() {
     show_status
 }
 
+setup_install_role() { # Phase 7 — guided agent installation
+    q_phase "Phase 7: Agent installation (guided)" "فاز ۷: نصب ایجنت (هدایت‌شده)"
+    if [[ -z "$SERVER" ]]; then
+        read -r -p "Controller URL (https://host:7443[/base]): " SERVER
+    fi
+    [[ -z "$SERVER" ]] && { q_err "a controller URL is required"; return 1; }
+    if [[ -z "$ENROLL_TOKEN" ]]; then
+        read -r -p "Enrollment token (minted in the controller UI): " ENROLL_TOKEN
+    fi
+    [[ -z "$ENROLL_TOKEN" ]] && { q_err "an enrollment token is required"; return 1; }
+    local role="${SETUP_AGENT_ROLE:-}"
+    [[ -z "$role" && -t 0 ]] && { read -r -p "Role [iran/foreign, empty = the token's role]: " role; }
+    guided_confirm_plan "Agent installation" "download + verify the agent binary (latest release, fail-closed)
+enroll with $SERVER (token never printed)
+write gre-agent.service (Restart=always) and start it
+verify the outbound WebSocket connection
+no web UI, no nginx, no inbound listener on this host" || { q_warn "cancelled" "لغو شد"; return 1; }
+    local inst_args=(--server "$SERVER" --token "$ENROLL_TOKEN" --yes)
+    [[ -n "$role" ]] && inst_args+=(--role "$role")
+    local out rc=0
+    out="$(QUANTUM_AGENT_RELEASE_BASE="${QUANTUM_AGENT_RELEASE_BASE:-}" bash "$SCRIPT_NAME" "${inst_args[@]}" 2>&1)" || rc=$?
+    printf '%s\n' "$out"
+    [[ $rc -eq 0 ]] && q_ok "Agent installed and enrolled — phase 9 verifies" "ایجنت نصب شد" ||         q_err "installation failed (rc=$rc); re-run phase 7 (idempotent)" "نصب ناموفق بود"
+    return $rc
+}
+
+setup_restore_role() { # Phase 10 — agent restore (plan + confirm)
+    local purge=""
+    guided_confirm_plan "Agent uninstall" "stop + disable + remove gre-agent.service
+keep the enrollment identity and binary by default
+quantum-matrix* tunnels are NEVER touched" || { q_warn "cancelled" "لغو شد"; return 1; }
+    if [[ -t 0 ]]; then
+        read -r -p "Also remove the enrollment identity and binary? [y/N]: " a
+        [[ "$a" =~ ^[Yy]$ ]] && purge="--purge"
+    fi
+    bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/uninstall-agent.sh" $purge --yes
+    q_ok "Agent removed (Matrix tunnels preserved)" "ایجنت حذف شد"
+}
+
+# Pre-main dispatch: parse_args runs inside main(), so the setup flags must
+# be scanned from the raw arguments here or --setup-menu/--phase would only
+# ever work when set through the environment.
+SETUP_MENU_ARG=0
+SETUP_PHASE_ARG=""
+_setup_prev=""
+for _setup_arg in "$@"; do
+    case "$_setup_prev" in
+        --phase) SETUP_PHASE_ARG="$_setup_arg" ;;
+    esac
+    case "$_setup_arg" in
+        --setup-menu) SETUP_MENU_ARG=1 ;;
+        --phase)      : ;;
+    esac
+    _setup_prev="$_setup_arg"
+done
+if [[ ${SETUP_PHASE_ARG:-} != "" ]]; then
+    SETUP_PHASE="$SETUP_PHASE_ARG"
+fi
+if [[ ${SETUP_MENU_ARG:-0} -eq 1 ]]; then
+    SETUP_MENU=1
+fi
 if [[ ${SETUP_MENU:-0} -eq 1 ]]; then
     setup_menu agent
     exit 0
@@ -911,8 +972,12 @@ if [[ -n "${SETUP_PHASE:-}" ]]; then
         backup)  setup_backup ;;
         ssh)     setup_ssh ;;
         firewall) setup_firewall ;;
-        verify)  SETUP_VERIFY_UNITS=(gre-agent-lab gre-agent); setup_verify ;;
-        *) die "unknown phase: $SETUP_PHASE (inspect|backup|ssh|firewall|verify)" ;;
+        verify)         SETUP_VERIFY_UNITS=(gre-agent-lab gre-agent); setup_verify ;;
+        ssh-key)        setup_ssh_key ;;
+        ssh-port)       setup_ssh_port ;;
+        netopt)         SETUP_ROLE=agent; setup_netopt ;;
+        restore)        setup_restore_role ;;
+        *) die "unknown phase: $SETUP_PHASE (inspect|backup|ssh|ssh-key|ssh-port|firewall|netopt|verify|restore)" ;;
     esac
     exit 0
 fi

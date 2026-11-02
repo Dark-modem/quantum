@@ -1468,6 +1468,68 @@ main() {
     print_summary
 }
 
+setup_role_ports() { # inbound ports this role needs (phase 6)
+    printf '80 443'
+}
+
+setup_install_role() { # Phase 7 — guided standalone controller install
+    q_phase "Phase 7: Controller installation (guided)" "فاز ۷: نصب کنترلر (هدایت‌شده)"
+    if [[ -z "$DOMAIN" ]]; then
+        read -r -p "Public domain for this controller (e.g. qc-test.onvip10.ir): " DOMAIN
+    fi
+    [[ -z "$DOMAIN" ]] && { q_err "a domain is required"; return 1; }
+    local ver="${PANEL_VERSION:-latest}" gh
+    read -r -p "Panel release version [latest]: " ver; ver="${ver:-latest}"
+    read -r -s -p "GitHub read token (hidden; empty = saved token file): " gh; printf '\n'
+    [[ -n "$gh" ]] && export GRE_GITHUB_TOKEN="$gh"
+    guided_confirm_plan "Controller installation" "download + verify the controller binary ($ver, checksums + Ed25519)
+initialize the isolated panel service (loopback binding)
+install nginx + certbot; issue the LE certificate via webroot
+write the WSS reverse-proxy site; verify privacy; reload nginx
+firewall: additive allow rules for 80/443 only (ownership-tagged)" || { q_warn "cancelled" "لغو شد"; return 1; }
+    preflight_root_os && preflight_panel && validate_domain && preflight_dns && \
+        preflight_ports && preflight_backup || { q_err "preflight refused; nothing was changed" "پیش‌نیازها رد شدند"; return 1; }
+    q_check_resources 1024 2048; q_ensure_timesync; netopt_prepare_server controller "$PANEL_BIN"
+    install_controller_binary && read_panel_json && install_packages && phase2_tls && \
+        write_proxy_site && phase4_verify_privacy && open_firewall || {
+        q_err "installation failed; backups + rollback script under /var/backups/quantum-controller" "نصب ناموفق بود؛ بازگردانی موجود است"; return 1; }
+    mkdir -p "$MARKER_DIR"
+    printf 'DOMAIN=%s\nINSTALLED=%s\n' "$DOMAIN" "$TS" > "$MARKER_FILE"; chmod 644 "$MARKER_FILE"
+    q_ok "Controller installed — phase 9 verifies readiness" "کنترلر نصب شد"
+    print_summary
+}
+
+setup_restore_role() { # Phase 10 — controller restore (plan + confirm inside do_uninstall flow)
+    guided_confirm_plan "Controller uninstall" "stop + remove the nginx proxy artifacts of THIS installer
+remove the renewal deploy hook and ACME webroot (if unreferenced)
+the panel binary, gre-panel.service and /etc/gre-panel are NOT touched
+nginx itself stays installed; unrelated sites are never removed" || { q_warn "cancelled" "لغو شد"; return 1; }
+    do_uninstall
+    q_ok "Controller proxy components removed (panel preserved)" "اجزای پراکسی حذف شدند"
+}
+
+# Pre-main dispatch: parse_args runs inside main(), so the setup flags must
+# be scanned from the raw arguments here or --setup-menu/--phase would only
+# ever work when set through the environment.
+SETUP_MENU_ARG=0
+SETUP_PHASE_ARG=""
+_setup_prev=""
+for _setup_arg in "$@"; do
+    case "$_setup_prev" in
+        --phase) SETUP_PHASE_ARG="$_setup_arg" ;;
+    esac
+    case "$_setup_arg" in
+        --setup-menu) SETUP_MENU_ARG=1 ;;
+        --phase)      : ;;
+    esac
+    _setup_prev="$_setup_arg"
+done
+if [[ ${SETUP_PHASE_ARG:-} != "" ]]; then
+    SETUP_PHASE="$SETUP_PHASE_ARG"
+fi
+if [[ ${SETUP_MENU_ARG:-0} -eq 1 ]]; then
+    SETUP_MENU=1
+fi
 if [[ ${SETUP_MENU:-0} -eq 1 ]]; then
     setup_menu controller
     exit 0
@@ -1478,8 +1540,13 @@ if [[ -n "${SETUP_PHASE:-}" ]]; then
         backup)  setup_backup ;;
         ssh)     setup_ssh ;;
         firewall) setup_firewall ;;
-        verify)  SETUP_VERIFY_UNITS=(gre-panel nginx); setup_verify ;;
-        *) die "unknown phase: $SETUP_PHASE (inspect|backup|ssh|firewall|verify)" ;;
+        verify)         SETUP_VERIFY_UNITS=(gre-panel nginx); setup_verify ;;
+        ssh-key)        setup_ssh_key ;;
+        ssh-port)       setup_ssh_port ;;
+        firewall-apply) setup_firewall_apply ;;
+        netopt)         SETUP_ROLE=controller; setup_netopt ;;
+        restore)        setup_restore_role ;;
+        *) die "unknown phase: $SETUP_PHASE (inspect|backup|ssh|ssh-key|ssh-port|firewall|firewall-apply|netopt|verify|restore)" ;;
     esac
     exit 0
 fi

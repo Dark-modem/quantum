@@ -190,7 +190,7 @@ fw_allow_port() {
     # tagged, additive-only, fail-closed). Falls back to the tagged ufw /
     # iptables paths on pre-engine runtimes. Neither path resets or flushes.
     if fw_engine_available "$bin"; then
-        if env -u GRE_PANEL_DIR "$bin" firewall apply --yes             --owner "service:quantum-$role-$name" --note "$tag"             --add "$port/$proto" >/dev/null 2>&1; then
+        if timeout "${FW_ENGINE_TIMEOUT:-60}" env -u GRE_PANEL_DIR "$bin" firewall apply --yes --owner "service:quantum-$role-$name" --note "$tag" --add "$port/$proto" >/dev/null 2>&1; then
             q_ok "Firewall rule applied via the firewall engine: $tag $port/$proto." "قانون فایروال توسط موتور اعمال شد."
             return 0
         fi
@@ -307,11 +307,13 @@ netopt_prepare_server() { # netopt_prepare_server <role: controller|agent> [bina
 # comments, no forbidden operations) — and records the engine's registry file
 # when present. fw_engine_available reports honestly what the installer can
 # drive TODAY.
-fw_engine_available() { # 0 only when the runtime exposes the Session 1 firewall CLI
+fw_engine_available() { # 0 only when the runtime exposes the Session 1 firewall CLI.
+    # Probe = usage banner only (no backend/iptables probing), hard-bounded:
+    # a hung engine must never stall the installer.
     local bin="${1:-/usr/local/bin/gre-panel}" probe
     [[ -x "$bin" ]] || return 1
-    probe="$(env -u GRE_PANEL_DIR "$bin" firewall detect 2>&1 || true)"
-    [[ "$probe" == *'"backend"'* ]]
+    probe="$(timeout "${FW_ENGINE_TIMEOUT:-10}" env -u GRE_PANEL_DIR "$bin" firewall 2>&1 || true)"
+    [[ "$probe" == *"firewall"* ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -706,30 +708,148 @@ setup_verify() { # Phase 5 — post-install verification
     return $fails
 }
 
-setup_menu() { # the numbered menu — a wrapper, never a second installer
+setup_ssh_key() { # Phase 3 - SSH key setup + qadmin creation (additive)
+    q_phase "Phase 3: SSH key setup + qadmin" "فاز ۳: کلید SSH و حساب مدیریتی"
+    q_require_root
+    local user="${SETUP_SSH_USER:-qadmin}" pubkey="${SETUP_SSH_PUBKEY:-}"
+    if [[ -z "$pubkey" && -n "${SETUP_SSH_PUBKEY_FILE:-}" && -f "$SETUP_SSH_PUBKEY_FILE" ]]; then
+        pubkey="$(tr -d '\r' < "$SETUP_SSH_PUBKEY_FILE" | head -n1)"
+    fi
+    if [[ -z "$pubkey" && -t 0 ]]; then
+        local f
+        read -r -p "Path to the PUBLIC key file: " f
+        [[ -f "$f" ]] && pubkey="$(tr -d '\r' < "$f" | head -n1)"
+    fi
+    if [[ -z "$pubkey" ]]; then
+        q_warn "no public key available; account can be created keyless (not recommended)" "کلیدی در دسترس نیست"
+        guided_confirm_plan "SSH account" "create/keep admin account $user (key-only, sudo, NOPASSWD)" || return 1
+        ssh_prepare_account "$user"
+        q_ok "Account ready (re-run phase 3 to install a key)" "حساب آماده است"
+        return 0
+    fi
+    guided_confirm_plan "SSH key setup" "create/keep admin account $user (key-only, sudo)
+install public key: ${pubkey:0:40}
+existing keys and SSH access are never removed" || { q_warn "cancelled" "لغو شد"; return 1; }
+    ssh_prepare_account "$user" && ssh_install_pubkey "$user" "$pubkey" &&         q_ok "SSH phase 3 complete: account + key ready" "کلید و حساب آماده‌اند"
+}
+
+setup_ssh_port() { # Phase 4 - additive SSH port migration (verify + rollback inside)
+    q_phase "Phase 4: SSH port migration (additive)" "فاز ۴: انتقال پورت SSH (افزودنی)"
+    local port="${SETUP_SSH_PORT:-}"
+    if [[ -z "$port" && -n "${SETUP_SSH_PORT_FILE:-}" && -f "$SETUP_SSH_PORT_FILE" ]]; then
+        port="$(tr -d '\r\n' < "$SETUP_SSH_PORT_FILE")"
+    fi
+    if [[ -z "$port" && -t 0 ]]; then
+        read -r -p "New SSH port to ADD (current port stays enabled): " port
+    fi
+    [[ "$port" =~ ^[0-9]+$ ]] || { q_err "no SSH port given (SETUP_SSH_PORT or a TTY required)"; return 1; }
+    guided_confirm_plan "SSH port migration" "ADD port $port alongside $(ssh_listening_ports | tr '\n' ' ')
+firewall: rate-limited allow rule for $port (additive, ownership-tagged)
+sshd -t gate before reload; rollback of the rule on any failure
+the old port and password login stay enabled until explicit finalize" || { q_warn "cancelled" "لغو شد"; return 1; }
+    ssh_bootstrap "${SETUP_ROLE:-agent}" "${SETUP_SSH_USER:-qadmin}" "${SETUP_SSH_PUBKEY:-}" "$port"
+}
+
+setup_firewall_apply() { # Phase 6 - Firewall Configuration (engine-backed opens)
+    q_phase "Phase 6: Firewall configuration" "فاز ۶: پیکربندی فایروال"
+    q_require_root
+    local ports="${SETUP_ROLE_PORTS:-}"
+    [[ -z "$ports" && "$(type -t setup_role_ports || true)" == function ]] && ports="$(setup_role_ports)"
+    if [[ -z "$ports" ]]; then
+        q_info "this role opens no additional inbound ports (agent: outbound-only; SSH handled in phase 4)" "این نقش پورت ورودی اضافی ندارد"
+        return 0
+    fi
+    guided_confirm_plan "Firewall configuration" "additive allow rules for: $ports
+ownership-tagged service:quantum-* via the Session 1 engine when available
+no flush, no reset, no policy changes; foreign rules untouched" || { q_warn "cancelled" "لغو شد"; return 1; }
+    local p
+    for p in $ports; do
+        fw_allow_port "${SETUP_ROLE:-agent}" "web-$p" "$p" tcp
+    done
+    q_ok "Firewall configuration complete (additive, tagged)" "فاز ۶ کامل شد"
+}
+
+setup_netopt() { # Phase 8 - netopt with explicit plan + confirmation + read-back
+    q_phase "Phase 8: Network optimization (plan, confirm, apply)" "فاز ۸: بهینه‌سازی شبکه"
+    local bin="${SETUP_BIN:-/usr/local/bin/gre-panel}" probe out rc=0
+    if [[ "${GRE_NO_NETOPT:-0}" == "1" ]]; then
+        q_warn "netopt skipped (--no-netopt)" "بهینه‌سازی رد شد"; return 0
+    fi
+    probe="$(env -u GRE_PANEL_DIR "$bin" netopt 2>&1 || true)"
+    [[ "$probe" == *"Usage: gre-panel netopt"* ]] || { q_warn "netopt engine not in this runtime build; no tuning applied" "موتور بهینه‌سازی در این بیلد نیست"; return 0; }
+    out="$(env -u GRE_PANEL_DIR "$bin" netopt detect 2>&1)" || true
+    printf '%s\n' "$out" | head -14
+    out="$(env -u GRE_PANEL_DIR "$bin" netopt plan --role "${SETUP_ROLE:-agent}" 2>&1)" || rc=$?
+    printf '%s\n' "$out"
+    if [[ $rc -ne 0 ]]; then
+        q_warn "netopt declined to plan on this host (rc=$rc); no tuning applied" "موتور نپذیرفت؛ تنظیمی اعمال نشد"
+        return 0
+    fi
+    guided_confirm_plan "Network optimization" "apply the plan above through the netopt engine
+owned sysctl files + persistent journal
+rollback: gre-panel netopt rollback | revert: gre-panel netopt revert" || { q_warn "cancelled; nothing applied" "لغو شد"; return 1; }
+    out="$(env -u GRE_PANEL_DIR "$bin" netopt apply --role "${SETUP_ROLE:-agent}" --justify "guided-setup" 2>&1)" || rc=$?
+    printf '%s\n' "$out"
+    if [[ $rc -eq 0 ]]; then
+        env -u GRE_PANEL_DIR "$bin" netopt status || true
+        q_ok "netopt applied; read-back above" "اعمال شد؛ بازگردانی موجود است"
+    else
+        q_warn "netopt apply failed (rc=$rc)" "اعمال ناموفق بود"
+    fi
+    return 0
+}
+
+setup_restore() { # Phase 10 - Restore / uninstall (role hook, plan + confirm)
+    q_phase "Phase 10: Restore / uninstall" "فاز ۱۰: بازگردانی / حذف"
+    type -t setup_restore_role >/dev/null 2>&1 || { q_err "setup_restore_role is not defined by this installer"; return 1; }
+    setup_restore_role
+}
+
+setup_menu() { # the numbered 10-phase menu — a wrapper, never a second installer
     local role="$1"
+    SETUP_ROLE="$role"
     while true; do
         q_phase "Quantum Server Setup — role: $role" "نصب سرور Quantum — نقش: $role"
         cat <<MENU
-  0) System inspection (read-only)         بازرسی سیستم
-  1) Backup before changes                 پشتیبان‌گیری
-  2) SSH security (key + qadmin + port)    امنیت SSH
-  3) Firewall inventory (read-only)        فایروال (فقط خواندنی)
-  4) Install role ($role)                  نصب نقش
-  5) Network optimization (plan/confirm)   بهینه‌سازی شبکه
-  6) Verification                          راستی‌آزمایی
-  q) Quit                                  خروج
+ Current host: $(hostname 2>/dev/null || echo '?')   role: $role
+  1) System inspection (read-only)          بازرسی سیستم
+  2) Backup existing state                  پشتیبان‌گیری
+  3) SSH key setup + qadmin creation        کلید SSH و حساب مدیریتی
+  4) SSH port migration (additive)          انتقال پورت SSH
+  5) Firewall and port inventory            فهرست فایروال و پورت‌ها
+  6) Firewall configuration (role ports)    پیکربندی فایروال
+  7) Install $role                          نصب $role
+  8) Network optimization (plan+confirm)    بهینه‌سازی شبکه
+  9) Service & tunnel readiness             راستی‌آزمایی سرویس‌ها
+ 10) Restore / uninstall (plan+confirm)     بازگردانی / حذف
+  a) Run the recommended sequence           اجرای توصیه‌شده (هر فاز تأیید می‌خواهد)
+  q) Quit                                   خروج
 MENU
         local choice=""
         read -r -p "Select / انتخاب: " choice
         case "$choice" in
-            0) setup_inspect ;;
-            1) setup_backup ;;
-            2) setup_ssh ;;
-            3) setup_firewall ;;
-            4) setup_install_role "$role" ;;
-            5) netopt_prepare_server "$role" "${SETUP_BIN:-/usr/local/bin/gre-panel}" ;;
-            6) setup_verify ;;
+            1)  setup_inspect ;;
+            2)  setup_backup ;;
+            3)  setup_ssh_key ;;
+            4)  setup_ssh_port ;;
+            5)  setup_firewall ;;
+            6)  setup_firewall_apply ;;
+            7)  setup_install_role ;;
+            8)  setup_netopt ;;
+            9)  setup_verify ;;
+            10) setup_restore ;;
+            a|A)
+                setup_inspect || true
+                setup_backup || true
+                setup_ssh_key || q_warn "phase 3 skipped" "فاز ۳ رد شد"
+                setup_ssh_port || q_warn "phase 4 skipped" "فاز ۴ رد شد"
+                setup_firewall || true
+                setup_firewall_apply || q_warn "phase 6 skipped" "فاز ۶ رد شد"
+                setup_install_role || q_warn "phase 7 skipped" "فاز ۷ رد شد"
+                setup_netopt || true
+                setup_verify || true
+                q_ok "recommended sequence finished (phase 10 untouched)" "توالی کامل شد"
+                ;;
             q|Q) return 0 ;;
             *) q_warn "unknown choice: $choice" "انتخاب نامعتبر" ;;
         esac
