@@ -42,7 +42,7 @@ jobs:
           fi
           # Pin the Ed25519 update-public key into every production build
           # (SU-1/SU-2 gate: builds without a pinned key refuse updates).
-          UPKEY="$(cat panel/update-pub.b64)"
+          UPKEY="$(cat update-pub.b64)"
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.panelVersion=$VER -X main.agentUpdatePubKeyPEM=$UPKEY" -o ${BIN}-linux-amd64 .
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.panelVersion=$VER -X main.agentUpdatePubKeyPEM=$UPKEY" -o ${BIN}-linux-arm64 .
           if [ "$BIN" != "gre-panel" ]; then
@@ -68,6 +68,9 @@ jobs:
             dist/quantum.sh dist/grepanel \
             | sed 's#  dist/#  #' | sort -u -k2 > checksums.txt
           cat checksums.txt
+          # Reproducible-build provenance: exact toolchain and flags.
+          { echo "commit: ${{ github.sha }}"; echo "go: $(go version)";             echo "flags: CGO_ENABLED=0 -trimpath -ldflags \"-s -w -X main.panelVersion=$VER -X main.agentUpdatePubKeyPEM=<pinned>\"";           } > provenance.txt
+          cat provenance.txt
 
       # legacy main builds. IMPORTANT: once v1.0.0 exists these must never become GitHub's
       # "Latest" (old panels follow /releases/latest), so make_latest is "false".
@@ -108,6 +111,24 @@ jobs:
 
       # The release description is this version's section of CHANGELOG.md:
       # the action does not read the annotated tag message, so releases had none.
+      - name: Sign release artifacts (Ed25519, detached .sig)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        run: |
+          cd panel
+          if [ -z "$UPDATE_SIGNING_KEY" ]; then
+            echo "::warning::UPDATE_SIGNING_KEY secret not set — release ships WITHOUT Ed25519 signatures"
+            exit 0
+          fi
+          printf '%s' "$UPDATE_SIGNING_KEY" > /tmp/up.key
+          chmod 600 /tmp/up.key
+          for f in "${BIN_NAME}-linux-amd64" "${BIN_NAME}-linux-arm64" gre-panel-linux-amd64 gre-panel-linux-arm64 dist/quantum.sh dist/grepanel; do
+            openssl pkeyutl -sign -inkey /tmp/up.key -rawin -in "$f" -out "$f.sig"
+          done
+          rm -f /tmp/up.key
+          ls -la *.sig dist/*.sig
+
       - name: Release notes from CHANGELOG
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
