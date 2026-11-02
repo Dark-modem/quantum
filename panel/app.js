@@ -279,7 +279,7 @@ function goTab(name) {
   if (name === 'add-peer') { goTab('setup'); const c = $('setupAddPeerStep'); if (c && c.scrollIntoView) c.scrollIntoView({behavior: 'smooth', block: 'start'}); return; }
   // Bagher lives in Setup (create) and Tunnel (run) like every other tunnel.
   if (name === 'sshfwd' || name === 'bagher') { openBagherSetup(); return; }
-  ['dashboard','tunnel','cluster','setup','xray','logs','perf','watchdog','doctor','benchmark','spoof','update','settings','terminal'].forEach(t => { const el = $('tab-'+t); if (el) el.hidden = t !== name; });
+  ['dashboard','tunnel','agents','cluster','setup','xray','logs','perf','watchdog','doctor','benchmark','spoof','update','settings','terminal'].forEach(t => { const el = $('tab-'+t); if (el) el.hidden = t !== name; });
   const markTab = b => {
     const on = b.dataset.tab === name;
     b.classList.toggle('on', on);
@@ -296,6 +296,7 @@ function goTab(name) {
   }
   if (name === 'perf') loadPerf();
   if (name === 'tunnel') { if (typeof topologyReload === 'function') topologyReload(); loadCarrier(); loadFleet(); loadTunnelHealth(); loadLimits(); loadMatrix(); loadXray(true); }
+  if (name === 'agents') agentsLoad();
   if (name === 'dashboard') loadUsage();
   if (name === 'watchdog') loadWatchdog();
   if (name === 'doctor') loadDoctor();
@@ -441,6 +442,50 @@ const I18N = {
     topology_view_list: "List view",
     topology_view_grid: "Grid view",
     nav_topology: "Topology",
+    nav_agents: "Agents",
+    agents_tokens_title: "Enrollment Tokens",
+    agents_tokens_hint: "One token enrolls exactly one endpoint agent. The token is shown once — copy it and run the command on the endpoint server.",
+    agents_role: "Agent role",
+    agents_role_iran: "Iran (hub)",
+    agents_role_foreign: "Foreign (node)",
+    agents_token_label: "Label (optional)",
+    agents_token_label_ph: "e.g. Tehran office",
+    agents_token_expiry: "Expiry (days)",
+    agents_token_create: "Create Enrollment Token",
+    agents_th_prefix: "Token",
+    agents_th_role: "Role",
+    agents_th_label: "Label",
+    agents_th_status: "Status",
+    agents_th_expires: "Expires",
+    agents_th_actions: "Actions",
+    agents_list_title: "Agents",
+    agents_refresh_aria: "Refresh agents",
+    agents_list_hint: "Endpoint servers enrolled with a token. Online agents take Matrix desired state and relay commands; revoked agents can never connect again.",
+    agents_tunnels_title: "Matrix Tunnels (Agents)",
+    agents_tunnel_create: "Create New Tunnel",
+    agents_tunnels_hint: "Each tunnel pairs one Iran hub agent with one foreign node agent. Both endpoints must advertise the Matrix capability and 1-20 forwarded ports are required.",
+    agents_token_once: "This token is shown only once. Copy it now — it cannot be viewed again.",
+    agents_token_value: "Token",
+    agents_copy: "Copy",
+    agents_copy_token_aria: "Copy token",
+    agents_copy_cmd_aria: "Copy enroll command",
+    agents_token_cmd: "Command on the endpoint server",
+    agents_token_cmd_hint: "Run this on the endpoint server as root. The agent connects to the panel and appears in the list below.",
+    agents_done: "Done",
+    agents_tunnel_name: "Tunnel name",
+    agents_tunnel_name_ph: "e.g. Tehran-Frankfurt",
+    agents_tunnel_hub: "Hub agent (Iran)",
+    agents_tunnel_node: "Node agent (foreign)",
+    agents_tunnel_family: "Address family",
+    agents_tunnel_meshport: "Mesh port",
+    agents_tunnel_meshport_hint: "0 = the hub agent picks a free port automatically.",
+    agents_tunnel_ports: "Forwarded ports (comma separated, 1-20)",
+    agents_tunnel_ports_hint: "Matrix forwards exactly these ports from the hub to the node. Port 22 is not allowed.",
+    agents_diag_aria: "Diagnostics ping",
+    agents_diag_ping: "Diagnostics Ping",
+    agents_revoke_aria: "Revoke agent",
+    agents_revoke: "Revoke",
+    agents_close: "Close",
     topology_create: "Add topology",
     topology_hint: "A topology groups tunnels between two servers. Create the topology first, then add or attach tunnels.",
     topology_unassigned: "Unassigned tunnels",
@@ -2788,7 +2833,46 @@ function drawChart(hist, isDown) {
     startLoop();
   }
 }
+// Controller fleet (M-skeleton): real data from the agent registry, the
+// agent-tunnel orchestrator and the security audit log. Nothing simulated:
+// an unreachable source renders as —, never as a guess.
+async function refreshControllerFleet() {
+  const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+  const setSub = (id, v) => { const el = $(id); if (el) el.innerHTML = v; };
+  try {
+    const a = await api('/api/agents');
+    const agents = (a && a.agents) || [];
+    const online = agents.filter(x => x.status === 'online').length;
+    const revoked = agents.filter(x => x.revoked).length;
+    set('fleetAgents', agents.length ? (online + '/' + agents.length) : '0');
+    const vers = {};
+    agents.forEach(x => { if (x.version) vers[x.version] = (vers[x.version] || 0) + 1; });
+    setSub('fleetAgentsSub', esc(agents.length ? (Object.keys(vers).map(v => v + ' ×' + vers[v]).join(' · ') + (revoked ? ' · ' + revoked + ' ' + tr('', 'revoked') : '')) : tr('', 'No agents enrolled yet')));
+  } catch (e) { set('fleetAgents', '—'); }
+  try {
+    const t = await api('/api/agent-tunnels');
+    const tunnels = (t && t.tunnels) || [];
+    const active = tunnels.filter(x => x.state === 'active').length;
+    const err = tunnels.filter(x => x.state === 'error').length;
+    set('fleetTunnels', tunnels.length ? (active + '/' + tunnels.length) : '0');
+    setSub('fleetTunnelsSub', esc(tunnels.length ? (err ? err + ' ' + tr('', 'in error') : tr('', 'all healthy')) : tr('', 'No agent tunnels yet')));
+  } catch (e) { set('fleetTunnels', '—'); }
+  try {
+    const agents = ((await api('/api/agents')).agents) || [];
+    const vers = Array.from(new Set(agents.map(x => x.version).filter(Boolean)));
+    set('fleetVersions', vers.join(' · ') || '—');
+  } catch (e) { /* second call failures stay silent; first call rendered */ }
+  try {
+    const ev = await api('/api/audit?n=4');
+    const entries = (ev && ev.entries) || [];
+    setSub('fleetEvents', esc(entries.length ? entries[0].slice(0, 140) : tr('', 'No recent events')));
+  } catch (e) { set('fleetEvents', '—'); }
+  const seen = $('fleetSeen');
+  if (seen) seen.textContent = tr('', 'live') + ' · ' + new Date().toLocaleTimeString();
+}
+
 async function refreshDash() {
+  refreshControllerFleet();
   const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
   const setHTML = (id, v) => { const el = $(id); if (el) el.innerHTML = v; };
   const chip = (txt, cls) => '<span class="badge ' + (cls || '') + '"><span class="dot"></span>' + esc(txt) + '</span>';
@@ -7786,6 +7870,778 @@ async function runTunnelHealthClick() {
 })();
 
 
+// ---- Agents tab: endpoint agents, enrollment tokens, agent Matrix tunnels ----
+// Data lives in agents.json / agent_tunnels.json server-side; the UI polls
+// /api/agents and /api/agent-tunnels every 10s while the tab is visible.
+
+const AG_STATE_BADGE = {
+  provisioning: ['info', 'Provisioning'],
+  registering: ['warn', 'Registering'],
+  active: ['ok', 'Active'],
+  stopped: ['dim', 'Stopped'],
+  error: ['err', 'Error'],
+};
+const AG_STATUS_BADGE = {
+  online: ['ok', 'Online'],
+  offline: ['dim', 'Offline'],
+  revoked: ['err', 'Revoked'],
+};
+const AG_QUALITY_BADGE = {
+  good: ['ok', 'Good'],
+  fair: ['warn', 'Fair'],
+  poor: ['err', 'Poor'],
+  down: ['err', 'Down'],
+};
+
+let _agTokens = [];
+let _agAgents = [];
+let _agTunnels = [];
+let _agTimer = null;
+let _agDetailId = null;
+
+// agentBadge maps a lookup table entry to the standard badge chip markup.
+function agentBadge(map, key) {
+  const e = map[key] || ['dim', key || '—'];
+  return '<span class="badge ' + e[0] + '"><span class="dot"></span>' + esc(tr('', e[1])) + '</span>';
+}
+
+// agentAgo renders a unix-seconds timestamp as a short relative time.
+function agentAgo(ts) {
+  if (!ts) return '—';
+  const d = Math.max(0, Math.floor(Date.now() / 1000) - ts);
+  if (d < 60) return tr('', 'just now');
+  if (d < 3600) return docTpl('{0} min ago', [Math.round(d / 60)]);
+  if (d < 172800) return docTpl('{0} h ago', [Math.round(d / 3600)]);
+  return docTpl('{0} d ago', [Math.round(d / 86400)]);
+}
+
+// agentPortsParse turns "443, 8080 990" into [443, 8080, 990]: integers only,
+// 1-65535, duplicates dropped. Throws RangeError naming the bad token.
+function agentPortsParse(s) {
+  const out = [];
+  String(s || '').split(/[\s,;]+/).forEach(tok => {
+    if (!tok) return;
+    const n = Number(tok);
+    if (!Number.isInteger(n) || n < 1 || n > 65535) throw new RangeError(tok);
+    if (!out.includes(n)) out.push(n);
+  });
+  return out;
+}
+
+// agentAmplify renders the billable_amplification field. STRICT labeling: it
+// is a whole-server estimate, never a Matrix-specific or guaranteed number;
+// null renders as UNKNOWN, never as 0.
+function agentAmplify(traffic) {
+  const v = traffic ? traffic.billable_amplification : null;
+  const label = '<span class="ag-amp-note">' + esc(tr('', 'Server-wide estimate (whole server, not Matrix only)')) + '</span>';
+  if (v == null || !isFinite(v)) {
+    return '<span class="ag-amp-val">' + esc(tr('', 'UNKNOWN')) + '</span> — ' + label;
+  }
+  return '<span class="ag-amp-val">×' + esc((Math.round(v * 10) / 10).toString()) + '</span> — ' + label;
+}
+
+function agentsEmpty(msg) {
+  return '<div class="ent-empty"><span class="ent-empty-ic" aria-hidden="true">' + ST_ICO_EMPTY + '</span><b>' + esc(tr('', msg)) + '</b></div>';
+}
+
+// ---- data loading ----
+
+async function agentsRefresh(silent) {
+  const list = $('agAgentsList');
+  const tun = $('agTunnelsList');
+  if (!list && !tun) return;
+  try {
+    const [a, t] = await Promise.all([
+      api('/api/agents'),
+      api('/api/agent-tunnels').catch(() => null), // tunnels may be unwired; agents still render
+    ]);
+    _agAgents = (a && a.agents) || [];
+    _agTunnels = (t && t.tunnels) || [];
+    agentsRenderAgents();
+    agentsRenderTunnels();
+    if (_agDetailId) agentDetailRefreshSilent();
+  } catch (e) {
+    if (!silent && list) list.innerHTML = stateError(e.message, 'agents');
+  }
+  try {
+    _agTokens = (await api('/api/agents/tokens')).tokens || [];
+    agentsRenderTokens();
+  } catch (e) { /* token list is secondary; keep the last render */ }
+}
+
+// agentsLoad is the goTab entry point: full refresh + start the 10s poll.
+function agentsLoad() {
+  agentsRefresh(false);
+  agentsPollStart();
+}
+
+// agentsPollStart polls every 10s while the tab is visible (skips hidden
+// tabs and background windows, like the other poll loops in this file).
+function agentsPollStart() {
+  if (_agTimer) return;
+  _agTimer = setInterval(() => {
+    if (document.hidden) return;
+    const sec = $('tab-agents');
+    if (!sec || sec.hidden) return;
+    agentsRefresh(true);
+  }, 10000);
+}
+
+STATE_ACTIONS.agents = () => agentsRefresh(false);
+
+// ---- enrollment tokens ----
+
+function agentsRenderTokens() {
+  const body = $('agTokensBody');
+  if (!body) return;
+  if (!_agTokens.length) {
+    body.innerHTML = '<tr><td colspan="6">' + agentsEmpty('No enrollment tokens yet') + '</td></tr>';
+    return;
+  }
+  body.innerHTML = _agTokens.map(t => {
+    let status = ['dim', 'Unused'];
+    if (t.revoked) status = ['err', 'Revoked'];
+    else if (t.used_by) status = ['ok', 'Used'];
+    const canRevoke = !t.revoked;
+    return '<tr>' +
+      '<td class="u-mono" data-label="' + esc(tr('', 'Token')) + '">' + esc(t.prefix || '—') + '</td>' +
+      '<td data-label="' + esc(tr('', 'Role')) + '">' + esc(tr('', t.role === 'iran' ? 'Iran (hub)' : 'Foreign (node)')) + '</td>' +
+      '<td data-label="' + esc(tr('', 'Label')) + '">' + esc(t.label || '—') + '</td>' +
+      '<td data-label="' + esc(tr('', 'Status')) + '"><span class="badge ' + status[0] + '"><span class="dot"></span>' + esc(tr('', status[1])) + '</span></td>' +
+      '<td data-label="' + esc(tr('', 'Expires')) + '">' + esc(agentAgo(t.expires_at)) + '</td>' +
+      '<td data-label="' + esc(tr('', 'Actions')) + '">' +
+        (canRevoke
+          ? '<button type="button" class="quantum-btn quantum-btn-danger u-btn-xs" data-ag-token-revoke="' + esc(t.id) + '" aria-label="' + esc(tr('', 'Revoke token')) + '">' + esc(tr('', 'Revoke')) + '</button>'
+          : '<span class="u-hint-12">—</span>') +
+      '</td></tr>';
+  }).join('');
+}
+
+function agServerURL() {
+  return location.origin + (BASE || '');
+}
+
+function agentEnrollCommand(token) {
+  return 'gre-panel agent enroll --server ' + agServerURL() + ' --token ' + token;
+}
+
+async function agentTokenCreate() {
+  const role = ($('agTokenRole') || {}).value || 'iran';
+  const label = (($('agTokenLabel') || {}).value || '').trim();
+  const days = parseInt((($('agTokenDays') || {}).value || '7'), 10) || 7;
+  const btn = $('agTokenCreateBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await api('/api/agents/tokens', { role, label, expires_days: days });
+    $('agTokenValue').value = res.token || '';
+    $('agTokenCmd').value = agentEnrollCommand(res.token || '');
+    modalShow($('agTokenModal'), () => { agentsRefresh(true); });
+    agentsRefresh(true);
+  } catch (e) {
+    toastErr(tr('', 'Token creation failed'), e.message || e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function agentTokenRevoke(id) {
+  if (!await entConfirm(tr('', 'Revoke token?'), tr('', 'A revoked token can never enroll an agent, even if unused and unexpired.'), tr('', 'Revoke'))) return;
+  try {
+    await api('/api/agents/tokens/' + encodeURIComponent(id) + '/revoke', {});
+    toastOk(tr('', 'Token revoked'), '');
+    agentsRefresh(true);
+  } catch (e) {
+    toastErr(tr('', 'Revoke failed'), e.message || e);
+  }
+}
+
+// ---- agents list ----
+
+function agentsRenderAgents() {
+  const box = $('agAgentsList');
+  if (!box) return;
+  if (!_agAgents.length) {
+    box.innerHTML = agentsEmpty('No agents enrolled yet — create a token and run the command on the endpoint');
+    return;
+  }
+  const sel = agentSelGet();
+  const updBtn = $('agAgentsUpdateBtn');
+  if (updBtn) updBtn.hidden = sel.size === 0;
+  opsAgentOptions('fwAgentSel');
+  opsAgentOptions('noAgentSel');
+  box.innerHTML = _agAgents.map(a => {
+    const caps = a.caps || [];
+    const matrixCap = caps.includes('matrix');
+    return '<div class="ag-card' + (a.status === 'revoked' ? ' ag-card-revoked' : '') + '" >' +
+      '<div class="ag-card-head">' +
+        (a.status !== 'revoked' ? '<input type="checkbox" class="ag-sel" data-ag-sel="' + esc(a.id) + '" aria-label="' + esc(tr('', 'Select for update')) + '"' + (sel.has(a.id) ? ' checked' : '') + '>' : '') +
+        '<span class="ag-dot ag-dot-' + esc(a.status || 'offline') + '" role="img" aria-label="' + esc(tr('', AG_STATUS_BADGE[a.status] ? AG_STATUS_BADGE[a.status][1] : 'Offline')) + '"></span>' +
+        '<button type="button" class="ag-card-name" data-ag-open="' + esc(a.id) + '">' + esc(a.name || a.id) + '</button>' +
+        agentBadge(AG_STATUS_BADGE, a.status) +
+        (a.role ? '<span class="badge ' + (a.role === 'iran' ? 'info' : 'u-pill-violet') + '">' + esc(tr('', a.role === 'iran' ? 'Iran (hub)' : 'Foreign (node)')) + '</span>' : '') +
+        (a.has_pending_desired ? '<span class="badge warn" title="' + esc(tr('', 'A configuration change is queued for this agent and not applied yet')) + '">' + esc(tr('', 'Pending change')) + '</span>' : '') +
+        '<span class="u-ml-auto ag-card-meta">' +
+          (a.public_ip ? '<span class="u-mono">' + esc(a.public_ip) + '</span> · ' : '') +
+          esc(a.hostname || '') +
+          (a.version ? ' · ' + esc(a.version) : '') +
+        '</span>' +
+      '</div>' +
+      '<div class="ag-card-foot">' +
+        '<span class="u-hint-12">' + esc(tr('', 'Last seen')) + ' ' + esc(agentAgo(a.last_seen)) + '</span>' +
+        (matrixCap ? '<span class="badge info">matrix</span>' : '') +
+        '<span class="u-ml-auto u-flex u-gap-8">' +
+          '<button type="button" class="quantum-btn quantum-btn-secondary u-btn-xs" data-ag-open="' + esc(a.id) + '">' + esc(tr('', 'Details')) + '</button>' +
+          (a.status !== 'revoked' ? '<button type="button" class="quantum-btn quantum-btn-danger u-btn-xs" data-ag-revoke="' + esc(a.id) + '" aria-label="' + esc(tr('', 'Revoke agent')) + '">' + esc(tr('', 'Revoke')) + '</button>' : '') +
+        '</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function agentRevoke(id) {
+  const a = _agAgents.find(x => x.id === id) || { name: id };
+  if (!await entConfirm(tr('', 'Revoke agent?'), docTpl('{0} is disconnected immediately and can never connect again. Its tunnels must be removed separately.', [a.name || id]), tr('', 'Revoke'))) return;
+  try {
+    await api('/api/agents/' + encodeURIComponent(id) + '/revoke', {});
+    toastOk(tr('', 'Agent revoked'), a.name || id);
+    agentDetailClose();
+    agentsRefresh(true);
+  } catch (e) {
+    toastErr(tr('', 'Revoke failed'), e.message || e);
+  }
+}
+
+async function agentCommand(id, op, params, okTitle) {
+  try {
+    const res = await api('/api/agents/' + encodeURIComponent(id) + '/command', { op, params: params || {} });
+    if (res.ok === false) {
+      toastErr(tr('', 'Command failed'), res.error || '');
+      return res;
+    }
+    toastOk(okTitle || tr('', 'Command sent'), res.output ? String(res.output).slice(0, 120) : '');
+    return res;
+  } catch (e) {
+    toastErr(tr('', 'Command failed'), e.message || e);
+    return null;
+  }
+}
+
+// ---- agent updates (M2) ----
+
+function agentSelGet() {
+  if (!window._agSel) window._agSel = new Set();
+  return window._agSel;
+}
+
+function agentUpdateOpen(ids) {
+  if (!ids.length) { toastWarn(tr('', 'Nothing selected'), ''); return; }
+  const names = ids.map(id => { const a = _agAgents.find(x => x.id === id); return (a && (a.name || a.id)) || id; });
+  $('agUpdateTargets').textContent = names.join(', ');
+  const vers = Array.from(new Set(_agAgents.filter(a => ids.includes(a.id)).map(a => a.version).filter(Boolean)));
+  $('agUpdateVersion').value = vers.length === 1 ? vers[0] : '';
+  $('agUpdateUrl').value = window._agLastUpdateUrl || '';
+  $('agUpdateStart').dataset.ids = JSON.stringify(ids);
+  modalShow($('agUpdateModal'), () => {});
+}
+
+async function agentUpdateStart() {
+  const ids = JSON.parse(($('agUpdateStart').dataset.ids) || '[]');
+  const version = $('agUpdateVersion').value.trim();
+  const url = $('agUpdateUrl').value.trim();
+  if (!ids.length || !version || !url) { toastErr(tr('', 'Update failed'), tr('', 'Version and artifact URL are required')); return; }
+  window._agLastUpdateUrl = url;
+  let okN = 0, fail = [];
+  for (const id of ids) {
+    try {
+      const res = await api('/api/agents/' + encodeURIComponent(id) + '/update', { version, url });
+      if (res && res.status === 'started') { okN++; continue; }
+      fail.push(((_agAgents.find(x => x.id === id) || {}).name || id) + ': ' + ((res && res.error) || tr('', 'refused')));
+    } catch (e) {
+      fail.push(((_agAgents.find(x => x.id === id) || {}).name || id) + ': ' + (e.message || e));
+    }
+  }
+  modalHide($('agUpdateModal'));
+  if (okN) toastOk(tr('', 'Update started'), okN + '/' + ids.length + ' — ' + tr('', 'progress appears in the agent detail'));
+  if (fail.length) toastErr(tr('', 'Some updates were refused'), fail.join(' | '));
+  agentsLoad();
+}
+
+// ---- agent detail drawer ----
+
+function agentHealthChip(h) {
+  const q = (h && h.quality) || 'down';
+  const e = AG_QUALITY_BADGE[q] || ['dim', q];
+  const bits = [];
+  if (h && h.latency_ms != null) bits.push(Math.round(h.latency_ms) + ' ms');
+  if (h && h.jitter_ms != null) bits.push('±' + Math.round(h.jitter_ms) + ' ms');
+  if (h && h.loss_pct != null) bits.push(Math.round(h.loss_pct) + '%');
+  return '<span class="badge ' + e[0] + '"><span class="dot"></span>' + esc(tr('', e[1])) +
+    (bits.length ? ' <bdi data-no-i18n>· ' + esc(bits.join(' · ')) + '</bdi>' : '') + '</span>';
+}
+
+function agentDetailRow(k, v) {
+  return '<div class="dr"><span class="k">' + esc(k) + '</span><span>' + v + '</span></div>';
+}
+
+function agentDetailRender(d) {
+  const st = d.last_state || {};
+  const rate = d.traffic_rate || {};
+  let html = '';
+
+  // Live update progress (M2): phase badge + verdict.
+  const up = st.update_progress;
+  if (up) {
+    const phaseBadge = { requested: 'info', downloading: 'info', verifying: 'warn', swapped: 'warn', restarting: 'warn', completed: 'ok', failed: 'err' }[up.phase] || 'dim';
+    html += '<div class="ag-warn u-mt-8"><b>' + esc(tr('', 'Agent update')) + '</b>: <span class="badge ' + phaseBadge + '"><span class="dot"></span>' +
+      esc(tr('', up.phase)) + (up.version ? ' <bdi data-no-i18n>· ' + esc(up.version) + '</bdi>' : '') + '</span>' +
+      (up.error ? ' <span class="u-hint-12">' + esc(up.error) + '</span>' : '') + '</div>';
+  }
+
+  // Matrix instances: role/service/iface/mesh IP/peer pings.
+  html += '<p class="ent-sec-label">' + esc(tr('', 'Matrix instances')) + '</p>';
+  const mats = st.matrix || [];
+  if (!mats.length) {
+    html += '<p class="u-hint-12">' + esc(tr('', 'No Matrix instance applied on this agent')) + '</p>';
+  } else {
+    mats.forEach(m => {
+      html += '<div class="ag-inst">' +
+        '<div class="ag-card-head">' +
+          '<span class="u-mono">' + esc(m.instance || '—') + '</span>' +
+          '<span class="badge ' + (m.role === 'hub' ? 'info' : 'u-pill-violet') + '">' + esc(m.role === 'hub' ? tr('', 'Iran (hub)') : tr('', 'Foreign (node)')) + '</span>' +
+          (m.enabled ? '<span class="badge ok"><span class="dot"></span>' + esc(tr('', 'Enabled')) + '</span>' : '<span class="badge dim"><span class="dot"></span>' + esc(tr('', 'Disabled')) + '</span>') +
+          (m.service ? '' : '<span class="badge err"><span class="dot"></span>' + esc(tr('', 'Service down')) + '</span>') +
+          (m.registered ? '<span class="badge ok"><span class="dot"></span>' + esc(tr('', 'Registered')) + '</span>' : '<span class="badge warn"><span class="dot"></span>' + esc(tr('', 'Not registered')) + '</span>') +
+        '</div>' +
+        agentDetailRow(tr('', 'Interface'), '<span class="u-mono">' + esc(m.iface || '—') + '</span> ' + (m.iface_up ? '' : '<span class="badge err"><span class="dot"></span>' + esc(tr('', 'Down')) + '</span>')) +
+        agentDetailRow(tr('', 'Mesh IP'), '<span class="u-mono">' + esc(m.mesh_ip || '—') + '</span>') +
+        agentDetailRow(tr('', 'Mesh port'), '<span class="u-mono">' + esc(m.port ? String(m.port) : '—') + '</span>');
+      const peers = m.peers || [];
+      if (peers.length) {
+        html += agentDetailRow(tr('', 'Peers'), peers.map(p =>
+          '<span class="badge ' + (p.ok ? 'ok' : 'err') + '"><span class="dot"></span><bdi data-no-i18n>' + esc(p.name || p.ip || '?') +
+          (p.latency_ms != null ? ' · ' + Math.round(p.latency_ms) + ' ms' : '') + '</bdi></span>'
+        ).join(' '));
+      }
+      html += '</div>';
+    });
+  }
+
+  // Health windows per instance.
+  const healths = st.health || [];
+  if (healths.length) {
+    html += '<p class="ent-sec-label u-mt-16">' + esc(tr('', 'Health')) + '</p>';
+    healths.forEach(h => {
+      html += '<div class="dr"><span class="k"><span class="u-mono">' + esc(h.instance || '—') + '</span></span><span>' + agentHealthChip(h) + '</span></div>';
+    });
+  }
+
+  // Traffic rates per interface (human-readable).
+  const ifaces = Object.keys(rate);
+  if (ifaces.length) {
+    html += '<p class="ent-sec-label u-mt-16">' + esc(tr('', 'Traffic rates')) + '</p>';
+    ifaces.forEach(name => {
+      const r = rate[name] || {};
+      html += '<div class="dr"><span class="k"><span class="u-mono">' + esc(r.name || name) + '</span> <span class="u-hint-12">' + esc(r.kind || '') + '</span></span>' +
+        '<span>↓ <bdi data-no-i18n>' + esc(fmtRate(r.rx_bps)) + '</bdi> · ↑ <bdi data-no-i18n>' + esc(fmtRate(r.tx_bps)) + '</bdi></span></div>';
+    });
+  }
+
+  // Host resources + listening-port inventory (measured by the agent, M1).
+  const res = st.resources;
+  if (res) {
+    html += '<p class="ent-sec-label u-mt-16">' + esc(tr('', 'Host resources')) + '</p>';
+    const cpu = [];
+    if (res.cpu_model) cpu.push('<bdi data-no-i18n>' + esc(res.cpu_model) + '</bdi>');
+    cpu.push((res.cpu_cores || 0) + ' ' + esc(tr('', 'cores')));
+    if (res.cpu_percent != null) cpu.push(Math.round(res.cpu_percent) + '%');
+    html += agentDetailRow(tr('', 'CPU'), cpu.join(' · '));
+    if (res.mem_total_mb) html += agentDetailRow(tr('', 'Memory'), '<bdi data-no-i18n>' + res.mem_used_mb + ' / ' + res.mem_total_mb + ' MB</bdi>');
+    if (res.disk_total_gb) html += agentDetailRow(tr('', 'Disk'), '<bdi data-no-i18n>' + res.disk_used_gb + ' / ' + res.disk_total_gb + ' GB</bdi>');
+    const sys = [];
+    if (res.load_avg_1 != null) sys.push(esc(tr('', 'Load')) + ' <bdi data-no-i18n>' + res.load_avg_1.toFixed(2) + '</bdi>');
+    if (res.uptime_s) sys.push(esc(tr('', 'Uptime')) + ' <bdi data-no-i18n>' + esc(agentAgo(Math.floor(Date.now() / 1000) - res.uptime_s)) + '</bdi>');
+    if (res.virt) sys.push('<span class="u-mono">' + esc(res.virt) + '</span>');
+    if (sys.length) html += agentDetailRow(tr('', 'System'), sys.join(' · '));
+    const listening = res.listening || [];
+    if (listening.length) {
+      const chips = listening.slice(0, 12).map(l =>
+        '<span class="badge ' + (l.addr === '0.0.0.0' || l.addr === '::' || l.addr === '*' ? 'warn' : 'dim') + '"><bdi data-no-i18n>' +
+        esc(l.proto + ':' + l.port) + (l.proc ? ' · ' + esc(l.proc) : '') + '</bdi></span>'
+      ).join(' ');
+      html += agentDetailRow(tr('', 'Listening ports'), chips +
+        (listening.length > 12 ? ' <span class="u-hint-12">+' + (listening.length - 12) + '</span>' : ''));
+    }
+  }
+
+  // Node-detect info (read-only PasarGuard node signal).
+  const nd = st.node_detect;
+  if (nd && nd.detected) {
+    html += '<p class="ent-sec-label u-mt-16">' + esc(tr('', 'Node detected')) + '</p>' +
+      agentDetailRow(tr('', 'Kind'), esc(nd.kind || '—')) +
+      (nd.detail ? agentDetailRow(tr('', 'Detail'), esc(nd.detail)) : '');
+  }
+
+  // Pending desired / last ack / last error.
+  if (d.pending_desired) {
+    const p = d.pending_desired;
+    html += '<div class="ag-warn u-mt-16">' + esc(tr('', 'Pending change')) + ': ' + esc(p.action || '') + ' <span class="u-mono">' + esc(p.instance || '') + '</span></div>';
+  }
+  if (d.last_error) {
+    html += '<div class="ag-warn ag-warn-err u-mt-8">' + esc(tr('', 'Last error')) + ': ' + esc(d.last_error) + '</div>';
+  }
+  if (d.last_ack) {
+    html += '<div class="dr u-mt-8"><span class="k">' + esc(tr('', 'Last ack')) + '</span><span>' +
+      (d.last_ack.ok ? esc(tr('', 'Applied')) : esc(tr('', 'Failed'))) + ' · ' + esc(agentAgo(d.last_ack.at)) + '</span></div>';
+  }
+  $('agAgentBody').innerHTML = html;
+
+  const revoked = d.revoked || d.status === 'revoked';
+  $('agAgentRevoke').hidden = revoked;
+  $('agAgentPing').hidden = false;
+  const agup = $('agAgentUpdate');
+  agup.hidden = revoked;
+  agup.dataset.agId = d.id;
+  agup.dataset.agName = d.name || d.id;
+  $('agAgentPing').dataset.agId = d.id;
+  $('agAgentRevoke').dataset.agId = d.id;
+}
+
+async function agentDetailOpen(id) {
+  _agDetailId = id;
+  const a = _agAgents.find(x => x.id === id);
+  $('agAgentTitle').textContent = a ? (a.name || id) : id;
+  $('agAgentBody').innerHTML = skel(4);
+  modalShow($('agAgentModal'), () => { _agDetailId = null; });
+  await agentDetailRefreshSilent();
+}
+
+async function agentDetailRefreshSilent() {
+  const id = _agDetailId;
+  if (!id) return;
+  try {
+    const d = await api('/api/agents/' + encodeURIComponent(id));
+    if (_agDetailId === id) agentDetailRender(d);
+  } catch (e) { /* keep the skeleton on transient errors; the poll redraws */ }
+}
+
+function agentDetailClose() {
+  const ov = $('agAgentModal');
+  if (ov && !ov.hidden) modalHide(ov);
+  _agDetailId = null;
+}
+
+// Diagnostics ping: asks the agent for op diag.ping against a target the
+// operator types (default: the mesh peer).
+async function agentDiagPing() {
+  const id = ($('agAgentPing') || {}).dataset.agId;
+  if (!id) return;
+  const target = window.prompt(tr('', 'Ping target (IP or host)'), '');
+  if (target == null) return;
+  const res = await agentCommand(id, 'diag.ping', { target: target.trim() }, tr('', 'Ping sent'));
+  if (res && res.output) showActOut(tr('', 'Diagnostics Ping'), res.output);
+}
+
+// ---- typed ops: firewall/port + netopt tabs (real agent results) ----
+
+function opsAgentOptions(sel) {
+  const el = $(sel); if (!el) return;
+  const prev = el.value;
+  el.innerHTML = _agAgents.filter(a => a.status !== 'revoked')
+    .map(a => '<option value="' + esc(a.id) + '"' + (a.id === prev ? ' selected' : '') + '>' + esc((a.name || a.id) + ' (' + (a.arch || '?') + ')') + '</option>').join('');
+}
+
+async function opsRun(selId, op, payload, confirm) {
+  const body = { op, payload: payload || {} };
+  if (confirm) body.confirm = true;
+  return api('/api/agents/' + encodeURIComponent(selId) + '/op', body);
+}
+
+function opsRenderJSON(elId, obj) {
+  const el = $(elId); if (!el) return;
+  if (obj == null) { el.textContent = '—'; return; }
+  try { el.textContent = JSON.stringify(obj, null, 1); } catch (e) { el.textContent = String(obj); }
+}
+
+async function fwDetect() {
+  const id = ($('fwAgentSel') || {}).value; if (!id) return;
+  const out = $('fwOut'); if (out) out.textContent = '…';
+  try { const r = await opsRun(id, agentCmdFwDetect); opsRenderJSON('fwOut', r.ok ? r.result : { error: r.error }); }
+  catch (e) { opsRenderJSON('fwOut', { error: e.message || String(e) }); }
+}
+async function fwPorts() {
+  const id = ($('fwAgentSel') || {}).value; if (!id) return;
+  const out = $('fwPorts'); if (out) out.textContent = '…';
+  try {
+    const r = await opsRun(id, agentCmdPortList);
+    const res = r.ok ? r.result : { error: r.error };
+    const rows = (res && res.listeners) || res && res.ports || res;
+    if (Array.isArray(rows)) {
+      opsRenderJSON('fwPorts', rows.map(l => (l.proto || '?').toUpperCase().padEnd(4) + String(l.port).padStart(5) + '  ' + (l.addr || '') + (l.proc ? '  ' + l.proc : '')).join(' | ') || '(none)');
+    } else opsRenderJSON('fwPorts', res);
+  } catch (e) { opsRenderJSON('fwPorts', { error: e.message || String(e) }); }
+}
+async function noDetect() {
+  const id = ($('noAgentSel') || {}).value; if (!id) return;
+  const out = $('noOut'); if (out) out.textContent = '…';
+  try { const r = await opsRun(id, agentCmdNetDetect); opsRenderJSON('noOut', r.ok ? r.result : { error: r.error }); }
+  catch (e) { opsRenderJSON('noOut', { error: e.message || String(e) }); }
+}
+async function noStatus() {
+  const id = ($('noAgentSel') || {}).value; if (!id) return;
+  const out = $('noStatus'); if (out) out.textContent = '…';
+  try { const r = await opsRun(id, agentCmdNetStatus); opsRenderJSON('noStatus', r.ok ? r.result : { error: r.error }); }
+  catch (e) { opsRenderJSON('noStatus', { error: e.message || String(e) }); }
+}
+
+// ---- agent Matrix tunnels ----
+
+// Signature detail (UnsloP direction): the Hub——Node route drawn as one
+// instrument line, colored by the tunnel's real health. Data comes from the
+// orchestrator's health view — latency, jitter, loss and state feed the
+// segment color and the label; nothing is animated for its own sake.
+function agentRouteHealth(t) {
+  const h = t.health || {};
+  const q = h.quality || 'down';
+  const color = { good: 'var(--ok)', fair: 'var(--wr)', poor: 'var(--er)', down: 'var(--er)' }[q] || 'var(--mu)';
+  const label = { good: 'Route healthy', fair: 'Route fair', poor: 'Route degraded', down: 'Route down' }[q] || q;
+  const bits = [];
+  if (h.latency_ms != null) bits.push(Math.round(h.latency_ms) + ' ms');
+  if (h.jitter_ms != null) bits.push('±' + h.jitter_ms.toFixed(1) + ' ms');
+  if (h.loss_pct != null) bits.push(h.loss_pct.toFixed(1) + '%');
+  const hubName = (t.hub && (t.hub.agent_name || t.hub.agent_id)) || 'HUB';
+  const nodeName = (t.node && (t.node.agent_name || t.node.agent_id)) || 'NODE';
+  return '<div class="route-viz" role="img" aria-label="' + esc(tr('', label) + ' — ' + hubName + ' to ' + nodeName + (bits.length ? ', ' + bits.join(', ') : '')) + '">' +
+    '<span class="rv-end"><bdi data-no-i18n>' + esc(hubName) + '</bdi><i class="rv-node" style="background:' + color + '"></i></span>' +
+    '<span class="rv-line"><i class="rv-pulse" style="background:' + color + '"></i></span>' +
+    '<span class="rv-end"><i class="rv-node" style="background:' + color + '"></i><bdi data-no-i18n>' + esc(nodeName) + '</bdi></span>' +
+    '<span class="rv-meta" dir="ltr">' + esc(bits.join(' · ')) + '</span>' +
+    '<span class="badge ' + (q === 'good' ? 'ok' : q === 'down' ? 'err' : 'warn') + '"><span class="dot"></span>' + esc(tr('', label)) + '</span>' +
+  '</div>';
+}
+
+function agentsRenderTunnels() {
+  const box = $('agTunnelsList');
+  if (!box) return;
+  if (!_agTunnels.length) {
+    box.innerHTML = agentsEmpty('No agent tunnels yet — pair a hub agent with a node agent');
+    return;
+  }
+  box.innerHTML = _agTunnels.map(t => {
+    const badge = agentTunnelStateBadge(t.state);
+    const err = t.error ? ' title="' + esc(t.error) + '"' : '';
+    const endpointDot = ep => {
+      const on = ep && ep.online;
+      const name = (ep && (ep.agent_name || ep.agent_id)) || '?';
+      return '<span class="ag-dot ag-dot-' + (on ? 'online' : 'offline') + '" role="img" aria-label="' + esc(name + (on ? ' · online' : ' · offline')) + '"></span><bdi data-no-i18n>' + esc(name) + '</bdi>';
+    };
+    const health = t.health ? agentHealthChip(t.health) : '<span class="u-hint-12">' + esc(tr('', 'UNKNOWN')) + '</span>';
+    const ports = (t.ports || []).map(p => '<span class="ag-port u-mono">' + esc(String(p)) + '</span>').join(' ');
+    return '<div class="ag-tunnel">' +
+      '<div class="ag-card-head">' +
+        '<span class="ag-tunnel-name">' + esc(t.name || t.id) + '</span>' +
+        '<span class="badge ' + badge.cls + '"' + err + '><span class="dot"></span>' + esc(badge.label) + '</span>' +
+        '<span class="badge dim u-mono" data-no-i18n>' + esc(t.instance || '') + '</span>' +
+        '<span class="u-ml-auto ag-tunnel-eps"><span class="u-hint-12">HUB</span> ' + endpointDot(t.hub) + ' · <span class="u-hint-12">NODE</span> ' + endpointDot(t.node) + '</span>' +
+        agentRouteHealth(t) +
+      '</div>' +
+      '<div class="ag-card-foot ag-tunnel-foot">' +
+        '<span>' + health + '</span>' +
+        (ports ? '<span>' + ports + '</span>' : '') +
+        '<span class="u-ml-auto u-flex u-gap-8">' +
+          '<button type="button" class="quantum-btn quantum-btn-secondary u-btn-xs" data-ag-power="' + esc(t.id) + '" data-ag-power-on="' + (t.active ? '0' : '1') + '" aria-label="' + esc(t.active ? tr('', 'Power off') : tr('', 'Power on')) + '">' + esc(t.active ? tr('', 'Power off') : tr('', 'Power on')) + '</button>' +
+          '<button type="button" class="quantum-btn quantum-btn-secondary u-btn-xs" data-ag-restart="' + esc(t.id) + '" aria-label="' + esc(tr('', 'Restart tunnel')) + '">' + esc(tr('', 'Restart')) + '</button>' +
+          '<button type="button" class="quantum-btn quantum-btn-danger u-btn-xs" data-ag-del="' + esc(t.id) + '" aria-label="' + esc(tr('', 'Remove tunnel')) + '">' + esc(tr('', 'Remove')) + '</button>' +
+        '</span>' +
+      '</div>' +
+      (t.traffic ? '<div class="ag-tunnel-traffic">' + esc(tr('', 'Traffic')) + ': ' + agentAmplify(t.traffic) + '</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
+function agentTunnelStateBadge(state) {
+  const e = AG_STATE_BADGE[state] || ['dim', state || '—'];
+  return { cls: e[0], label: tr('', e[1]) };
+}
+
+function agentTunnelModalOpen() {
+  const matrixAgents = _agAgents.filter(a => a.status !== 'revoked' && (a.caps || []).includes('matrix'));
+  const opts = matrixAgents.map(a => '<option value="' + esc(a.id) + '">' + esc((a.name || a.id) + ' (' + tr('', a.role === 'iran' ? 'Iran (hub)' : 'Foreign (node)') + ')') + '</option>').join('');
+  $('agTunnelHub').innerHTML = opts || '';
+  $('agTunnelNode').innerHTML = opts || '';
+  if (!matrixAgents.length) {
+    $('agTunnelErr').textContent = tr('', 'No agents with the matrix capability — enroll agents first');
+    $('agTunnelErr').classList.remove('hidden');
+  } else {
+    $('agTunnelErr').classList.add('hidden');
+  }
+  $('agTunnelName').value = '';
+  $('agTunnelPorts').value = '';
+  $('agTunnelMeshPort').value = '0';
+  $('agTunnelFamily').value = 'ipv4';
+  modalShow($('agTunnelModal'), () => {});
+}
+
+async function agentTunnelCreate() {
+  const err = $('agTunnelErr');
+  err.classList.add('hidden');
+  const fail = m => { err.textContent = m; err.classList.remove('hidden'); };
+  let ports;
+  try {
+    ports = agentPortsParse($('agTunnelPorts').value);
+  } catch (e) {
+    fail(tr('', 'Enter 1-20 valid ports (1-65535), separated by commas') + ': ' + e.message);
+    return;
+  }
+  if (ports.length < 1 || ports.length > 20) {
+    fail(tr('', 'Enter 1-20 valid ports (1-65535), separated by commas'));
+    return;
+  }
+  if (ports.includes(22)) {
+    fail(tr('', 'Port 22 cannot be forwarded (it carries the panel SSH)'));
+    return;
+  }
+  const hub = $('agTunnelHub').value, node = $('agTunnelNode').value;
+  if (!hub || !node) {
+    fail(tr('', 'No agents with the matrix capability — enroll agents first'));
+    return;
+  }
+  if (hub === node) {
+    fail(tr('', 'Hub and node must be different agents'));
+    return;
+  }
+  const body = {
+    name: $('agTunnelName').value.trim(),
+    hub_agent_id: hub,
+    node_agent_id: node,
+    family: $('agTunnelFamily').value,
+    port: parseInt($('agTunnelMeshPort').value, 10) || 0,
+    ports,
+  };
+  const btn = $('agTunnelSave');
+  if (btn) btn.disabled = true;
+  try {
+    await api('/api/agent-tunnels', body);
+    modalHide($('agTunnelModal'));
+    toastOk(tr('', 'Tunnel created'), tr('', 'Provisioning runs on both agents; the state updates here.'));
+    agentsRefresh(true);
+  } catch (e) {
+    fail(e.message || String(e));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function agentTunnelPower(id, on) {
+  try {
+    await api('/api/agent-tunnels/' + encodeURIComponent(id) + '/power', { active: !!on });
+    toastOk(on ? tr('', 'Power on') : tr('', 'Power off'), '');
+    agentsRefresh(true);
+  } catch (e) {
+    toastErr(tr('', 'Command failed'), e.message || e);
+  }
+}
+
+async function agentTunnelRestart(id) {
+  try {
+    await api('/api/agent-tunnels/' + encodeURIComponent(id) + '/restart', {});
+    toastOk(tr('', 'Restart'), '');
+    agentsRefresh(true);
+  } catch (e) {
+    toastErr(tr('', 'Command failed'), e.message || e);
+  }
+}
+
+async function agentTunnelDelete(id) {
+  const t = _agTunnels.find(x => x.id === id) || { name: id };
+  if (!await entConfirm(tr('', 'Remove tunnel?'), docTpl('Both agents tear down their local Matrix instance {0}. Forwarded ports stop working.', [t.instance || t.name || id]), tr('', 'Remove'))) return;
+  try {
+    await api('/api/agent-tunnels/' + encodeURIComponent(id), {}, 'DELETE');
+    toastOk(tr('', 'Tunnel removed'), t.name || id);
+    agentsRefresh(true);
+  } catch (e) {
+    toastErr(tr('', 'Remove failed'), e.message || e);
+  }
+}
+
+// ---- wiring: one delegated click handler for all agent actions ----
+(function agentsWire() {
+  const tokenCreate = $('agTokenCreateBtn');
+  if (tokenCreate) tokenCreate.onclick = agentTokenCreate;
+  const tunnelCreate = $('agTunnelCreateBtn');
+  if (tunnelCreate) tunnelCreate.onclick = agentTunnelModalOpen;
+  const refresh = $('agRefreshBtn');
+  if (refresh) refresh.onclick = () => agentsRefresh(false);
+  const save = $('agTunnelSave');
+  if (save) save.onclick = agentTunnelCreate;
+  const cancel = $('agTunnelCancel');
+  if (cancel) cancel.onclick = () => modalHide($('agTunnelModal'));
+  const tX = $('agTunnelX');
+  if (tX) tX.onclick = () => modalHide($('agTunnelModal'));
+
+  const tokenDone = $('agTokenDone');
+  if (tokenDone) tokenDone.onclick = () => modalHide($('agTokenModal'));
+  const tokenX = $('agTokenX');
+  if (tokenX) tokenX.onclick = () => modalHide($('agTokenModal'));
+  const copyBtn = $('agTokenCopy');
+  if (copyBtn) copyBtn.onclick = () => copyAgentText($('agTokenValue').value);
+  const copyCmd = $('agTokenCmdCopy');
+  if (copyCmd) copyCmd.onclick = () => copyAgentText($('agTokenCmd').value);
+
+  const ax = $('agAgentX');
+  if (ax) ax.onclick = agentDetailClose;
+  const aclose = $('agAgentClose');
+  if (aclose) aclose.onclick = agentDetailClose;
+  const arevoke = $('agAgentRevoke');
+  if (arevoke) arevoke.onclick = () => agentRevoke((arevoke.dataset || {}).agId);
+  const aping = $('agAgentPing');
+  if (aping) aping.onclick = agentDiagPing;
+  const aup = $('agAgentUpdate');
+  if (aup) aup.onclick = () => agentUpdateOpen([(aup.dataset || {}).agId].filter(Boolean));
+  const us = $('agUpdateStart');
+  if (us) us.onclick = agentUpdateStart;
+  const uc = $('agUpdateCancel');
+  if (uc) uc.onclick = () => modalHide($('agUpdateModal'));
+  const ux = $('agUpdateX');
+  if (ux) ux.onclick = () => modalHide($('agUpdateModal'));
+  const usel = $('agAgentsUpdateBtn');
+  if (usel) usel.onclick = () => agentUpdateOpen(Array.from(agentSelGet()));
+  const fwb = $('fwDetectBtn'); if (fwb) fwb.onclick = () => { fwDetect(); fwPorts(); };
+  const nob = $('noDetectBtn'); if (nob) nob.onclick = () => { noDetect(); noStatus(); };
+
+  document.addEventListener('change', e => {
+    const cb = e.target && e.target.matches && e.target.matches('.ag-sel');
+    if (!cb) return;
+    const sel = agentSelGet();
+    if (e.target.checked) sel.add(e.target.dataset.agSel); else sel.delete(e.target.dataset.agSel);
+    const updBtn = $('agAgentsUpdateBtn');
+    if (updBtn) updBtn.hidden = sel.size === 0;
+  });
+
+  document.addEventListener('click', e => {
+    const b = e.target.closest;
+    if (!b) return;
+    const tok = e.target.closest('[data-ag-token-revoke]');
+    if (tok) { agentTokenRevoke(tok.dataset.agTokenRevoke); return; }
+    const rev = e.target.closest('[data-ag-revoke]');
+    if (rev) { agentRevoke(rev.dataset.agRevoke); return; }
+    const open = e.target.closest('[data-ag-open]');
+    if (open) { agentDetailOpen(open.dataset.agOpen); return; }
+    const pow = e.target.closest('[data-ag-power]');
+    if (pow) { agentTunnelPower(pow.dataset.agPower, pow.dataset.agPowerOn === '1'); return; }
+    const rst = e.target.closest('[data-ag-restart]');
+    if (rst) { agentTunnelRestart(rst.dataset.agRestart); return; }
+    const del = e.target.closest('[data-ag-del]');
+    if (del) { agentTunnelDelete(del.dataset.agDel); return; }
+  });
+})();
+
+function copyAgentText(text) {
+  (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject())
+    .then(() => toastOk(tr('', 'Copied ✓'), ''))
+    .catch(() => toastWarn(tr('', 'Copy failed'), text));
+}
+// ---- End agents tab ----
+
 // ---- Server usage and named topology attribution, retained for 7 days ----
 let usageTimer = null;
 // Usage columns: one per day for the 7-day range, else the minute points
@@ -8232,6 +9088,7 @@ async function refreshRightSidebarLogs() {
     const lines = (s.lines || (s.logs ? s.logs.trim().split('\n') : [])).filter(l => l && !/^-- /.test(l));
     const up = $('rsUpdated');
     if (up) { const d = new Date(); up.textContent = tr('rs_updated', 'Updated') + ' ' + [d.getHours(), d.getMinutes(), d.getSeconds()].map(n => String(n).padStart(2, '0')).join(':'); }
+    const retryEl = document.getElementById('rsRetry'); if (retryEl) retryEl.remove();
     const sig = lines.join('\n');
     if (sig === rsState.sig && rs.querySelector('.rs-ev, .ent-empty')) return true;
     rsState.sig = sig;
@@ -8239,8 +9096,20 @@ async function refreshRightSidebarLogs() {
     rsDraw();
     return true;
   } catch(e) {
-    reportErr('rslogs', e);
-    if (rs && !rs.querySelector('.rs-ev')) rs.innerHTML = stateError(e.message, 'rslogs', true);
+    // Soft error: keep last-good events and show a quiet retry line; a hard
+    // error card only replaces an empty stream. Transient 401s after a
+    // controller restart must not wipe the panel.
+    if (rs && rsState.events.length) {
+      if (!document.getElementById('rsRetry')) {
+        const d = document.createElement('div');
+        d.id = 'rsRetry'; d.className = 'u-hint-12'; d.dir = 'auto';
+        d.textContent = tr('rs_retrying', 'Connection interrupted — retrying…');
+        rs.prepend(d);
+      }
+    } else {
+      reportErr('rslogs', e);
+      if (rs && !rs.querySelector('.rs-ev')) rs.innerHTML = stateError(e.message, 'rslogs', true);
+    }
     return false;
   }
 }

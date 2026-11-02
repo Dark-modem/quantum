@@ -1,0 +1,10 @@
+{
+  "direction": "upload",
+  "requested_bytes": 20971520,
+  "http_status": 200,
+  "bytes": 20971520,
+  "elapsed_s": 23.766,
+  "rate_mbps": 7.059,
+  "complete": true,
+  "status": "ok"
+}

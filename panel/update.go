@@ -6,7 +6,10 @@ package main
 // never leave the system in a broken state on failure.
 
 import (
+	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -163,6 +166,16 @@ func handleUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Authenticity beyond the same-origin manifest (M2): when the release
+	// ships a detached ed25519 signature (<asset>.sig), it MUST verify
+	// against the pinned update key. Releases without one still rely on the
+	// checksum manifest until the signing workflow lands (gap-analysis G7).
+	if err := verifyAssetSignature(tmpPath, dlURL, asset); err != nil {
+		LogSecurityAudit("update_signature_failed", cfg.Username, ClientIP(r), "asset="+asset+" err="+err.Error())
+		writeAPIError(w, r, "E-UPDATE-07", err.Error())
+		return
+	}
+
 	if err := verifyELF(tmpPath); err != nil {
 		LogSecurityAudit("update_failed", cfg.Username, ClientIP(r), "ELF verification failed: "+err.Error())
 		writeAPIError(w, r, "E-UPDATE-03", err.Error())
@@ -251,6 +264,63 @@ func verifyAssetChecksum(tmpPath, tag, asset string) error {
 		return err
 	}
 	LogSecurityAudit("update_checksum_verified", "system", "local", "asset="+asset+" sha256="+expected)
+	return nil
+}
+
+// verifyAssetSignature checks the release's detached ed25519 signature
+// (<asset>.sig, base64 over the artifact bytes) against the pinned update
+// key. Session 4 gate (SU-1): verification is FAIL-CLOSED — a build with no
+// pinned key and a release without a signature are REFUSED. The only bypass
+// is the explicit emergency override QUANTUM_UPDATE_ALLOW_UNSIGNED=1, which
+// is audited on every use, must be set deliberately by the operator, and is
+// documented as an emergency measure to be removed once the signing workflow
+// is live. Invalid, malformed, or wrong-key signatures always fail.
+func verifyAssetSignature(tmpPath, dlURL, asset string) error {
+	override := os.Getenv("QUANTUM_UPDATE_ALLOW_UNSIGNED") == "1"
+	if agentUpdatePubKeyPEM == "" {
+		if !override {
+			LogSecurityAudit("update_signature_refused", "system", "local", "no update public key pinned in this build; asset="+asset)
+			return errors.New("update refused: no update public key is pinned in this build (set QUANTUM_UPDATE_ALLOW_UNSIGNED=1 only as an audited emergency)")
+		}
+		LogSecurityAudit("update_signature_skipped_emergency", "system", "local", "no pinned key; QUANTUM_UPDATE_ALLOW_UNSIGNED=1 override in effect; asset="+asset)
+		return nil
+	}
+	sigResp, err := http.Get(dlURL + ".sig") //nolint — same release origin as the artifact
+	if err != nil {
+		return fmt.Errorf("cannot fetch the artifact signature: %w", err)
+	}
+	defer sigResp.Body.Close()
+	if sigResp.StatusCode == http.StatusNotFound {
+		if !override {
+			LogSecurityAudit("update_signature_refused", "system", "local", "release ships no signature (.sig 404); asset="+asset)
+			return errors.New("update refused: the release does not ship a detached signature (.sig); QUANTUM_UPDATE_ALLOW_UNSIGNED=1 overrides this emergency-only")
+		}
+		LogSecurityAudit("update_signature_absent_emergency", "system", "local", "release unsigned; QUANTUM_UPDATE_ALLOW_UNSIGNED=1 override in effect; asset="+asset)
+		return nil
+	}
+	if sigResp.StatusCode != http.StatusOK {
+		return fmt.Errorf("signature fetch returned HTTP %d", sigResp.StatusCode)
+	}
+	sigBytes, err := io.ReadAll(io.LimitReader(sigResp.Body, 4096))
+	if err != nil {
+		return err
+	}
+	sig, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(sigBytes)))
+	if err != nil || len(sig) != ed25519.SignatureSize {
+		return errors.New("artifact signature is malformed")
+	}
+	key, err := agentUpdateVerifyKey(agentUpdatePubKeyPEM)
+	if err != nil {
+		return err
+	}
+	artifact, err := os.ReadFile(tmpPath)
+	if err != nil {
+		return err
+	}
+	if !ed25519.Verify(key, artifact, sig) {
+		return errors.New("artifact signature verification FAILED")
+	}
+	LogSecurityAudit("update_signature_verified", "system", "local", "asset="+asset)
 	return nil
 }
 

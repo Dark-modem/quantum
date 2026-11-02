@@ -1,0 +1,7 @@
+{
+  "netem": true,
+  "tun": true,
+  "tcpdump": true,
+  "tincd": "tinc version 1.0.36",
+  "kernel": "6.6.87.2-microsoft-standard-WSL2"
+}

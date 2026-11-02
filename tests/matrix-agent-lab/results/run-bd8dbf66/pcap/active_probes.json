@@ -1,0 +1,51 @@
+{
+  "target": "10.100.0.1",
+  "port": 2097,
+  "probes": [
+    {
+      "probe": "tcp_connect_close",
+      "transport": "tcp",
+      "connect": "accepted",
+      "elapsed_s": 0.0
+    },
+    {
+      "probe": "tcp_garbage_bytes",
+      "transport": "tcp",
+      "connect": "accepted",
+      "response_bytes": 0,
+      "behavior": "no response (timeout)",
+      "elapsed_s": 5.003
+    },
+    {
+      "probe": "http_get",
+      "transport": "tcp",
+      "connect": "accepted",
+      "response_bytes": 0,
+      "behavior": "no response (timeout)",
+      "elapsed_s": 5.004
+    },
+    {
+      "probe": "tls_client_hello",
+      "transport": "tcp",
+      "connect": "accepted",
+      "response_bytes": 0,
+      "behavior": "no response (timeout)",
+      "elapsed_s": 5.005
+    },
+    {
+      "probe": "tinc_style_id_line",
+      "transport": "tcp",
+      "connect": "accepted",
+      "response_bytes": 0,
+      "behavior": "no response (timeout)",
+      "elapsed_s": 5.005
+    },
+    {
+      "probe": "udp_single_packet",
+      "transport": "udp",
+      "response_bytes": 0,
+      "behavior": "no response (timeout)",
+      "elapsed_s": 5.004
+    }
+  ]
+}

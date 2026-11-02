@@ -1,0 +1,186 @@
+{
+  "tests": [
+    {
+      "id": "T01_startup",
+      "status": "pass",
+      "summary": "Matrix reachable through tunnel in 3.90s",
+      "detail": {
+        "establishment_s": 3.9,
+        "target": "172.16.99.2"
+      }
+    },
+    {
+      "id": "T07_cpu",
+      "status": "pass",
+      "summary": "engine CPU 11.27% of one core during controlled transfer",
+      "detail": {
+        "cpu_pct_of_one_core": 11.27,
+        "source": "resources.csv (tincd pids)"
+      }
+    },
+    {
+      "id": "T08_ram",
+      "status": "pass",
+      "summary": "engine RSS peak 6400 kB",
+      "detail": {
+        "rss_peak_kb": 6400,
+        "source": "resources.csv (tincd pids)"
+      }
+    },
+    {
+      "id": "T05_throughput",
+      "status": "pass",
+      "summary": "controlled 100 MiB down in 5 windows; see detail",
+      "detail": {
+        "subwindow_mib": 20,
+        "subwindows": 5,
+        "requested_total_mib": 100,
+        "actual_total_mib": 100,
+        "download": {
+          "rates_mbps": [
+            7.067,
+            7.066,
+            7.06,
+            7.067,
+            7.047
+          ],
+          "mean_mbps": 7.061,
+          "cv_pct": 0.11,
+          "detail": [
+            {
+              "direction": "download",
+              "requested_bytes": 20971520,
+              "bytes": 20971520,
+              "elapsed_s": 23.739,
+              "rate_mbps": 7.067,
+              "complete": true,
+              "status": "ok"
+            },
+            {
+              "direction": "download",
+              "requested_bytes": 20971520,
+              "bytes": 20971520,
+              "elapsed_s": 23.743,
+              "rate_mbps": 7.066,
+              "complete": true,
+              "status": "ok"
+            },
+            {
+              "direction": "download",
+              "requested_bytes": 20971520,
+              "bytes": 20971520,
+              "elapsed_s": 23.763,
+              "rate_mbps": 7.06,
+              "complete": true,
+              "status": "ok"
+            },
+            {
+              "direction": "download",
+              "requested_bytes": 20971520,
+              "bytes": 20971520,
+              "elapsed_s": 23.742,
+              "rate_mbps": 7.067,
+              "complete": true,
+              "status": "ok"
+            },
+            {
+              "direction": "download",
+              "requested_bytes": 20971520,
+              "bytes": 20971520,
+              "elapsed_s": 23.808,
+              "rate_mbps": 7.047,
+              "complete": true,
+              "status": "ok"
+            }
+          ]
+        },
+        "upload_detail": [
+          {
+            "direction": "upload",
+            "requested_bytes": 20971520,
+            "http_status": 200,
+            "bytes": 20971520,
+            "elapsed_s": 23.744,
+            "rate_mbps": 7.066,
+            "complete": true,
+            "status": "ok"
+          },
+          {
+            "direction": "upload",
+            "requested_bytes": 20971520,
+            "http_status": 200,
+            "bytes": 20971520,
+            "elapsed_s": 23.889,
+            "rate_mbps": 7.023,
+            "complete": true,
+            "status": "ok"
+          },
+          {
+            "direction": "upload",
+            "requested_bytes": 20971520,
+            "http_status": 200,
+            "bytes": 20971520,
+            "elapsed_s": 23.814,
+            "rate_mbps": 7.045,
+            "complete": true,
+            "status": "ok"
+          },
+          {
+            "direction": "upload",
+            "requested_bytes": 20971520,
+            "http_status": 200,
+            "bytes": 20971520,
+            "elapsed_s": 23.87,
+            "rate_mbps": 7.029,
+            "complete": true,
+            "status": "ok"
+          },
+          {
+            "direction": "upload",
+            "requested_bytes": 20971520,
+            "http_status": 200,
+            "bytes": 20971520,
+            "elapsed_s": 23.766,
+            "rate_mbps": 7.059,
+            "complete": true,
+            "status": "ok"
+          }
+        ]
+      }
+    },
+    {
+      "id": "T06_recovery",
+      "status": "pass",
+      "summary": "tunnel re-established 5.17s after 8s blackout; transfer complete=true",
+      "detail": {
+        "reestablish_s": 5.17,
+        "blackout_s": 8,
+        "transfer_complete": true
+      }
+    },
+    {
+      "id": "T09_iface_counters",
+      "status": "pass",
+      "summary": "per-namespace interface RX/TX deltas recorded in counters.phases",
+      "detail": {}
+    },
+    {
+      "id": "T10_transport_traffic",
+      "status": "pass",
+      "summary": "tunnel wire bytes (tlink rx/tx + acct chains) recorded per phase",
+      "detail": {}
+    },
+    {
+      "id": "T11_payload",
+      "status": "pass",
+      "summary": "exact HTTP payload bytes recorded per direction (client-side socket accounting)",
+      "detail": {}
+    },
+    {
+      "id": "T12_amplification",
+      "status": "pass",
+      "summary": "derived ratios in counters section; UNKNOWN where unmeasurable",
+      "detail": {}
+    }
+  ]
+}

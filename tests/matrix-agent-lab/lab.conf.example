@@ -1,0 +1,93 @@
+# =====================================================================
+# Quantum Matrix Agent Lab — configuration
+# Copy to lab.conf and adjust. Every value here is a LAB value; nothing
+# in this file points at production. Do NOT put production IPs here.
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# Engine under test
+#   real        : two real Matrix (tinc) instances, one per namespace.
+#                 This is the same core matrix.sh installs (tincd).
+#   calibration : no tunnel at all — plain IP forwarding between the
+#                 two namespaces. Used ONLY to validate the accounting
+#                 math (expected amplification ~1.0). NOT a tunnel.
+#   external    : your own engine command (Quantum Matrix Agent MVP,
+#                 or anything else). Must honor the placeholders:
+#                   {confdir} {node} {runid}
+#                 and run in the foreground of the given namespace.
+# ---------------------------------------------------------------------
+ENGINE_MODE="real"
+# Only used when ENGINE_MODE="external". Example:
+# ENGINE_CMD="/opt/quantum/matrix-agent --role {node} --state {confdir}"
+
+# ---------------------------------------------------------------------
+# Traffic accounting / billing semantics
+# ---------------------------------------------------------------------
+# Billing model describes HOW the provider counts billable bytes.
+# It is configurable on purpose and MUST NOT be guessed from interface
+# names. Supported:
+#   interface-counter : delta of the physical NIC byte counters during
+#                       a test window (lab: the two iran-side veths
+#                       wan0+tlink emulate ONE physical provider NIC).
+#   provider-api      : provider exposes billing via an API/quota panel.
+#                       The lab CANNOT speak it — any ratio computed
+#                       under this model is reported as UNKNOWN.
+#   quota-panel       : same as provider-api.
+BILLING_MODEL="interface-counter"
+
+# The lab stand-in for the Iranian physical NIC. In "split" lab topology
+# the client-facing veth (wan0) and the tunnel-facing veth (tlink) are
+# summed, because in production both ride the same physical NIC.
+BILLING_IFACE_PHYS="wan0 tlink"
+
+# Matrix interface (tinc tun device) on the iran side.
+BILLING_IFACE_TUNNEL="matrix"
+
+# Backend for counter reads:
+#   auto     : iptables accounting chains inside lab namespaces when
+#              available, procfs interface counters always as baseline.
+#   procfs   : /sys/class/net/<iface>/statistics/{rx,tx}_bytes only.
+#   iptables : ns-local mangle accounting chains (created inside lab
+#              namespaces ONLY — the root firewall is never touched).
+COUNTER_BACKEND="auto"
+
+# Router-side exclusions some providers apply before billing (e.g. the
+# provider's own monitoring). Format: one iptables match per line,
+# evaluated BEFORE the accounting rules inside the lab namespace.
+# Empty by default — we do not assume anything.
+BILLING_EXCLUDES=""
+
+# ---------------------------------------------------------------------
+# Payloads and windows
+# ---------------------------------------------------------------------
+# Known payload size for throughput/amplification runs (MiB).
+# 100 = the canonical acceptance run; smoke runs may set 16.
+PAYLOAD_MIB="100"
+
+# Latency probe window in seconds (ping -i 0.2 through the tunnel).
+LATENCY_WINDOW_S="60"
+
+# Throughput stability: number of sequential sub-transfers.
+THROUGHPUT_SUBWINDOWS="5"
+
+# Link interruption (recovery test): seconds the lab holds the tunnel
+# veth down before releasing it.
+BLACKOUT_S="8"
+
+# ---------------------------------------------------------------------
+# Address plan (lab-only, RFC1918, unique per run prefix is applied to
+# every namespace/interface NAME; addresses are fixed for simplicity)
+# ---------------------------------------------------------------------
+IRAN_TUN_IP="172.16.99.1"      # matrix on the iran side
+KHAREJ_TUN_IP="172.16.99.2"    # matrix on the kharej side
+IRAN_WAN_IP="10.100.0.1"       # client-facing veth
+CLIENT_WAN_IP="10.100.0.2"
+IRAN_TLINK_IP="10.200.0.1"     # tunnel-facing veth
+KHAREJ_TLINK_IP="10.200.0.2"
+
+# Matrix transport port (matrix.sh default 2097, TCP+UDP).
+MATRIX_PORT="2097"
+
+# Payload service port on the kharej side (reached through the tunnel
+# via the iran-side DNAT, exactly like matrix.sh tunnel_helper does).
+PAYLOAD_PORT="8080"

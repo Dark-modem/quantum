@@ -1,0 +1,7 @@
+{
+  "mode": "real",
+  "tincd": "tinc version 1.0.36",
+  "conf_dirs": "/opt/qmx-lab/results/run-b6c83d54/engine/<node> (per-run; /etc/tinc untouched)",
+  "startup_establishment_s": 3.9,
+  "payload_server_pid": "33056"
+}

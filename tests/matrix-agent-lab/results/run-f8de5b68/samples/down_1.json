@@ -1,0 +1,9 @@
+{
+  "direction": "download",
+  "requested_bytes": 3145728,
+  "bytes": 3145728,
+  "elapsed_s": 0.019,
+  "rate_mbps": 1348.37,
+  "complete": true,
+  "status": "ok"
+}

@@ -1,0 +1,20 @@
+{
+  "amplification": {
+    "download": 1.1246,
+    "upload": 1.1015,
+    "note": "numerator = sum of configured BILLING_IFACE_PHYS rx deltas (iran ns) over the same transfer window; UNKNOWN when any side is unmeasurable"
+  },
+  "transport_overhead": {
+    "download": 1.0752,
+    "upload": 1.0804
+  },
+  "matrix_iface_vs_payload": {
+    "download": 1.0376,
+    "upload": 1.0258
+  },
+  "payload_bytes": {
+    "download": 104857600,
+    "upload": 104857600
+  },
+  "unknown_policy": "any unmeasurable ratio is reported as UNKNOWN, never estimated silently"
+}

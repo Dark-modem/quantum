@@ -1,0 +1,9 @@
+{
+  "id": "T03_jitter",
+  "status": "pass",
+  "summary": "mean deviation 16.247ms",
+  "detail": {
+    "jitter_ms": 16.247,
+    "source": "T02 samples"
+  }
+}

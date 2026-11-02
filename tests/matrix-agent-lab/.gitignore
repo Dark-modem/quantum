@@ -1,0 +1,6 @@
+# Lab run artifacts: heavy/raw items stay out; reports, fragments and
+# JSON samples are committed as evidence of executed tests.
+*.pcap
+*.priv
+*.log
+__pycache__/

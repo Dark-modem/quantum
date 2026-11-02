@@ -59,6 +59,9 @@ type panelConfig struct {
 	TerminalAllowIPs []string `json:"terminal_allow_ips,omitempty"`
 	// TLSPort is the HTTPS listener port (default 7443). HTTP stays on Port.
 	TLSPort int `json:"tls_port,omitempty"`
+	// BindHost restricts both listeners to one address (e.g. "127.0.0.1"
+	// behind a reverse proxy). Empty binds all interfaces (default).
+	BindHost string `json:"bind_host,omitempty"`
 	// DebugEnabled mounts /debug/pprof behind auth (also QUANTUM_PPROF=1).
 	DebugEnabled bool `json:"debug_enabled,omitempty"`
 	// RevPathAuto enables automatic application of reverse-path fixes
@@ -90,8 +93,8 @@ func effectiveTLSPort() int {
 var (
 	cfg panelConfig
 	// panelVersion is set at release build time:
-	// go build -ldflags "-X main.panelVersion=v1.27.2"
-	panelVersion = "v1.27.2"
+	// go build -ldflags "-X main.panelVersion=v1.29.0"
+	panelVersion = "v1.29.0"
 	// panelMux is shared between the HTTP listener and the HTTPS listener.
 	panelMux *http.ServeMux
 )
@@ -192,14 +195,28 @@ func saveConfigAtomic(c panelConfig) error {
 
 // ---- auto port: never fail install when the HTTP/TLS port is taken ----
 
-// portFree reports whether TCP :port can be bound right now.
+// portFree reports whether TCP :port can be bound right now. It is
+// bind_host aware: with bind_host set (reverse-proxy mode) it probes the
+// configured host instead of all interfaces, so the panel never
+// auto-switches away from a port it holds on loopback.
 func portFree(port int) bool {
-	ln, err := net.Listen("tcp", ":"+strconv.Itoa(port))
+	ln, err := net.Listen("tcp", panelBindAddr(port))
 	if err != nil {
 		return false
 	}
 	_ = ln.Close()
 	return true
+}
+
+// panelBindAddr builds the listen address for the panel's listeners,
+// honoring panel.json bind_host (reverse-proxy mode: "127.0.0.1" keeps
+// the panel private behind nginx). Empty binds all interfaces.
+func panelBindAddr(port int) string {
+	host := strings.TrimSpace(cfg.BindHost)
+	if host == "" {
+		return fmt.Sprintf(":%d", port)
+	}
+	return net.JoinHostPort(host, strconv.Itoa(port))
 }
 
 // pickFreePort scans upward from start for the first bindable TCP port
@@ -514,7 +531,7 @@ func main() {
 			fmt.Println(panelVersion)
 			return
 		case "--help", "-h", "help":
-			fmt.Println("Usage: gre-panel [password <new-password> | info | version | tls [status|issue|renew|remove|ip|custom] | settings [show|2fa off|terminal on|off|idle N] | doctor [check|fix] | tls-proxy | pathtest | cluster [status|pool|member|join-code|add-hub|events|rules|reset]]")
+			fmt.Println("Usage: gre-panel [password <new-password> | info | version | tls [status|issue|renew|remove|ip|custom] | settings [show|2fa off|terminal on|off|idle N] | doctor [check|fix] | tls-proxy | pathtest | cluster [status|pool|member|join-code|add-hub|events|rules|reset] | firewall [detect|snapshot|plan|apply|teardown] | ports [list|check]]")
 			return
 		case "tls-proxy":
 			os.Exit(tlsProxyCmd(os.Args[2:]))
@@ -536,6 +553,19 @@ func main() {
 			os.Exit(cliSettings(os.Args[2:]))
 		case "doctor":
 			os.Exit(cliDoctor(os.Args[2:]))
+		case "agent":
+			// Headless endpoint agent: own runtime, never touches the
+			// panel's listeners, registry or background workers.
+			os.Exit(agentCmd(os.Args[2:]))
+		case "netopt":
+			// Network Optimization subsystem (Session 2): measure, plan,
+			// apply/rollback owned tuning. See docs/NETOPT-INVENTORY.md.
+			// Never touches SSH, firewall or ports (Sessions 1/6 own them).
+			os.Exit(cliNetOpt(os.Args[2:]))
+		case "firewall", "ports":
+			// Firewall & port engine CLI (Session 1): plan is dry-run,
+			// apply/teardown are --yes-gated; all output is JSON.
+			os.Exit(firewallCLI(os.Args[1], os.Args[2:]))
 		}
 	}
 	if v := os.Getenv("GRE_PANEL_DIR"); v != "" {
@@ -552,6 +582,7 @@ func main() {
 	}
 	validateConfigDirs()
 	loadOrInit()
+	wireAgentSubsystem()
 	ensureFreeHTTPPort()
 	if n, err := upgradeBagherKeyLocks(); err != nil {
 		log.Printf("bagher: upgrading key restrictions in %s: %v", authorizedKeysPath, err)
@@ -666,6 +697,31 @@ func main() {
 	mux.HandleFunc("POST "+base+"/api/topologies/{id}/active", requireAuth(requireCSRF(handleTopologyPowerPost)))
 	mux.HandleFunc("POST "+base+"/api/matrix/edit", requireAuth(requireCSRF(handleMatrixEdit)))
 	mux.HandleFunc("POST "+base+"/api/matrix/register", handleMatrixRegister)
+
+	// Agents: central controller <-> lightweight endpoint agents. The
+	// enroll + WS routes authenticate with agent credentials, not sessions.
+	mux.HandleFunc("POST "+base+"/api/agent/enroll", handleAgentEnroll)
+	mux.HandleFunc("GET "+base+"/api/agent/ws", handleAgentWS)
+	mux.HandleFunc("GET "+base+"/api/agents", requireAuth(handleAgentsGet))
+	mux.HandleFunc("POST "+base+"/api/agents/tokens", requireAuth(requireCSRF(handleAgentTokenPost)))
+	mux.HandleFunc("GET "+base+"/api/agents/tokens", requireAuth(handleAgentTokensGet))
+	mux.HandleFunc("POST "+base+"/api/agents/tokens/{id}/revoke", requireAuth(requireCSRF(handleAgentTokenRevoke)))
+	mux.HandleFunc("GET "+base+"/api/agents/{id}", requireAuth(handleAgentGet))
+	mux.HandleFunc("POST "+base+"/api/agents/{id}/revoke", requireAuth(requireCSRF(handleAgentRevoke)))
+	mux.HandleFunc("POST "+base+"/api/agents/{id}/command", requireAuth(requireCSRF(handleAgentCommandPost)))
+	mux.HandleFunc("POST "+base+"/api/agents/{id}/desired", requireAuth(requireCSRF(handleAgentDesiredPost)))
+	mux.HandleFunc("POST "+base+"/api/agents/{id}/update", requireAuth(requireCSRF(handleAgentUpdatePost)))
+	mux.HandleFunc("POST "+base+"/api/agents/{id}/op", requireAuth(requireCSRF(handleAgentOpPost)))
+	// Agent artifact delivery: integrity is enforced by the mandatory
+	// ed25519 signature + digest on both controller and agent, not by
+	// transport auth (release binaries are public artifacts).
+	mux.HandleFunc("GET "+base+"/api/agent/artifact/{name}", handleAgentArtifactGet)
+	mux.HandleFunc("GET "+base+"/api/agent-tunnels", requireAuth(handleAgentTunnelsGet))
+	mux.HandleFunc("POST "+base+"/api/agent-tunnels", requireAuth(requireCSRF(handleAgentTunnelsPost)))
+	mux.HandleFunc("POST "+base+"/api/agent-tunnels/{id}/power", requireAuth(requireCSRF(handleAgentTunnelPower)))
+	mux.HandleFunc("POST "+base+"/api/agent-tunnels/{id}/restart", requireAuth(requireCSRF(handleAgentTunnelRestart)))
+	mux.HandleFunc("DELETE "+base+"/api/agent-tunnels/{id}", requireAuth(requireCSRF(handleAgentTunnelDelete)))
+
 	mux.HandleFunc("GET "+base+"/api/update/peer", requireAuth(handleUpdatePeer))
 	mux.HandleFunc("POST "+base+"/api/setup", requireAuth(requireCSRF(handleSetupPost)))
 	mux.HandleFunc("GET "+base+"/api/peers", requireAuth(handlePeersGet))
@@ -765,7 +821,7 @@ func main() {
 	mux.HandleFunc("GET "+base+"/api/pathtest", requireAuth(handlePathTestGet))
 	mux.HandleFunc("POST "+base+"/api/pathtest", requireAuth(requireCSRF(handlePathTestPost)))
 
-	addr := fmt.Sprintf(":%d", cfg.Port)
+	addr := panelBindAddr(cfg.Port)
 	log.Printf("gre-panel listening on %s under /%s", addr, cfg.BasePath)
 	histStop := make(chan struct{})
 	startHistoryPersistence(histStop)
@@ -802,7 +858,10 @@ func main() {
 		}
 	}
 	srv := &http.Server{
-		Handler:           panelChain(mux),
+		// errorPagesMiddleware renders the branded Persian error page for
+		// browser navigations only; API JSON and WebSocket upgrades pass
+		// through untouched (innermost, inside the security headers).
+		Handler:           panelChain(errorPagesMiddleware(mux)),
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}

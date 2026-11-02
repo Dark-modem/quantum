@@ -268,6 +268,18 @@ lines in the Logs tab. `HTTP 0` means the code is a log annotation, not an HTTP 
 | `E-MATRIX-09` | 409 | another package installation is still running | Matrix waited for apt/dpkg without deleting locks or stopping processes. Wait for the other installation to finish, then retry. |
 | `E-MATRIX-10` | 400 | matrix port occupied | The mesh port must be a free TCP+UDP port — 443 is usually taken by your web/Xray traffic. Pick another port or leave it automatic. |
 
+## E-AGENT-xx — AGENT
+
+| Code | HTTP | Meaning | What to do |
+| --- | --- | --- | --- |
+| `E-AGENT-01` | 504 | agent is offline or timed out | The endpoint agent is not connected — check `systemctl status gre-agent` on the endpoint, then retry. |
+| `E-AGENT-02` | 403 | operation not allowed for agents | Only the allowlisted Matrix lifecycle and diagnostic commands can be sent. |
+| `E-AGENT-03` | 404 | no such agent or tunnel | Reload the Agents tab: the agent or tunnel may have been removed already. |
+| `E-AGENT-04` | 503 | the agent hub is not available | The controller agent subsystem is not wired up on this panel — update the panel binary. |
+| `E-AGENT-05` | 400 | invalid agent request | Check the fields: distinct enrolled agents with the matrix capability, 1-20 forwarded ports, family ipv4/ipv6. |
+| `E-AGENT-06` | 502 | the endpoint refused the tunnel command | See the per-agent errors: one endpoint rejected start/stop/restart — its agent log (journalctl -u gre-agent) has the cause. |
+| `E-AGENT-07` | 400 | agent update refused | The artifact must be https, match the agent architecture, and carry a valid ed25519 signature from the pinned update key — or no update key is pinned in this build. |
+
 ## E-ACCESS-xx — ACCESS
 
 | Code | HTTP | Meaning | What to do |
@@ -277,4 +289,4 @@ lines in the Logs tab. `HTTP 0` means the code is a log annotation, not an HTTP 
 | `E-ACCESS-02` | 401 | current password is incorrect | Verify your current password before changing access settings. |
 | `E-ACCESS-03` | 409 | port conflict detected | The requested port is reserved or used by a tunnel/proxy. Pick a free port. |
 
-Total: 151 codes.
+Total: 158 codes.
