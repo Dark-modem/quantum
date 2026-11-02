@@ -441,13 +441,24 @@ ssh_reload() {
 ssh_socket_active() { systemctl is-active --quiet ssh.socket 2>/dev/null; }
 
 # ssh_verify_listening PORT... : 0 when every given port has a live listener
-# (held by sshd or by systemd on behalf of the socket unit).
+# (held by sshd or by systemd on behalf of the socket unit). After a reload
+# or daemon restart the rebind is asynchronous, so the check polls:
+# SSH_LISTEN_TRIES attempts (default 1, preserving the old strict behavior)
+# with SSH_LISTEN_SLEEP seconds (default 1) between attempts. The sshd
+# validation hardening in the Session 6 QA pass set SSH_LISTEN_TRIES=6 at the
+# call site without the helper consuming it — this makes that knob real.
 ssh_verify_listening() {
-    local p
-    for p in "$@"; do
-        ss -tln 2>/dev/null | awk '{print $4}' | grep -E ":${p}$" | grep -q . || return 1
+    local tries="${SSH_LISTEN_TRIES:-1}" sleep_secs="${SSH_LISTEN_SLEEP:-1}"
+    local attempt p ok
+    for ((attempt = 0; attempt < tries; attempt++)); do
+        ok=1
+        for p in "$@"; do
+            ss -tln 2>/dev/null | awk '{print $4}' | grep -E ":${p}$" | grep -q . || { ok=0; break; }
+        done
+        [[ $ok -eq 1 ]] && return 0
+        [[ $attempt -lt $((tries - 1)) ]] && sleep "$sleep_secs"
     done
-    return 0
+    return 1
 }
 
 # ssh_apply : make the validated sshd configuration effective without
