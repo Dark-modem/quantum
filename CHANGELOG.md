@@ -3,6 +3,15 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## v1.29.0 — 2026-11-02
+
+- The Matrix Agent milestone ships: a central Quantum controller manages lightweight endpoint agents over an outbound authenticated WSS channel, with Matrix as the first (and for this release only) tunnel engine. Agents enroll with single-use hashed tokens, keep their identity and last desired state on disk, and keep tunnels running while the controller is unreachable; desired state replays on reconnect.
+- The panel gains the agent surface: an Agents tab (enrollment tokens, agent fleet, per-agent detail with health/traffic/resources, update controls), agent-based Matrix tunnels in the topology view, agent rows in the fleet card, and typed firewall/port and network-optimization operations reachable from the UI. All mutations are confirm-gated and audit-logged on both sides.
+- Signed agent updates: the controller pre-verifies the artifact (digest + Ed25519 against a build-pinned key), the agent re-verifies, swaps the binary atomically, restarts detached, and rolls back after repeated boot failures. CI pins the update public key, signs tag artifacts, and publishes a provenance file.
+- Security gate (Session 4): controller self-update is fail-closed (SU-1), agent downloads are origin-scoped with credentials never leaving the enrolled controller (SU-2), X-Forwarded-For uses the last trusted hop, and the emergency override is audited.
+- Installers: install-controller.sh (standalone product install — binary, isolated service, nginx, Let's Encrypt webroot with verified renewal, WSS route, loopback binding, additive firewall) and install-agent.sh (verified binary, enrollment, systemd, optional SSH bootstrap with key-only qadmin and revert tooling) share installer-lib.sh and a numbered Server Setup menu with independently executable --phase steps.
+- Traffic honesty: agent interfaces report measured counters only; the Iran billable ratio is labeled a server-wide estimate and stays UNKNOWN when counters are unavailable.
+
 ## v1.28.0 — 2026-10-31
 
 - New architecture: one central Quantum controller plus lightweight endpoint agents (`gre-panel agent`), with Matrix as the first engine. The endpoint runs no web panel — a headless runtime dials the controller outbound (zero inbound management ports), stores its last desired state on disk, and keeps the tunnel running under its own systemd unit while the controller is unreachable.
