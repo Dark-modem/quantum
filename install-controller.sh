@@ -421,6 +421,8 @@ preflight_ports() {
     if [[ $p80 -eq 1 || $p443 -eq 1 ]]; then
         if [[ -f "$MARKER_FILE" ]] && systemctl is-active --quiet nginx; then
             ok "ports 80/443 busy but owned by a previous run of this installer (marker present) — idempotent re-run"
+        elif [[ -e /etc/nginx/sites-enabled/quantum-acme-bootstrap.conf || -e /etc/nginx/sites-enabled/quantum-controller.conf ]]; then
+            ok "ports 80/443 busy but claimed by this installer's earlier (aborted) run — idempotent re-run"
         else
             who="$(listener_of 80)"; [[ -n "$who" ]] || who="$(listener_of 443)"
             die "port 80/443 already in use${who:+ by '$who'} and this installer did not put it there. \
