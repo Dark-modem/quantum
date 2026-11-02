@@ -279,6 +279,7 @@ lines in the Logs tab. `HTTP 0` means the code is a log annotation, not an HTTP 
 | `E-AGENT-05` | 400 | invalid agent request | Check the fields: distinct enrolled agents with the matrix capability, 1-20 forwarded ports, family ipv4/ipv6. |
 | `E-AGENT-06` | 502 | the endpoint refused the tunnel command | See the per-agent errors: one endpoint rejected start/stop/restart — its agent log (journalctl -u gre-agent) has the cause. |
 | `E-AGENT-07` | 400 | agent update refused | The artifact must be https, match the agent architecture, and carry a valid ed25519 signature from the pinned update key — or no update key is pinned in this build. |
+| `E-AGENT-08` | 428 | mutation needs explicit confirmation | Fetch the plan first (confirm=false), review it, then resend the same operation with confirm=true. |
 
 ## E-ACCESS-xx — ACCESS
 
@@ -289,4 +290,4 @@ lines in the Logs tab. `HTTP 0` means the code is a log annotation, not an HTTP 
 | `E-ACCESS-02` | 401 | current password is incorrect | Verify your current password before changing access settings. |
 | `E-ACCESS-03` | 409 | port conflict detected | The requested port is reserved or used by a tunnel/proxy. Pick a free port. |
 
-Total: 158 codes.
+Total: 159 codes.

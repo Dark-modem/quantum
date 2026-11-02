@@ -45,6 +45,7 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `GET` | `/api/agents/{id}` | session | `handleAgentGet` |
 | `POST` | `/api/agents/{id}/command` | session + CSRF | `handleAgentCommandPost` |
 | `POST` | `/api/agents/{id}/desired` | session + CSRF | `handleAgentDesiredPost` |
+| `POST` | `/api/agents/{id}/op` | session + CSRF | `handleAgentOpPost` |
 | `POST` | `/api/agents/{id}/revoke` | session + CSRF | `handleAgentRevoke` |
 | `POST` | `/api/agents/{id}/update` | session + CSRF | `handleAgentUpdatePost` |
 | `GET` | `/api/alerts` | session | `handleAlertsGet` |
@@ -190,4 +191,4 @@ Request and response bodies are defined by the handlers named below in `panel/`.
 | `GET` | `/topology.js` | none | `` |
 | `GET` | `/tunnel_overview.js` | none | `` |
 
-Total: 166 routes.
+Total: 167 routes.
