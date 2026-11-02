@@ -42,7 +42,7 @@ jobs:
           fi
           # Pin the Ed25519 update-public key into every production build
           # (SU-1/SU-2 gate: builds without a pinned key refuse updates).
-          UPKEY="$(cat panel/update-pub.b64)"
+          UPKEY="$(cat update-pub.b64)"
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.panelVersion=$VER -X main.agentUpdatePubKeyPEM=$UPKEY" -o ${BIN}-linux-amd64 .
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.panelVersion=$VER -X main.agentUpdatePubKeyPEM=$UPKEY" -o ${BIN}-linux-arm64 .
           if [ "$BIN" != "gre-panel" ]; then
