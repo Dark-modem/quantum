@@ -99,11 +99,29 @@ in production (that path appeared only in earlier test tooling).
 
 ## 4. Handoff notes for Session 3
 
-- Transport: the ops are plain Go functions (`NetopDetect`, `NetopPlan`,
-  `NetopApply`, `NetopStatus`, `NetopRollback`, `NetopRevert` in
-  `panel/netops_api.go`) returning the typed results above — wire them to
-  agent-protocol messages/routes as desired. `--json` on every CLI subcommand
-  already emits these exact shapes.
+- **Dispatcher (recommended entry point):** `NetopDispatch(req NetopRequest) (any, error)`
+  in `panel/netops_api.go` — one typed request, one handler, the stable result
+  types above. Unknown ops are rejected; mutating ops enforce installation +
+  privilege internally.
+
+  ```go
+  type NetopRequest struct {
+      Op      string `json:"op"`                // detect|plan|apply|status|rollback|revert
+      Role    string `json:"role,omitempty"`     // controller|agent|auto ("" = auto)
+      Profile string `json:"profile,omitempty"`  // conservative|balanced|performance|auto
+      Justify string `json:"justify,omitempty"`  // required for profile=performance
+  }
+  ```
+
+  Wire request (example): `{"op":"apply","role":"agent","profile":"balanced"}`
+  → response payload is the `NetopApplyResult` JSON above.
+- The individual typed handlers are also exported for direct use:
+  `NetopDetect()`, `NetopPlan(role netRole, forcedProfile string)`,
+  `NetopApply(role netRole, forcedProfile, justify string, reasons []string)`,
+  `NetopStatus()`, `NetopRollback()`, `NetopRevert()`.
+- Transport: the ops are plain Go functions in `panel/netops_api.go` — wire
+  them to agent-protocol messages/routes as desired. `--json` on every CLI
+  subcommand already emits these exact shapes.
 - Mutating ops called from the protocol must run with the agent's own root
   privileges (the agent service runs as root; the privilege seam enforces it
   for CLI paths).
