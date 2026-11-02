@@ -184,7 +184,18 @@ fw_has_rule() {
 
 fw_allow_port() {
     local role="$1" name="$2" port="$3" proto="${4:-tcp}" limit="${5:-}" verb="allow" tag
+    local bin="${6:-/usr/local/bin/gre-panel}"
     tag="quantum:$role:$name"
+    # Preferred path: Session 1's firewall engine CLI (audited, ownership-
+    # tagged, additive-only, fail-closed). Falls back to the tagged ufw /
+    # iptables paths on pre-engine runtimes. Neither path resets or flushes.
+    if fw_engine_available "$bin"; then
+        if env -u GRE_PANEL_DIR "$bin" firewall apply --yes             --owner "service:quantum-$role-$name" --note "$tag"             --add "$port/$proto" >/dev/null 2>&1; then
+            q_ok "Firewall rule applied via the firewall engine: $tag $port/$proto." "قانون فایروال توسط موتور اعمال شد."
+            return 0
+        fi
+        q_warn "firewall engine declined ($port/$proto); falling back to the local backend." "موتور فایروال نپذیرفت؛ بازگشت به بک‌اند محلی."
+    fi
     if ! fw_available; then
         q_warn "no active firewall manager (ufw/iptables); rule $tag recorded as pending (enforcement is owned by the firewall engine)." "مدیر فایروال فعالی یافت نشد؛ قانون $tag ثبت شد (اعمال با موتور اختصاصی است)."
         return 0
@@ -296,9 +307,11 @@ netopt_prepare_server() { # netopt_prepare_server <role: controller|agent> [bina
 # comments, no forbidden operations) — and records the engine's registry file
 # when present. fw_engine_available reports honestly what the installer can
 # drive TODAY.
-fw_engine_available() { # 0 only when the runtime exposes a firewall CLI
-    local bin="${1:-/usr/local/bin/gre-panel}"
-    [[ -x "$bin" ]] && env -u GRE_PANEL_DIR "$bin" firewall --help >/dev/null 2>&1
+fw_engine_available() { # 0 only when the runtime exposes the Session 1 firewall CLI
+    local bin="${1:-/usr/local/bin/gre-panel}" probe
+    [[ -x "$bin" ]] || return 1
+    probe="$(env -u GRE_PANEL_DIR "$bin" firewall detect 2>&1 || true)"
+    [[ "$probe" == *'"backend"'* ]]
 }
 
 # ---------------------------------------------------------------------------
