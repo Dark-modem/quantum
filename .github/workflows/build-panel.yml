@@ -40,8 +40,11 @@ jobs:
             VER="panel-r${{ github.run_number }}"
             BIN="gre-panel"
           fi
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.panelVersion=$VER" -o ${BIN}-linux-amd64 .
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.panelVersion=$VER" -o ${BIN}-linux-arm64 .
+          # Pin the Ed25519 update-public key into every production build
+          # (SU-1/SU-2 gate: builds without a pinned key refuse updates).
+          UPKEY="$(cat panel/update-pub.b64)"
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.panelVersion=$VER -X main.agentUpdatePubKeyPEM=$UPKEY" -o ${BIN}-linux-amd64 .
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.panelVersion=$VER -X main.agentUpdatePubKeyPEM=$UPKEY" -o ${BIN}-linux-arm64 .
           if [ "$BIN" != "gre-panel" ]; then
             cp ${BIN}-linux-amd64 gre-panel-linux-amd64
             cp ${BIN}-linux-arm64 gre-panel-linux-arm64
@@ -129,6 +132,13 @@ jobs:
             panel/${{ env.BIN_NAME }}-linux-arm64
             panel/gre-panel-linux-amd64
             panel/gre-panel-linux-arm64
+            panel/gre-panel-linux-amd64.sig
+            panel/gre-panel-linux-arm64.sig
+            panel/${{ env.BIN_NAME }}-linux-amd64.sig
+            panel/${{ env.BIN_NAME }}-linux-arm64.sig
             panel/dist/quantum.sh
+            panel/dist/quantum.sh.sig
             panel/dist/grepanel
+            panel/dist/grepanel.sig
             panel/checksums.txt
+            panel/provenance.txt
