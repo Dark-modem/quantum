@@ -181,3 +181,36 @@ flushed (no reset/flush exists anywhere in the file).
    (`fw_remove_port`) does not exist yet in installer-lib.sh — until one
    exists, the engine's `firewall teardown --owner <role>:<name> --yes`
    is the designated remover for installer rules.
+
+## 7. Acceptance addendum (final audit, isolated branch wt/agent-firewall-accept)
+
+- **apply auto-records ownership:** every executed `add` op now upserts the
+  port into `port_registry.json` (`portRegistryRecord`) and every executed
+  or skipped `remove` drops it (`portRegistryForget`). An installer-only
+  `firewall apply --owner service:quantum-controller --add 443/tcp --yes`
+  is therefore self-sufficient — a later
+  `firewall teardown --owner service:quantum-controller --yes` finds and
+  removes exactly that rule with no separate `ports reserve` call.
+  `ReleasedPorts` in the teardown result is now informational (usually 0:
+  the remove path drops the record itself); the authoritative assertion is
+  that the owner has zero registry entries afterwards.
+- **Detect/probe hang root cause (proven, not assumed):** an OLD binary
+  without the `firewall` subcommand does not print an error — its CLI
+  switch had no default case, so `gre-panel firewall detect` fell through
+  into serve mode (full panel instance, background workers, never exits).
+  Proven in a netns: the 62ba5d5 binary hits `timeout` (exit 124) while
+  the patched binary answers instantly, and an unknown subcommand now
+  exits 2 with usage instead of spawning a daemon. The engine's own
+  subprocesses were NEVER unbounded (`fwRun` bounds every command at 15s;
+  worst-case `detect` ≈ 45s) — the hang was purely the dispatch
+  fall-through on pre-engine binaries.
+- **Installer probes bounded (installer-lib.sh, Session 6 to cherry-pick):
+  `fw_engine_available` (`timeout 60`) and the engine apply inside
+  `fw_allow_port` (`timeout 90`). The bounds sit ABOVE the engine's own
+  worst case (each subprocess ≤15s), so they can never mask a real hang —
+  they only convert the old-binary serve-mode spin into a bounded
+  "engine unavailable → local backend fallback".
+- **Acceptance script:** `tests/firewall_acceptance.sh` — 12/12 PASS in a
+  disposable netns (hang proof, fast unknown-command failure, honest
+  pre-install error, dry-run non-mutation, engine apply/teardown with
+  `service:quantum-controller`, audit trail, unrelated-rule preservation).
