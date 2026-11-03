@@ -118,8 +118,8 @@ jobs:
         run: |
           cd panel
           if [ -z "$UPDATE_SIGNING_KEY" ]; then
-            echo "::warning::UPDATE_SIGNING_KEY secret not set — release ships WITHOUT Ed25519 signatures"
-            exit 0
+            echo "::error::UPDATE_SIGNING_KEY secret is not set — refusing to publish an unsigned release (fail-closed; production panels refuse unsigned artifacts; Session 4 gate SU-1)"
+            exit 1
           fi
           printf '%s' "$UPDATE_SIGNING_KEY" > /tmp/up.key
           chmod 600 /tmp/up.key

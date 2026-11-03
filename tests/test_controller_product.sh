@@ -123,6 +123,24 @@ fw_remove_port controller "other" 9999 tcp
 grep -q " -D INPUT" "$IPTLOG" && r9=BAD || r9=skipped
 chk "iptables-no-delete-without-match" "$r9" "skipped"
 
+# --- 3b. ssh_verify_listening retry (SSH_LISTEN_TRIES is a real knob) --------
+mkdir -p "$T/stub2"
+export SSCOUNT="$T/out/sscount"; echo 0 > "$SSCOUNT"
+cat > "$T/stub2/ss" <<'EOF'
+#!/bin/sh
+N=$(cat "$SSCOUNT" 2>/dev/null || echo 0)
+N=$((N + 1)); echo "$N" > "$SSCOUNT"
+# the port appears only from the 3rd poll on (async rebind simulation)
+[ "$N" -ge 3 ] && echo "LISTEN 0 128 0.0.0.0:2222 0.0.0.0:*"
+exit 0
+EOF
+chmod +x "$T/stub2/ss"
+PATH="$T/stub2:$PATH" SSH_LISTEN_TRIES=5 SSH_LISTEN_SLEEP=0 ssh_verify_listening 2222
+chk "retry-eventual-listen" "$?" "0"
+echo 0 > "$SSCOUNT"
+PATH="$T/stub2:$PATH" SSH_LISTEN_TRIES=1 SSH_LISTEN_SLEEP=0 ssh_verify_listening 2222
+chk "retry-no-tries-fails-fast" "$?" "1"
+
 # --- 3. installer-lib syntax + PS1 label rule presence -----------------------
 bash -n "$ROOT/installer-lib.sh" || { echo "FAIL: installer-lib syntax"; fail=1; }
 grep -q "if (\$Label -notmatch '^\[A-Za-z0-9\]\[A-Za-z0-9._-\]{0,63}\$')" "$ROOT/tools/QuantumSshKey.ps1" \

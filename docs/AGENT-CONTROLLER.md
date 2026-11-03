@@ -157,3 +157,10 @@ both issuers against port 80 at once.
 - Traffic history is derived from the latest heartbeat rates; long-range
   per-agent ledgers are a follow-up.
 - The controller keeps one live WS per agent (newest wins).
+- **Agent self-updates are origin-scoped.** `agent.update` artifacts are
+  downloaded only from the controller's own origin (the enrollment server);
+  an update whose URL points anywhere else is refused before any connection
+  is made, and same-origin redirects that change scheme or host abort the
+  download. Serve approved artifacts from `<configDir>/agent-artifacts/` and
+  hand agents `https://<controller>/<base>/api/agent-artifacts/<name>` URLs.
+  The long-term agent key is never sent off-origin.
