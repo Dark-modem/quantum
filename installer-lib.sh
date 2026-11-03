@@ -190,7 +190,11 @@ fw_allow_port() {
     # tagged, additive-only, fail-closed). Falls back to the tagged ufw /
     # iptables paths on pre-engine runtimes. Neither path resets or flushes.
     if fw_engine_available "$bin"; then
-        if env -u GRE_PANEL_DIR "$bin" firewall apply --yes             --owner "service:quantum-$role-$name" --note "$tag"             --add "$port/$proto" >/dev/null 2>&1; then
+        # timeout-bounded: a pre-engine binary without the firewall
+        # subcommand falls through into serve mode and never exits —
+        # bounded here so the installer can fall back to the local
+        # backend instead of hanging forever.
+        if timeout 90 env -u GRE_PANEL_DIR "$bin" firewall apply --yes             --owner "service:quantum-$role-$name" --note "$tag"             --add "$port/$proto" >/dev/null 2>&1; then
             q_ok "Firewall rule applied via the firewall engine: $tag $port/$proto." "قانون فایروال توسط موتور اعمال شد."
             return 0
         fi
@@ -310,7 +314,13 @@ netopt_prepare_server() { # netopt_prepare_server <role: controller|agent> [bina
 fw_engine_available() { # 0 only when the runtime exposes the Session 1 firewall CLI
     local bin="${1:-/usr/local/bin/gre-panel}" probe
     [[ -x "$bin" ]] || return 1
-    probe="$(env -u GRE_PANEL_DIR "$bin" firewall detect 2>&1 || true)"
+    # timeout-bounded, and the bound is NOT arbitrary: the engine bounds
+    # every subprocess at 15s (fwRun), so a healthy-but-slow host finishes
+    # `firewall detect` within ~45s worst case. 60s covers that while
+    # converting the one REAL hang — a PRE-ENGINE binary whose CLI switch
+    # has no firewall case and which falls through into serve mode and
+    # never exits — into a bounded "engine unavailable" answer.
+    probe="$(timeout 60 env -u GRE_PANEL_DIR "$bin" firewall detect 2>&1 || true)"
     [[ "$probe" == *'"backend"'* ]]
 }
 
