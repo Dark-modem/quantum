@@ -80,3 +80,40 @@ If you discover a security vulnerability in `quantum-panel`, please report it re
   - 1 symbol (`!@#$%^&*()-_=+[]{}|;:,.<>?/~`'\"`)
 - Common and easily guessable passwords are systematically rejected by dictionary filtering.
 - Client-side interface includes real-time password strength validation.
+
+## Update-Signing Key Custody & Rotation
+
+The controller and agents verify release artifacts with an Ed25519 key whose
+**public** half is pinned into every production build
+(`panel/update-pub.b64` → `-X main.agentUpdatePubKeyPEM`, asserted by
+`.github/workflows/build-panel.yml`).
+
+- **Generation.** Generate the pair ONCE, off-repository:
+  `openssl genpkey -algorithm ed25519 -out update-signing.key` and
+  `openssl pkey -in update-signing.key -pubout | openssl pkey -pubin -outform DER | base64 -w0 > update-pub.b64`.
+  The private key (`update-signing.key`) lives only in the GitHub Actions
+  secret `UPDATE_SIGNING_KEY` (or an offline HSM/secret manager) — never in
+  the repository, never on the panel host, never in logs.
+- **Signing.** `build-panel.yml` signs every released artifact
+  (`openssl pkeyutl -sign -rawin`) and publishes the detached `.sig` beside
+  it. A tag build without the secret FAILS the workflow (unsigned releases
+  cannot ship).
+- **Verification (owner procedure).** After downloading a release:
+  1. `sha256sum -c checksums.txt`
+  2. `base64 -d update-pub.b64 > update-pub.der && openssl pkey -pubin -inform DER -in update-pub.der -out update-pub.pem`
+  3. `openssl pkeyutl -verify -pubin -inkey update-pub.pem -rawin -in gre-panel-linux-amd64 -sigfile gre-panel-linux-amd64.sig`
+  Repeat step 3 for every downloaded artifact. Both the panel updater and the
+  agents perform exactly this verification and refuse anything else.
+- **Rotation.** Generate a NEW pair, commit the new `update-pub.b64`, and
+  cut a release whose binaries pin the NEW public key. Because verification
+  is fail-closed on both sides, deploy in this order: (1) update the
+  controller(s) first (they verify their own artifacts with the pinned key),
+  (2) update the agents (each fetches artifacts signed by the key pinned in
+  ITS build), (3) only then retire the old private key. Never re-sign old
+  artifacts with the new key for agents that still pin the old one — the
+  signature will be refused. Compromise of the private key: rotate
+  immediately, revoke the compromised release, and re-key every deployment.
+- **Emergency unsigned override.** `QUANTUM_UPDATE_ALLOW_UNSIGNED=1` is an
+  audited, emergency-only escape for the CONTROLLER self-update; it must
+  never be set on production services and must be removed once signing is
+  live.
